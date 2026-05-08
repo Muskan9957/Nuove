@@ -94,11 +94,9 @@
 
 /* ─── Logo mark ──────────────────────────────────────────────────── */
 
-/* Light mode: wordmark switches to deep navy (overrides inline gradient) */
+/* Light mode: wordmark switches to deep navy */
 [data-theme="light"] .nuovve-wordmark {
-  background:           linear-gradient(100deg, #0F1535 0%, #2A3566 100%) !important;
-  -webkit-background-clip: text !important;
-  background-clip:      text !important;
+  color: #0F1535 !important;
 }
 
 /*
