@@ -83,12 +83,13 @@
   --surface-card:    rgba(11,15,46,0.93);
   --surface-card-alt: rgba(15,15,26,0.93);
 
-  /* ── Logo colours — dark mode: cyan → violet (matches reference) ── */
+  /* ── Logo colours — dark mode ── */
   --logo-v1:     #00CCFF;
   --logo-v2:     #9060FF;
   --logo-h1:     #80E8FF;
   --logo-h2:     #C0A0FF;
   --logo-shadow: #0A1880;
+  --logo-word:   #C9A844;   /* warm gold — readable on dark navy/black */
 }
 
 /* ─── Logo mark ──────────────────────────────────────────────────── */
@@ -156,12 +157,13 @@
   --surface-card:     rgba(255,255,255,0.96);
   --surface-card-alt: rgba(255,255,255,0.96);
 
-  /* ── Logo colours — light mode: blue → purple (matches reference light version) ── */
+  /* ── Logo colours — light mode ── */
   --logo-v1:     #3B55F0;
   --logo-v2:     #7B40D0;
   --logo-h1:     #8AABFF;
   --logo-h2:     #C090FF;
   --logo-shadow: #1A30B0;
+  --logo-word:   #0F1535;   /* deep navy — readable on white/light grey */
 }
 
 /* ─── Light Theme — Component Overrides ─────────────────────────── */
