@@ -49,11 +49,10 @@
   --text-faint:  #6B8DB8;
 
   /* ── Typography ── */
-  --font-display: 'Bricolage Grotesque', sans-serif;  /* hero / big moments */
-  --font-head:    'Bricolage Grotesque', sans-serif;  /* all headings */
-  --font-body:    'Plus Jakarta Sans', sans-serif;    /* UI body — geometric, clean */
-  --font-prose:   'Inter', sans-serif;               /* long-form text */
-  --font-creator: 'Bricolage Grotesque', sans-serif; /* big-energy moments */
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-head:    'Plus Jakarta Sans', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-creator: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif; /* big-energy moments */
   --font-mono:    'DM Mono', monospace;
 
   /* ── Shape ── */
@@ -291,10 +290,9 @@ body {
   font-size: 0.9375rem;
   line-height: 1.6;
   min-height: 100vh;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   position: relative;
   overflow-x: hidden;
-  font-feature-settings: 'kern' 1, 'liga' 1;
 }
 
 /* ─── Cosmic navy mesh background (Nuovve theme) ────────────────── */
@@ -377,135 +375,25 @@ body::after {
 h1, h2, h3, h4 {
   font-family: var(--font-head);
   font-weight: 800;
-  line-height: 1.12;
+  line-height: 1.15;
   letter-spacing: -0.03em;
-  color: var(--text);
-}
-
-h1 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  letter-spacing: -0.04em;
-  font-weight: 800;
-}
-
-h2 {
-  font-size: clamp(1.4rem, 2.5vw, 1.9rem);
-  letter-spacing: -0.03em;
-  font-weight: 800;
-}
-
-h3 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-h4 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-p { line-height: 1.65; }
-
-/* ── Eyebrow / section label ── */
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-  opacity: 0.8;
-}
-
-/* ── Page title with gradient ── */
-.page-title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(1.6rem, 3vw, 2.4rem);
-  letter-spacing: -0.04em;
-  line-height: 1.08;
-  background: linear-gradient(110deg, #e8f4ff 0%, #c0d8ff 40%, #a08bff 75%, #e040fb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ── Display hero heading ── */
-.display-heading {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-  background: linear-gradient(120deg, #ffffff 0%, #c8e6ff 30%, #9b6dff 65%, #f040a8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ── Shimmer — animated gradient on text ── */
-@keyframes textShimmer {
-  0%   { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
-.text-shimmer {
-  background: linear-gradient(90deg,
-    #00cfff 0%, #9060ff 25%, #f040a8 50%, #9060ff 75%, #00cfff 100%);
-  background-size: 250% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: textShimmer 5s linear infinite;
-}
-
-/* ── Stat / number display ── */
-.stat-num {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-/* ── Section divider label ── */
-.section-label {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-faint);
 }
 
 /* ─── Gradient Text ──────────────────────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(110deg, #00cfff 0%, #9060ff 55%, #f040a8 100%);
+  background: var(--gradient-vivid);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .text-gradient-warm {
-  background: linear-gradient(110deg, #FFB800 0%, #FF5F1F 50%, #FF3CAC 100%);
+  background: linear-gradient(135deg, #FF9F0A, #FF5F1F, #FF3CAC);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .text-gradient-cool {
-  background: linear-gradient(110deg, #00D4B1 0%, #00a8ff 50%, #7B61FF 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.text-gradient-brand {
-  background: linear-gradient(110deg, #00CFFF 0%, #9060FF 48%, #F040A8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.text-gradient-soft {
-  background: linear-gradient(110deg, #e0f0ff 0%, #c8b0ff 55%, #ffb0d8 100%);
+  background: linear-gradient(135deg, #00D4B1, #7B61FF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -531,9 +419,9 @@ p { line-height: 1.65; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -542,7 +430,7 @@ p { line-height: 1.65; }
   transition: all 0.2s ease;
   text-decoration: none;
   white-space: nowrap;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   position: relative;
   overflow: hidden;
 }
@@ -591,12 +479,11 @@ p { line-height: 1.65; }
 /* ─── Inputs ─────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 7px; }
 .field label {
-  font-family: var(--font-mono);
-  font-size: 0.70rem;
-  font-weight: 500;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
 }
 
 .input, .select, .textarea {
