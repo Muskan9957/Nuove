@@ -14,8 +14,8 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
   const cLo = `${uid}-cl`
   const cUp = `${uid}-cu`
 
-  const wordSize = Math.max(size * 0.90, 24)
-  const gap      = Math.max(size * 0.22, 8)
+  const wordSize = Math.max(size * 0.95, 26)   /* script fonts render a touch smaller optically */
+  const gap      = Math.max(size * 0.20, 7)
 
   return (
     <div
@@ -28,36 +28,6 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
         flexShrink: 0,
       }}
     >
-      {/* ── Keyframes injected once alongside the component ─────── */}
-      <style>{`
-        @keyframes nuovveShimmer {
-          0%   { background-position: 0%   50%; }
-          100% { background-position: 200% 50%; }
-        }
-        .nuovve-wm {
-          font-family:   'Bricolage Grotesque', sans-serif;
-          font-weight:   800;
-          text-transform: uppercase;
-          white-space:   nowrap;
-          letter-spacing: 0.13em;
-          line-height:   1;
-          background: linear-gradient(
-            90deg,
-            #00CFFF  0%,
-            #7B5CF0 30%,
-            #F040A8 55%,
-            #7B5CF0 80%,
-            #00CFFF 100%
-          );
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: nuovveShimmer 5s linear infinite;
-          filter: drop-shadow(0 0 10px rgba(123,92,240,0.55))
-                  drop-shadow(0 0 22px rgba(240,64,168,0.22));
-        }
-      `}</style>
 
       {/* ── Clapperboard icon ──────────────────────────────────── */}
       <svg
@@ -113,8 +83,16 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
       {/* ── Wordmark ───────────────────────────────────────────── */}
       {showWordmark && (
         <span
-          className="nuovve-wm"
-          style={{ fontSize: `${wordSize}px` }}
+          className="nuovve-wordmark"
+          style={{
+            fontFamily:    '"Dancing Script", cursive',
+            fontWeight:    700,
+            fontSize:      `${wordSize}px`,
+            lineHeight:    1,
+            letterSpacing: '0.02em',
+            color:         '#FFFFFF',
+            whiteSpace:    'nowrap',
+          }}
         >
           Nuovve
         </span>
