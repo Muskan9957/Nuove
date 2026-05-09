@@ -2,8 +2,8 @@
  * Nuovve Logo
  *
  * Icon     : Clapperboard (purple/cyan)
- * Wordmark : Bricolage Grotesque 800 — gradient cyan → purple → pink
- *            (mirrors icon colours, Instagram-ish energy)
+ * Wordmark : Bricolage Grotesque 800 — animated shimmer gradient,
+ *            wide tracking, purple glow
  */
 import { useState } from 'react'
 
@@ -14,8 +14,8 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
   const cLo = `${uid}-cl`
   const cUp = `${uid}-cu`
 
-  const wordSize = Math.max(size * 0.76, 22)
-  const gap      = Math.max(size * 0.20, 7)
+  const wordSize = Math.max(size * 0.90, 24)
+  const gap      = Math.max(size * 0.22, 8)
 
   return (
     <div
@@ -28,6 +28,37 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
         flexShrink: 0,
       }}
     >
+      {/* ── Keyframes injected once alongside the component ─────── */}
+      <style>{`
+        @keyframes nuovveShimmer {
+          0%   { background-position: 0%   50%; }
+          100% { background-position: 200% 50%; }
+        }
+        .nuovve-wm {
+          font-family:   'Bricolage Grotesque', sans-serif;
+          font-weight:   800;
+          text-transform: uppercase;
+          white-space:   nowrap;
+          letter-spacing: 0.13em;
+          line-height:   1;
+          background: linear-gradient(
+            90deg,
+            #00CFFF  0%,
+            #7B5CF0 30%,
+            #F040A8 55%,
+            #7B5CF0 80%,
+            #00CFFF 100%
+          );
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: nuovveShimmer 5s linear infinite;
+          filter: drop-shadow(0 0 10px rgba(123,92,240,0.55))
+                  drop-shadow(0 0 22px rgba(240,64,168,0.22));
+        }
+      `}</style>
+
       {/* ── Clapperboard icon ──────────────────────────────────── */}
       <svg
         width={size}
@@ -82,19 +113,8 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
       {/* ── Wordmark ───────────────────────────────────────────── */}
       {showWordmark && (
         <span
-          style={{
-            fontFamily:             '"Bricolage Grotesque", sans-serif',
-            fontWeight:             800,
-            fontSize:               `${wordSize}px`,
-            lineHeight:             1,
-            letterSpacing:          '0.03em',
-            textTransform:          'uppercase',
-            whiteSpace:             'nowrap',
-            background:             'linear-gradient(110deg, #00CFFF 0%, #9060FF 48%, #F040A8 100%)',
-            WebkitBackgroundClip:   'text',
-            WebkitTextFillColor:    'transparent',
-            backgroundClip:         'text',
-          }}
+          className="nuovve-wm"
+          style={{ fontSize: `${wordSize}px` }}
         >
           Nuovve
         </span>
