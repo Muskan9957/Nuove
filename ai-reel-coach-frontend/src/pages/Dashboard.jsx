@@ -522,14 +522,11 @@ export default function Dashboard() {
           fontFamily: 'var(--font-creator)', fontWeight: 800,
           fontSize: 'clamp(2rem, 4vw, 2.8rem)',
           letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: 8,
+          background: `linear-gradient(100deg, #ffffff 0%, #c8e0ff 35%, ${C.violet} 68%, ${C.pink} 100%)`,
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          filter: `drop-shadow(0 0 22px rgba(168,85,247,0.40))`,
         }}>
-          {t('dash_greeting_' + mood.key)},{' '}
-          <span style={{
-            background: `linear-gradient(135deg, ${C.cyan} 0%, ${C.pink} 50%, ${C.amber} 100%)`,
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>
-            {firstName}
-          </span>
+          {t('dash_greeting_' + mood.key)}, {firstName}
         </h1>
         <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', maxWidth: 600, lineHeight: 1.55, margin: 0 }}>
           {t('dash_overview')}
