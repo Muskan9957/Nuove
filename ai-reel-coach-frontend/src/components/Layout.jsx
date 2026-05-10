@@ -313,9 +313,12 @@ export default function Layout({ children }) {
             </button>
           )}
 
-          {/* Language Selector */}
-          <div style={{ padding: '8px 0', flexShrink: 0 }}>
-            <LanguageSelector compact />
+          {/* Language + Theme toggle row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', flexShrink: 0 }}>
+            <div style={{ flex: 1 }}>
+              <LanguageSelector compact />
+            </div>
+            <ThemeToggle size="sm" />
           </div>
 
           {/* Logout */}
