@@ -545,25 +545,25 @@ export default function Landing() {
         /* ── Middle tagline ──────────────────────────────────────── */
         .lp-middle {
           position:relative; z-index:1;
-          display:flex; flex-direction:column; align-items:flex-start;
+          display:flex; flex-direction:column; align-items:center;
           align-self: flex-start;
-          padding-top: 72px;
+          padding-top: 18px;
+          text-align: center;
           animation: fadeUp 0.5s 0.10s cubic-bezier(0.22,1,0.36,1) both;
         }
         .lp-words-row1 {
-          display:flex; justify-content:flex-start; gap:12px;
+          display:flex; justify-content:center; gap:12px;
           font-family:var(--font-head); font-weight:800;
           font-size:clamp(1.3rem,1.8vw,1.9rem);
           letter-spacing:-0.02em; line-height:1.2;
           color:var(--text);
         }
         .lp-words-row2 {
-          text-align:left;
+          text-align:center;
           font-family:var(--font-head); font-weight:800;
           font-size:clamp(1.3rem,1.8vw,1.9rem);
           letter-spacing:-0.02em; line-height:1.2;
           margin-top:2px; margin-bottom:14px;
-          padding-left: 44px;
         }
         .lp-grad {
           background:linear-gradient(135deg,#00D4FF 0%,#FF2D8B 55%,#FFB800 100%);
@@ -573,7 +573,7 @@ export default function Landing() {
         }
         .lp-sub {
           font-size:clamp(0.78rem,1vw,0.88rem); color:var(--text-muted);
-          line-height:1.65; margin:0;
+          line-height:1.65; margin:0; text-align:center;
         }
 
         /* ── Auth column ─────────────────────────────────────────── */
