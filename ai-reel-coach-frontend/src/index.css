@@ -401,12 +401,13 @@ h1, h2, h3, h4 {
 
 /* ─── Glass Card ─────────────────────────────────────────────────── */
 .glass-card {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  background: rgba(13,10,28,0.88);
-  border: 1px solid rgba(255,255,255,0.09);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  background: rgba(4, 5, 16, 0.93);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-glass);
+  box-shadow: 0 8px 48px rgba(0,0,0,0.72),
+              0 1px 0 rgba(255,255,255,0.06) inset;
 }
 
 /* ─── Visibility Utilities ───────────────────────────────────────── */
@@ -527,28 +528,32 @@ h1, h2, h3, h4 {
 
 /* ─── Cards ──────────────────────────────────────────────────────── */
 .card {
-  background: rgba(15,18,46,0.88);
+  background: rgba(5, 7, 20, 0.97);       /* near-black: deep contrast vs navy bg */
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(100,140,255,0.14);
+  border: 1px solid rgba(100,140,255,0.22);
   border-radius: var(--radius-lg);
   padding: 28px;
-  box-shadow: var(--shadow-card);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 28px rgba(0,0,0,0.65),
+              0 1px 0 rgba(255,255,255,0.05) inset;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 .card:hover {
-  border-color: rgba(100,140,255,0.26);
-  box-shadow: 0 4px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(100,140,255,0.12);
+  border-color: rgba(100,140,255,0.38);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.75),
+              0 0 0 1px rgba(100,140,255,0.16),
+              0 1px 0 rgba(255,255,255,0.06) inset;
+  transform: translateY(-1px);
 }
 .card-sm { padding: 20px; }
 .card-accent {
-  border-color: rgba(0,200,255,0.35);
-  box-shadow: 0 0 50px rgba(0,200,255,0.12), var(--shadow-card);
+  border-color: rgba(0,200,255,0.40);
+  box-shadow: 0 0 50px rgba(0,200,255,0.14), 0 4px 28px rgba(0,0,0,0.65);
 }
 
 /* ─── Gradient border card ───────────────────────────────────────── */
 .card-grad-border {
-  background: rgba(13,10,28,0.88);
+  background: rgba(5, 7, 20, 0.97);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-radius: var(--radius-lg);
@@ -777,22 +782,24 @@ h1, h2, h3, h4 {
 
 /* ─── Stat card ──────────────────────────────────────────────────── */
 .stat-card {
-  background: rgba(15,18,46,0.88);
+  background: rgba(5, 7, 20, 0.97);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(100,140,255,0.14);
+  border: 1px solid rgba(100,140,255,0.20);
   border-radius: var(--radius-lg);
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.60),
+              0 1px 0 rgba(255,255,255,0.05) inset;
 }
 .stat-card:hover {
-  border-color: rgba(0,200,255,0.25);
+  border-color: rgba(0,200,255,0.38);
   transform: translateY(-2px);
-  box-shadow: 0 8px 40px rgba(0,200,255,0.10), var(--shadow-card);
+  box-shadow: 0 10px 44px rgba(0,200,255,0.12),
+              0 4px 24px rgba(0,0,0,0.65);
 }
 .stat-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
 .stat-value { font-family: var(--font-head); font-size: 2rem; font-weight: 900; letter-spacing: -0.04em; color: var(--text); }

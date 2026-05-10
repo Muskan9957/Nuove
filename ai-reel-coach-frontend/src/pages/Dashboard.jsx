@@ -220,14 +220,15 @@ function TrendingBrief({ userName, niches = [] }) {
                   <div style={{
                     height: '100%',
                     padding: 14,
-                    background: 'var(--surface2)',
-                    border: '1px solid var(--border)',
+                    background: 'rgba(4,6,18,0.98)',
+                    border: '1px solid rgba(100,140,255,0.18)',
                     borderLeft: `3px solid ${color}`,
                     borderRadius: 12,
-                    transition: 'transform 0.18s, border-color 0.18s',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset',
+                    transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
                   }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = `${color}77`; e.currentTarget.style.borderLeftColor = color }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.borderLeftColor = color }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 32px rgba(0,0,0,0.65), 0 0 16px ${color}22`; e.currentTarget.style.borderColor = `${color}44`; e.currentTarget.style.borderLeftColor = color }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.55)'; e.currentTarget.style.borderColor = 'rgba(100,140,255,0.18)'; e.currentTarget.style.borderLeftColor = color }}
                   >
                     <div style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 6 }}>
                       {trend.category}
@@ -365,15 +366,16 @@ function CreatorScoreCard({ score }) {
 function StatTile({ label, value, sub, color, progress }) {
   return (
     <div style={{
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderLeft: `2px solid ${color}88`,
+      background: 'rgba(4,6,18,0.98)',
+      border: '1px solid rgba(100,140,255,0.20)',
+      borderLeft: `3px solid ${color}`,
       borderRadius: 14,
       padding: '18px 20px',
-      transition: 'transform 0.18s, border-color 0.18s',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset',
+      transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
     }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = `${color}55`; e.currentTarget.style.borderLeftColor = color }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.borderLeftColor = `${color}88` }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 32px rgba(0,0,0,0.65), 0 0 20px ${color}22`; e.currentTarget.style.borderColor = `${color}44`; e.currentTarget.style.borderLeftColor = color }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.55)'; e.currentTarget.style.borderColor = 'rgba(100,140,255,0.20)'; e.currentTarget.style.borderLeftColor = color }}
     >
       <div style={{
         fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase',
