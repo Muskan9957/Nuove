@@ -668,43 +668,44 @@ h1, h2, h3, h4 {
 
 /* ─── Nav section label ──────────────────────────────────────────── */
 .nav-section-label {
-  font-size: 0.59rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--text-faint);
-  padding: 18px 12px 6px;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  padding: 22px 10px 7px;
   font-family: var(--font-mono);
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 .nav-section-label::before {
   content: '';
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 .nav-section-label::after {
   content: '';
   position: absolute;
-  left: 12px;
+  left: 10px;
   bottom: 0;
-  right: 12px;
+  right: 10px;
   height: 1px;
   border-radius: 1px;
-  opacity: 0.25;
+  opacity: 0.35;
 }
 
 /* Studio — cyan */
 .nav-section-studio {
   color: #00C8FF;
+  text-shadow: 0 0 12px rgba(0,200,255,0.50);
 }
 .nav-section-studio::before {
   background: #00C8FF;
-  box-shadow: 0 0 6px #00C8FF;
+  box-shadow: 0 0 8px #00C8FF, 0 0 14px rgba(0,200,255,0.5);
 }
 .nav-section-studio::after {
   background: linear-gradient(90deg, #00C8FF, transparent);
@@ -713,10 +714,11 @@ h1, h2, h3, h4 {
 /* Content — pink */
 .nav-section-content {
   color: #FF2D8B;
+  text-shadow: 0 0 12px rgba(255,45,139,0.50);
 }
 .nav-section-content::before {
   background: #FF2D8B;
-  box-shadow: 0 0 6px #FF2D8B;
+  box-shadow: 0 0 8px #FF2D8B, 0 0 14px rgba(255,45,139,0.5);
 }
 .nav-section-content::after {
   background: linear-gradient(90deg, #FF2D8B, transparent);
@@ -725,10 +727,11 @@ h1, h2, h3, h4 {
 /* Insights — lime */
 .nav-section-insights {
   color: #A8FF3C;
+  text-shadow: 0 0 12px rgba(168,255,60,0.45);
 }
 .nav-section-insights::before {
   background: #A8FF3C;
-  box-shadow: 0 0 6px #A8FF3C;
+  box-shadow: 0 0 8px #A8FF3C, 0 0 14px rgba(168,255,60,0.45);
 }
 .nav-section-insights::after {
   background: linear-gradient(90deg, #A8FF3C, transparent);
