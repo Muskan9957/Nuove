@@ -58,8 +58,8 @@ export const translations = {
     landing_cta_btn: 'Start Free Today →',
     landing_cta_fine: 'No credit card · Cancel anytime · Free to start',
     landing_footer_legal: '© Anahat Aura LLP · Nuove',
-    landing_privacy: 'Privacy',
-    landing_terms: 'Terms',
+    landing_privacy: 'Privacy Policy',
+    landing_terms: 'Terms of Service',
 
     // Dashboard
     dashboard_title: 'Creator Dashboard',
@@ -372,8 +372,8 @@ export const translations = {
     landing_cta_btn: 'आज ही मुफ़्त शुरू करें →',
     landing_cta_fine: 'कोई credit card नहीं · कभी भी cancel करें · शुरू करना मुफ़्त',
     landing_footer_legal: '© Anahat Aura LLP · Nuove',
-    landing_privacy: 'प्राइवेसी',
-    landing_terms: 'नियम',
+    landing_privacy: 'प्राइवेसी पॉलिसी',
+    landing_terms: 'सेवा की शर्तें',
     nav_hooks: 'हुक लाइब्रेरी',
     // Dashboard
     dashboard_title: 'क्रिएटर डैशबोर्ड',
