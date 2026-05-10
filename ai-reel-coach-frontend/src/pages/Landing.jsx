@@ -524,7 +524,7 @@ export default function Landing() {
           grid-template-columns: 1fr 1fr 1fr;
           gap: 32px;
           align-items: center;
-          padding: 48px 5%;
+          padding: 12px 5% 48px;
           max-width: 1400px; margin: 0 auto; width: 100%;
           min-height: calc(100vh - 130px);
           box-sizing: border-box;
@@ -546,8 +546,8 @@ export default function Landing() {
         .lp-middle {
           position:relative; z-index:1;
           display:flex; flex-direction:column; align-items:center;
-          align-self: flex-start;
-          padding-top: 18px;
+          align-self: start;
+          padding-top: 0;
           text-align: center;
           animation: fadeUp 0.5s 0.10s cubic-bezier(0.22,1,0.36,1) both;
         }
