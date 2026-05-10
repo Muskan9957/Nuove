@@ -91,7 +91,47 @@ export default function Generate() {
   const [rerolling, setRerolling]     = useState(false)
   const [rerollCount, setRerollCount] = useState(0)   // free retakes used (max 5 per topic)
   const MAX_RETAKES = 5
-  const refineRef = useRef(null)
+  const refineRef   = useRef(null)
+  const prevLangRef = useRef(lang)
+
+  // ── Regenerate script in a specific language ──────────────────────
+  const regenerateInLang = async (newLang, currentForm) => {
+    if (!currentForm.topic.trim()) return
+    setLd(true)
+    setStreaming(false)
+    setStreamText('')
+    setResult(null)
+    setVersions([])
+    setActiveVer(0)
+    setRerollCount(0)
+    try {
+      const voiceInstruction = voiceProfile?.promptInstruction || undefined
+      const data = await api.generate({ ...currentForm, language: newLang, voiceInstruction })
+      setResult(data)
+      setVersions([{ ...data.script, label: 'v1 · Original' }])
+    } catch (err) {
+      toast(err.message || 'Could not regenerate in new language', 'error')
+    } finally {
+      setLd(false)
+    }
+  }
+
+  // ── Sync script language when app UI language changes ────────────
+  useEffect(() => {
+    if (prevLangRef.current === lang) return  // skip on mount
+    const hadResult = !!result
+    const currentTopic = form.topic
+    prevLangRef.current = lang
+
+    // Always keep script-language dropdown in sync with app language
+    setForm(f => ({ ...f, scriptLang: lang }))
+    localStorage.setItem(SCRIPT_LANG_KEY, lang)
+
+    // If a script is already showing, immediately regenerate in new language
+    if (hadResult && currentTopic.trim()) {
+      regenerateInLang(lang, { ...form, scriptLang: lang })
+    }
+  }, [lang])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const stateTopic = location.state?.topic
