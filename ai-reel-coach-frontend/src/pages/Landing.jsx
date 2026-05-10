@@ -317,7 +317,8 @@ export default function Landing() {
         <div className="lp-nav-actions">
           <LangFlip />
           <div className="lp-nav-tagline">
-            <span>Script. Score. </span><span className="lp-grad">Go Viral.</span>
+            <div className="lp-words-row1"><span>Script.</span><span>Score.</span></div>
+            <div className="lp-words-row2"><span className="lp-grad">Go Viral.</span></div>
           </div>
         </div>
       </nav>
@@ -510,9 +511,9 @@ export default function Landing() {
         }
         .lp-nav-tagline {
           font-family: var(--font-head); font-weight: 800;
-          font-size: 0.82rem; letter-spacing: -0.01em;
+          font-size: clamp(1.4rem,2vw,2.2rem); letter-spacing: -0.02em;
           color: var(--text); white-space: nowrap;
-          line-height: 1;
+          line-height: 1.2;
         }
         @media (max-width: 480px) {
           .lp-nav { padding: 10px 4%; }
