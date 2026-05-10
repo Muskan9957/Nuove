@@ -326,13 +326,8 @@ export default function Landing() {
           <div className="lp-orb lp-orb-2" />
         </div>
 
-        {/* Left — phone mockup */}
-        <div className="lp-visual">
-          <AppPhone />
-        </div>
-
-        {/* Middle — tagline */}
-        <div className="lp-middle">
+        {/* Top — heading */}
+        <div className="lp-heading">
           <div className="lp-words-row1">
             <span>Script.</span>
             <span>Score.</span>
@@ -341,6 +336,14 @@ export default function Landing() {
             <span className="lp-grad">Go Viral.</span>
           </div>
           <p className="lp-sub">AI-powered content studio for creators. Generate viral scripts in seconds, score your hooks, and grow with data.</p>
+        </div>
+
+        {/* Bottom row */}
+        <div className="lp-bottom-row">
+
+        {/* Left — phone mockup */}
+        <div className="lp-visual">
+          <AppPhone />
         </div>
 
         {/* Right — auth card */}
@@ -476,6 +479,7 @@ export default function Landing() {
             No credit card · Cancel anytime · Free to start
           </p>
         </div>
+        </div>{/* /lp-bottom-row */}
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────── */}
@@ -520,14 +524,12 @@ export default function Landing() {
         /* ── Hero layout ─────────────────────────────────────────── */
         .lp-hero {
           position: relative; flex: 1;
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 32px;
-          align-items: center;
-          padding: 12px 5% 48px;
-          max-width: 1400px; margin: 0 auto; width: 100%;
+          display: flex; flex-direction: column;
+          padding: 28px 6% 48px;
+          max-width: 1280px; margin: 0 auto; width: 100%;
           min-height: calc(100vh - 130px);
           box-sizing: border-box;
+          gap: 32px;
         }
         .lp-bg { position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
         .lp-orb { position:absolute; border-radius:50%; filter:blur(80px); }
@@ -542,28 +544,36 @@ export default function Landing() {
           animation: fadeUp 0.6s 0.05s cubic-bezier(0.22,1,0.36,1) both;
         }
 
-        /* ── Middle tagline ──────────────────────────────────────── */
-        .lp-middle {
+        /* ── Top heading ─────────────────────────────────────────── */
+        .lp-heading {
           position:relative; z-index:1;
           display:flex; flex-direction:column; align-items:center;
-          align-self: start;
-          padding-top: 0;
-          text-align: center;
-          animation: fadeUp 0.5s 0.10s cubic-bezier(0.22,1,0.36,1) both;
+          text-align:center;
+          animation: fadeUp 0.4s 0.05s cubic-bezier(0.22,1,0.36,1) both;
         }
         .lp-words-row1 {
           display:flex; justify-content:center; gap:12px;
           font-family:var(--font-head); font-weight:800;
-          font-size:clamp(1.3rem,1.8vw,1.9rem);
+          font-size:clamp(1.4rem,2vw,2.2rem);
           letter-spacing:-0.02em; line-height:1.2;
           color:var(--text);
         }
         .lp-words-row2 {
           text-align:center;
           font-family:var(--font-head); font-weight:800;
-          font-size:clamp(1.3rem,1.8vw,1.9rem);
+          font-size:clamp(1.4rem,2vw,2.2rem);
           letter-spacing:-0.02em; line-height:1.2;
-          margin-top:2px; margin-bottom:14px;
+          margin-top:2px; margin-bottom:10px;
+        }
+
+        /* ── Bottom row: phone + login ───────────────────────────── */
+        .lp-bottom-row {
+          position:relative; z-index:1;
+          display:grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 48px;
+          align-items: center;
+          flex: 1;
         }
         .lp-grad {
           background:linear-gradient(135deg,#00D4FF 0%,#FF2D8B 55%,#FFB800 100%);
@@ -602,20 +612,13 @@ export default function Landing() {
         }
 
         /* ── Mobile layout ─────────────────────────────────────────── */
-        @media (max-width: 960px) {
-          .lp-hero {
-            grid-template-columns: 1fr;
-            gap: 32px;
-            text-align: center;
-            padding: 32px 5% 48px;
-            min-height: auto;
-          }
-          .lp-visual   { order: 1; justify-content: center; }
-          .lp-middle   { order: 2; }
-          .lp-auth-col { order: 3; align-items: center; }
-          .lp-words-row1 { justify-content: center; gap: 24px; }
-          .lp-sub      { margin: 0 auto; }
+        @media (max-width: 860px) {
+          .lp-hero { padding: 24px 5% 40px; gap: 24px; min-height: auto; }
+          .lp-bottom-row { grid-template-columns: 1fr; gap: 28px; }
+          .lp-visual   { justify-content: center; }
+          .lp-auth-col { align-items: center; }
           .lp-auth-card { width: 100%; max-width: 420px; }
+          .lp-sub { max-width: 340px; margin: 0 auto; }
         }
 
         /* ══════════════════════════════════════════════════════════
