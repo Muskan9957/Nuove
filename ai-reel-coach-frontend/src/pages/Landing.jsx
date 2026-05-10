@@ -518,11 +518,11 @@ export default function Landing() {
         .lp-hero {
           position: relative; flex: 1;
           display: grid;
-          grid-template-columns: 1.1fr 0.9fr;
-          gap: 48px;
+          grid-template-columns: 1fr 1fr;
+          gap: 0;
           align-items: center;
-          padding: 48px 6%;
-          max-width: 1160px; margin: 0 auto; width: 100%;
+          padding: 48px 0;
+          width: 100%;
           min-height: calc(100vh - 130px);
           box-sizing: border-box;
         }
@@ -536,6 +536,7 @@ export default function Landing() {
         .lp-visual {
           position:relative; z-index:1;
           display:flex; justify-content:center; align-items:center;
+          padding: 0 24px 0 5%;
           animation: fadeUp 0.6s 0.05s cubic-bezier(0.22,1,0.36,1) both;
         }
 
@@ -543,6 +544,7 @@ export default function Landing() {
         .lp-auth-col {
           position: relative; z-index: 1;
           display: flex; flex-direction: column;
+          padding: 0 5% 0 24px;
           animation: fadeUp 0.5s 0.14s cubic-bezier(0.22,1,0.36,1) both;
         }
         .lp-tagline {
@@ -589,8 +591,8 @@ export default function Landing() {
             padding: 32px 5% 48px;
             min-height: auto;
           }
-          .lp-visual   { order: 1; }
-          .lp-auth-col { order: 2; align-items: center; }
+          .lp-visual   { order: 1; padding: 0; }
+          .lp-auth-col { order: 2; align-items: center; padding: 0; }
           .lp-tagline  { text-align: center; }
           .lp-sub      { margin: 0 auto; }
           .lp-auth-card { width: 100%; max-width: 420px; }
