@@ -331,17 +331,20 @@ export default function Landing() {
           <AppPhone />
         </div>
 
+        {/* Middle — tagline */}
+        <div className="lp-middle">
+          <div className="lp-words-row1">
+            <span>Script.</span>
+            <span>Score.</span>
+          </div>
+          <div className="lp-words-row2">
+            <span className="lp-grad">Go Viral.</span>
+          </div>
+          <p className="lp-sub">AI-powered content studio for creators. Generate viral scripts in seconds, score your hooks, and grow with data.</p>
+        </div>
+
         {/* Right — auth card */}
         <div className="lp-auth-col">
-
-          {/* tagline above the card */}
-          <div className="lp-tagline">
-            <h1 className="lp-h1">
-              {t('landing_h1_a')}{' '}
-              <span className="lp-grad">{t('landing_h1_b')}</span>
-            </h1>
-            <p className="lp-sub">{t('landing_sub')}</p>
-          </div>
 
           {/* Auth card */}
           <div className="lp-auth-card">
@@ -518,11 +521,11 @@ export default function Landing() {
         .lp-hero {
           position: relative; flex: 1;
           display: grid;
-          grid-template-columns: 1fr 1.2fr;
-          gap: 80px;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 32px;
           align-items: center;
-          padding: 48px 6%;
-          max-width: 1280px; margin: 0 auto; width: 100%;
+          padding: 48px 5%;
+          max-width: 1400px; margin: 0 auto; width: 100%;
           min-height: calc(100vh - 130px);
           box-sizing: border-box;
         }
@@ -539,21 +542,26 @@ export default function Landing() {
           animation: fadeUp 0.6s 0.05s cubic-bezier(0.22,1,0.36,1) both;
         }
 
-        /* ── Auth column ─────────────────────────────────────────── */
-        .lp-auth-col {
-          position: relative; z-index: 1;
-          display: flex; flex-direction: column;
-          align-items: flex-end;
-          animation: fadeUp 0.5s 0.14s cubic-bezier(0.22,1,0.36,1) both;
+        /* ── Middle tagline ──────────────────────────────────────── */
+        .lp-middle {
+          position:relative; z-index:1;
+          display:flex; flex-direction:column; align-items:center;
+          text-align:center;
+          animation: fadeUp 0.5s 0.10s cubic-bezier(0.22,1,0.36,1) both;
         }
-        .lp-tagline {
-          margin-bottom: 22px;
-        }
-        .lp-h1 {
+        .lp-words-row1 {
+          display:flex; justify-content:space-between; width:100%;
           font-family:var(--font-head); font-weight:900;
-          font-size:clamp(1.7rem,2.8vw,2.6rem);
+          font-size:clamp(1.6rem,2.6vw,2.8rem);
           letter-spacing:-0.03em; line-height:1.1;
-          color:var(--text); margin:0 0 10px;
+          color:var(--text);
+        }
+        .lp-words-row2 {
+          width:100%; text-align:center;
+          font-family:var(--font-head); font-weight:900;
+          font-size:clamp(1.6rem,2.6vw,2.8rem);
+          letter-spacing:-0.03em; line-height:1.2;
+          margin-top:4px; margin-bottom:16px;
         }
         .lp-grad {
           background:linear-gradient(135deg,#00D4FF 0%,#FF2D8B 55%,#FFB800 100%);
@@ -562,8 +570,16 @@ export default function Landing() {
           filter:drop-shadow(0 0 32px rgba(255,45,139,0.26));
         }
         .lp-sub {
-          font-size:clamp(0.82rem,1.2vw,0.95rem); color:var(--text-muted);
-          line-height:1.6; max-width:380px; margin:0;
+          font-size:clamp(0.82rem,1.1vw,0.92rem); color:var(--text-muted);
+          line-height:1.65; margin:0;
+        }
+
+        /* ── Auth column ─────────────────────────────────────────── */
+        .lp-auth-col {
+          position: relative; z-index: 1;
+          display: flex; flex-direction: column;
+          align-items: flex-end;
+          animation: fadeUp 0.5s 0.14s cubic-bezier(0.22,1,0.36,1) both;
         }
 
         /* ── Auth card ───────────────────────────────────────────── */
@@ -584,7 +600,7 @@ export default function Landing() {
         }
 
         /* ── Mobile layout ─────────────────────────────────────────── */
-        @media (max-width: 860px) {
+        @media (max-width: 960px) {
           .lp-hero {
             grid-template-columns: 1fr;
             gap: 32px;
@@ -593,8 +609,9 @@ export default function Landing() {
             min-height: auto;
           }
           .lp-visual   { order: 1; justify-content: center; }
-          .lp-auth-col { order: 2; align-items: center; justify-content: flex-start; }
-          .lp-tagline  { text-align: center; }
+          .lp-middle   { order: 2; }
+          .lp-auth-col { order: 3; align-items: center; }
+          .lp-words-row1 { justify-content: center; gap: 24px; }
           .lp-sub      { margin: 0 auto; }
           .lp-auth-card { width: 100%; max-width: 420px; }
         }
