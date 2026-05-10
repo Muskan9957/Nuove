@@ -316,6 +316,9 @@ export default function Landing() {
         <Logo size={36} showWordmark />
         <div className="lp-nav-actions">
           <LangFlip />
+          <div className="lp-nav-tagline">
+            <span>Script. Score. </span><span className="lp-grad">Go Viral.</span>
+          </div>
         </div>
       </nav>
 
@@ -324,17 +327,6 @@ export default function Landing() {
         <div className="lp-bg" aria-hidden>
           <div className="lp-orb lp-orb-1" />
           <div className="lp-orb lp-orb-2" />
-        </div>
-
-        {/* Top — heading */}
-        <div className="lp-heading">
-          <div className="lp-words-row1">
-            <span>Script.</span>
-            <span>Score.</span>
-          </div>
-          <div className="lp-words-row2">
-            <span className="lp-grad">Go Viral.</span>
-          </div>
         </div>
 
         {/* Bottom row */}
@@ -513,11 +505,18 @@ export default function Landing() {
           gap: 10px;
         }
         .lp-nav-actions {
-          display: flex; align-items: center; gap: 8px;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
           flex-shrink: 0;
+        }
+        .lp-nav-tagline {
+          font-family: var(--font-head); font-weight: 800;
+          font-size: 0.82rem; letter-spacing: -0.01em;
+          color: var(--text); white-space: nowrap;
+          line-height: 1;
         }
         @media (max-width: 480px) {
           .lp-nav { padding: 10px 4%; }
+          .lp-nav-tagline { font-size: 0.72rem; }
         }
 
         /* ── Hero layout ─────────────────────────────────────────── */
