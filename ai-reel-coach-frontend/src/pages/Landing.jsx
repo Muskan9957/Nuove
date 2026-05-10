@@ -518,11 +518,11 @@ export default function Landing() {
         .lp-hero {
           position: relative; flex: 1;
           display: grid;
-          grid-template-columns: 1.1fr 0.9fr;
-          gap: 48px;
+          grid-template-columns: 1fr 1.2fr;
+          gap: 80px;
           align-items: center;
           padding: 48px 6%;
-          max-width: 1160px; margin: 0 auto; width: 100%;
+          max-width: 1280px; margin: 0 auto; width: 100%;
           min-height: calc(100vh - 130px);
           box-sizing: border-box;
         }
@@ -572,11 +572,11 @@ export default function Landing() {
           backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
           border: 1px solid var(--border-bright);
           border-radius: 20px;
-          padding: 28px;
+          padding: 32px;
           box-shadow: var(--shadow-glass);
-          width: 360px;
+          width: 100%;
         }
-        .lp-tagline { width: 360px; }
+        .lp-tagline { width: 100%; }
 
         @keyframes fadeUp {
           from { opacity:0; transform:translateY(20px); }
