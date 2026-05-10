@@ -82,6 +82,9 @@
   /* ── Dialog / card container backgrounds ── */
   --surface-card:    rgba(11,15,46,0.93);
   --surface-card-alt: rgba(15,15,26,0.93);
+  --surface-card-deep: rgba(4, 6, 18, 0.98);   /* near-black cards on dark bg */
+  --card-shadow: 0 4px 20px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --card-shadow-hover: 0 8px 32px rgba(0,0,0,0.65), 0 1px 0 rgba(255,255,255,0.05) inset;
 
   /* ── Logo colours — dark mode ── */
   --logo-v1:     #00CCFF;
@@ -148,6 +151,9 @@
   /* ── Dialog / card container backgrounds ── */
   --surface-card:     rgba(255,255,255,0.96);
   --surface-card-alt: rgba(255,255,255,0.96);
+  --surface-card-deep: rgba(255,255,255,0.95); /* white cards on light bg */
+  --card-shadow: 0 2px 16px rgba(30,50,120,0.10), 0 1px 0 rgba(255,255,255,0.80) inset;
+  --card-shadow-hover: 0 6px 28px rgba(30,50,120,0.16), 0 1px 0 rgba(255,255,255,0.90) inset;
 
   /* ── Logo colours — light mode ── */
   --logo-v1:     #3B55F0;
@@ -403,11 +409,10 @@ h1, h2, h3, h4 {
 .glass-card {
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  background: rgba(4, 5, 16, 0.93);
+  background: var(--surface-card-deep);
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 48px rgba(0,0,0,0.72),
-              0 1px 0 rgba(255,255,255,0.06) inset;
+  box-shadow: var(--card-shadow);
 }
 
 /* ─── Visibility Utilities ───────────────────────────────────────── */
@@ -528,21 +533,18 @@ h1, h2, h3, h4 {
 
 /* ─── Cards ──────────────────────────────────────────────────────── */
 .card {
-  background: rgba(5, 7, 20, 0.97);       /* near-black: deep contrast vs navy bg */
+  background: var(--surface-card-deep);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(100,140,255,0.22);
   border-radius: var(--radius-lg);
   padding: 28px;
-  box-shadow: 0 4px 28px rgba(0,0,0,0.65),
-              0 1px 0 rgba(255,255,255,0.05) inset;
+  box-shadow: var(--card-shadow);
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 .card:hover {
   border-color: rgba(100,140,255,0.38);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.75),
-              0 0 0 1px rgba(100,140,255,0.16),
-              0 1px 0 rgba(255,255,255,0.06) inset;
+  box-shadow: var(--card-shadow-hover);
   transform: translateY(-1px);
 }
 .card-sm { padding: 20px; }
@@ -553,7 +555,7 @@ h1, h2, h3, h4 {
 
 /* ─── Gradient border card ───────────────────────────────────────── */
 .card-grad-border {
-  background: rgba(5, 7, 20, 0.97);
+  background: var(--surface-card-deep);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-radius: var(--radius-lg);
@@ -782,7 +784,7 @@ h1, h2, h3, h4 {
 
 /* ─── Stat card ──────────────────────────────────────────────────── */
 .stat-card {
-  background: rgba(5, 7, 20, 0.97);
+  background: var(--surface-card-deep);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(100,140,255,0.20);
