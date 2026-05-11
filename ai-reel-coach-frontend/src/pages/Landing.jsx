@@ -464,8 +464,8 @@ export default function Landing() {
             </p>
           </div>
 
-          {/* Fine print below card */}
-          <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 14 }}>
+          {/* Fine print below card — width matches card so text sits centered under it */}
+          <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 14, width: 360 }}>
             No credit card · Cancel anytime · Free to start
           </p>
         </div>
@@ -913,12 +913,6 @@ export default function Landing() {
         /* Indicator dot inactive — visible on light */
         [data-theme="light"] .ap-dot { background: rgba(15,21,53,0.22); }
 
-        /* Feature heading label below phone — pop on light bg */
-        [data-theme="light"] .ap-label {
-          font-weight: 900;
-          text-shadow: 0 0 12px rgba(255,255,255,0.6), 0 1px 0 rgba(255,255,255,0.5);
-        }
-
         /* Auth card — crisp white, grey border matching phone */
         [data-theme="light"] .lp-auth-card {
           background: #FFFFFF;
@@ -975,11 +969,19 @@ export default function Landing() {
           font-weight: 600;
         }
 
-        /* Feature label pill on mobile */
+        /* Feature label — keep vibrant colours from --lc, add contrast */
         [data-theme="light"] .ap-label {
-          background: rgba(230,236,255,0.92);
-          border: 1px solid rgba(80,100,200,0.18);
-          color: #1A2A6C;
+          font-weight: 900;
+          text-shadow:
+            0 1px 2px rgba(15,21,53,0.30),
+            0 0 14px rgba(255,255,255,0.65);
+        }
+        /* Mobile pill: light background but keep colored text */
+        @media (max-width: 480px) {
+          [data-theme="light"] .ap-label {
+            background: rgba(255,255,255,0.92);
+            border: 1px solid rgba(80,100,200,0.20);
+          }
         }
 
       `}</style>
