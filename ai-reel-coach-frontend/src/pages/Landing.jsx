@@ -629,11 +629,6 @@ export default function Landing() {
           border-radius:42px;
           box-shadow: 0 60px 100px rgba(0,0,0,0.6), 0 0 0 1.5px rgba(255,255,255,0.08), 0 0 60px rgba(0,212,255,0.10), 0 0 40px rgba(255,45,139,0.08), inset 0 0 0 1px rgba(255,255,255,0.04);
           padding: 12px;
-          animation: phoneBob 6s ease-in-out infinite;
-        }
-        @keyframes phoneBob {
-          0%,100% { transform:translateY(0px); }
-          50%     { transform:translateY(-10px); }
         }
         .ap-island { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:84px; height:20px; background:#000; border-radius:14px; z-index:10; box-shadow:0 0 0 1px rgba(255,255,255,0.05); }
         .ap-screen { width:100%; height:100%; background:linear-gradient(160deg,#07091E 0%,#0B0E2C 100%); border-radius:32px; overflow:hidden; position:relative; }
