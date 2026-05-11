@@ -973,19 +973,23 @@ export default function Landing() {
           font-weight: 600;
         }
 
-        /* Feature label — text outline so vibrant colors stay readable in light mode */
+        /* Feature label — deeper hues for light background, no stroke needed */
         [data-theme="light"] .ap-label {
           background: none;
           border: none;
-          border-radius: 0;
           padding: 0;
           box-shadow: none;
-          font-weight: 900;
+          font-weight: 800;
           letter-spacing: 0.12em;
-          -webkit-text-stroke: 1.5px rgba(10,14,40,0.65);
-          paint-order: stroke fill;
+          -webkit-text-stroke: 0;
+          paint-order: fill;
           text-shadow: none;
         }
+        [data-theme="light"] .ap-label-1 { color: #0284C7; }
+        [data-theme="light"] .ap-label-2 { color: #16A34A; }
+        [data-theme="light"] .ap-label-3 { color: #DB2777; }
+        [data-theme="light"] .ap-label-4 { color: #D97706; }
+        [data-theme="light"] .ap-label-5 { color: #7C3AED; }
         [data-theme="light"] .ap-label-wrap {
           height: 32px;
           width: 200px;
