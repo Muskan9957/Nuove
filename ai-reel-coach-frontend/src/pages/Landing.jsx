@@ -174,7 +174,7 @@ function AppPhone() {
                     <stop offset="100%" stopColor="#FF2D8B" />
                   </linearGradient>
                 </defs>
-                <path d="M 10 60 A 50 50 0 0 1 110 60" stroke="rgba(255,255,255,0.07)" strokeWidth="7" fill="none" strokeLinecap="round"/>
+                <path className="ap-gauge-bg" d="M 10 60 A 50 50 0 0 1 110 60" stroke="rgba(255,255,255,0.07)" strokeWidth="7" fill="none" strokeLinecap="round"/>
                 <path className="ap-gauge-fill" d="M 10 60 A 50 50 0 0 1 110 60" stroke="url(#gaugeG)" strokeWidth="7" fill="none" strokeLinecap="round"/>
               </svg>
               <div className="ap-score-num">94</div>
@@ -799,7 +799,7 @@ export default function Landing() {
           background: radial-gradient(ellipse, rgba(255,45,139,0.14) 0%, transparent 65%);
         }
 
-        /* Phone shell — silver like a real device */
+        /* Phone shell — silver frame */
         [data-theme="light"] .ap-phone {
           background: linear-gradient(160deg, #E4E8F0 0%, #C8CDD8 100%);
           box-shadow:
@@ -809,15 +809,107 @@ export default function Landing() {
             inset 0 0 0 1px rgba(255,255,255,0.5);
         }
         [data-theme="light"] .ap-island {
-          background: #7A808C;
+          background: #1A1F2A;
           box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
         }
 
-        /* Phone screen — stays dark, it's a display */
+        /* Phone SCREEN — bright app UI in light mode */
         [data-theme="light"] .ap-screen {
-          background: linear-gradient(160deg, #07091E 0%, #0B0E2C 100%);
-          box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+          background: linear-gradient(165deg, #FAFBFF 0%, #F0F3FB 100%);
         }
+        [data-theme="light"] .ap-screen::after {
+          background:
+            radial-gradient(ellipse at 20% 10%, rgba(0,160,255,0.06) 0%, transparent 55%),
+            radial-gradient(ellipse at 80% 90%, rgba(255,45,139,0.05) 0%, transparent 55%);
+        }
+
+        /* Headers — dark text on light */
+        [data-theme="light"] .ap-hdr {
+          border-bottom: 1px solid rgba(80,100,200,0.12);
+        }
+        [data-theme="light"] .ap-hdr-title { color: #0F1535; }
+        [data-theme="light"] .ap-field-lbl { color: rgba(15,21,53,0.45); }
+
+        /* Live pill — stays vibrant, contrast on light */
+        [data-theme="light"] .ap-live-pill {
+          background: rgba(0,150,200,0.10);
+          border-color: rgba(0,150,200,0.35);
+          color: #0091BB;
+        }
+        [data-theme="light"] .ap-live-amber {
+          background: rgba(200,140,0,0.10);
+          border-color: rgba(200,140,0,0.35);
+          color: #B07700;
+        }
+        [data-theme="light"] .ap-badge {
+          background: rgba(15,21,53,0.04);
+          border: 1px solid rgba(80,100,200,0.14);
+        }
+
+        /* Scene 1 — Script Studio */
+        [data-theme="light"] .ap-input-row {
+          background: rgba(0,160,220,0.07);
+          border: 1px solid rgba(0,160,220,0.25);
+        }
+        [data-theme="light"] .ap-typed-text { color: #0091BB; }
+        [data-theme="light"] .ap-cursor { background: #0091BB; }
+        [data-theme="light"] .ap-script-line {
+          background: #FFFFFF;
+          color: #1A2245;
+          border-left: 2px solid rgba(80,100,200,0.18);
+          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+        }
+        [data-theme="light"] .ap-sl-hook { border-left-color: #0091BB; }
+        [data-theme="light"] .ap-sl-cta  { border-left-color: #D62478; }
+        [data-theme="light"] .ap-tag {
+          background: rgba(15,21,53,0.06);
+        }
+
+        /* Scene 2 — Hook Score */
+        [data-theme="light"] .ap-gauge-bg { stroke: rgba(80,100,200,0.18); }
+        [data-theme="light"] .ap-score-sub { color: rgba(15,21,53,0.55); }
+        [data-theme="light"] .ap-bar-lbl { color: rgba(15,21,53,0.60); }
+        [data-theme="light"] .ap-bar-track { background: rgba(80,100,200,0.10); }
+
+        /* Scene 3 — Crosspost */
+        [data-theme="light"] .ap-cp-desc { color: rgba(15,21,53,0.55); }
+        [data-theme="light"] .ap-cp-row {
+          background: #FFFFFF;
+          border: 1px solid rgba(80,100,200,0.12);
+          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+        }
+        [data-theme="light"] .ap-cp-label { color: #1A2245; }
+        [data-theme="light"] .ap-cp-check {
+          color: #2D9B00;
+          background: rgba(168,255,60,0.18);
+          box-shadow: 0 0 8px rgba(120,200,0,0.25);
+        }
+        [data-theme="light"] .ap-cp-note { color: rgba(15,21,53,0.45); }
+
+        /* Scene 4 — Trending */
+        [data-theme="light"] .ap-trend-row {
+          background: #FFFFFF;
+          border: 1px solid rgba(80,100,200,0.12);
+          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+        }
+        [data-theme="light"] .ap-trend-tag { color: #1A2245; }
+        [data-theme="light"] .ap-trend-views { color: rgba(15,21,53,0.50); }
+
+        /* Scene 5 — Coach chat */
+        [data-theme="light"] .ap-msg-ai {
+          background: #FFFFFF;
+          color: #1A2245;
+          border: 1px solid rgba(80,100,200,0.14);
+          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+        }
+        [data-theme="light"] .ap-typing {
+          background: #FFFFFF;
+          border: 1px solid rgba(80,100,200,0.14);
+        }
+        [data-theme="light"] .ap-typing span { background: rgba(15,21,53,0.45); }
+
+        /* Indicator dot inactive — visible on light */
+        [data-theme="light"] .ap-dot { background: rgba(15,21,53,0.18); }
 
         /* Auth card — crisp white, strong shadow for contrast */
         [data-theme="light"] .lp-auth-card {
