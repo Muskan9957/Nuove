@@ -97,9 +97,12 @@
 
 /* ─── Logo mark ──────────────────────────────────────────────────── */
 
-/* Light mode: wordmark switches to deep navy */
+/* Light mode: richer gradient so wordmark pops on light background */
 [data-theme="light"] .nuove-wordmark {
-  color: #0F1535 !important;
+  background: linear-gradient(135deg, #0284C7 0%, #DB2777 50%, #D97706 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
 }
 
 /*

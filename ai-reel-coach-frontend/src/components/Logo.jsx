@@ -6,10 +6,8 @@
  *            wide tracking, purple glow
  */
 import { useState } from 'react'
-import { useTheme } from '../context/ThemeContext'
 
 export default function Logo({ size = 40, showWordmark = true, className = '' }) {
-  const { theme } = useTheme()
   const [uid] = useState(() => `vc${Math.random().toString(36).slice(2, 7)}`)
 
   const sP  = `${uid}-sp`
@@ -93,9 +91,7 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
             lineHeight:           1,
             letterSpacing:        '0.02em',
             whiteSpace:           'nowrap',
-            background: theme === 'light'
-              ? 'linear-gradient(135deg, #0284C7 0%, #DB2777 50%, #D97706 100%)'
-              : 'linear-gradient(135deg, #00D4FF 0%, #FF2D8B 50%, #FFB800 100%)',
+            background: 'linear-gradient(135deg, #00D4FF 0%, #FF2D8B 50%, #FFB800 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor:  'transparent',
             backgroundClip:       'text',
