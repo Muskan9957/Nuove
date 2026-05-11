@@ -799,19 +799,18 @@ export default function Landing() {
           background: radial-gradient(ellipse, rgba(255,45,139,0.14) 0%, transparent 65%);
         }
 
-        /* Phone shell — grey frame in light mode (like graphite iPhone) */
+        /* Phone shell — thin grey bezel matching login card border */
         [data-theme="light"] .ap-phone {
-          background: linear-gradient(160deg, #4E5562 0%, #3A4150 100%);
-          box-shadow:
-            0 30px 60px rgba(40,55,85,0.28),
-            0 0 0 1.5px rgba(255,255,255,0.18),
-            0 0 50px rgba(0,160,255,0.08),
-            0 0 40px rgba(255,45,139,0.06),
-            inset 0 1px 0 rgba(255,255,255,0.18),
-            inset 0 0 0 1px rgba(0,0,0,0.20);
+          background: #E4E8F0;
+          padding: 6px;
+          border: 1.5px solid #BFC8D6;
+          box-shadow: 0 10px 32px rgba(30,50,120,0.12);
         }
         [data-theme="light"] .ap-island {
-          background: #1A1F2A;
+          background: #2A2F3A;
+        }
+        [data-theme="light"] .ap-screen {
+          border-radius: 28px;
         }
 
         /* Phone SCREEN — bright app UI in light mode */
@@ -920,13 +919,13 @@ export default function Landing() {
           text-shadow: 0 0 12px rgba(255,255,255,0.6), 0 1px 0 rgba(255,255,255,0.5);
         }
 
-        /* Auth card — crisp white, strong shadow for contrast */
+        /* Auth card — crisp white, grey border matching phone */
         [data-theme="light"] .lp-auth-card {
           background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.20);
+          border: 1.5px solid #BFC8D6;
           box-shadow:
-            0 16px 56px rgba(30,50,120,0.18),
-            0 4px 12px rgba(30,50,120,0.10),
+            0 16px 56px rgba(30,50,120,0.16),
+            0 4px 12px rgba(30,50,120,0.08),
             0 1px 0 rgba(255,255,255,1) inset;
         }
 
@@ -945,12 +944,10 @@ export default function Landing() {
           opacity: 1;
         }
 
-        /* Wordmark — solid deep navy for light mode (gradient invisible on light bg) */
+        /* Wordmark — keep gradient, add contrast on light bg */
         [data-theme="light"] .nuove-wordmark {
-          background: none !important;
-          -webkit-text-fill-color: #0F1535 !important;
-          color: #0F1535 !important;
-          filter: none;
+          filter: drop-shadow(0 1px 2px rgba(15,21,53,0.35))
+                  drop-shadow(0 0 10px rgba(0,150,200,0.18));
         }
 
         /* Navbar text contrast */
