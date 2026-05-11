@@ -786,6 +786,56 @@ export default function Landing() {
         @keyframes vbRise    { 0%{ opacity:0; transform:translateY(0) scale(0.4) rotate(-10deg); } 10%{ opacity:1; transform:translateY(-18px) scale(1.25) rotate(5deg); } 70%{ opacity:0.55; } 100%{ opacity:0; transform:translateY(-120px) scale(0.6) rotate(15deg); } }
         @keyframes vbSparkle { 0%,100%{ opacity:0.25; transform:var(--sr,rotate(20deg)) scale(0.7); } 50%{ opacity:1; transform:var(--sr,rotate(20deg)) scale(1.5) rotate(180deg); } }
 
+        /* ══════════════════════════════════════════════════════════
+           LIGHT MODE OVERRIDES
+        ══════════════════════════════════════════════════════════ */
+        [data-theme="light"] .lp-hero {
+          background: linear-gradient(160deg, #F0F4FF 0%, #E8EDFF 100%);
+        }
+        [data-theme="light"] .lp-orb-1 {
+          background: radial-gradient(ellipse, rgba(0,160,255,0.18) 0%, transparent 65%);
+        }
+        [data-theme="light"] .lp-orb-2 {
+          background: radial-gradient(ellipse, rgba(255,45,139,0.14) 0%, transparent 65%);
+        }
+
+        /* Phone shell — silver like a real device */
+        [data-theme="light"] .ap-phone {
+          background: linear-gradient(160deg, #E4E8F0 0%, #C8CDD8 100%);
+          box-shadow:
+            0 32px 64px rgba(0,0,0,0.18),
+            0 0 0 1.5px rgba(0,0,0,0.10),
+            inset 0 1px 0 rgba(255,255,255,0.85),
+            inset 0 0 0 1px rgba(255,255,255,0.5);
+        }
+        [data-theme="light"] .ap-island {
+          background: #7A808C;
+          box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+        }
+
+        /* Phone screen — stays dark, it's a display */
+        [data-theme="light"] .ap-screen {
+          background: linear-gradient(160deg, #07091E 0%, #0B0E2C 100%);
+          box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+        }
+
+        /* Auth card — crisp white, strong shadow for contrast */
+        [data-theme="light"] .lp-auth-card {
+          background: #FFFFFF;
+          border: 1px solid rgba(80,100,200,0.16);
+          box-shadow:
+            0 12px 48px rgba(30,50,120,0.16),
+            0 2px 8px rgba(30,50,120,0.08),
+            0 1px 0 rgba(255,255,255,1) inset;
+        }
+
+        /* Feature label pill on mobile */
+        [data-theme="light"] .ap-label {
+          background: rgba(230,236,255,0.92);
+          border: 1px solid rgba(80,100,200,0.18);
+          color: #1A2A6C;
+        }
+
       `}</style>
     </div>
   )
