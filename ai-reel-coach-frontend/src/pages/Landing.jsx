@@ -291,10 +291,10 @@ export default function Landing() {
     try {
       if (mode === 'login') {
         await login(email, password)
-        toast('Welcome back!', 'success')
+        toast(t('landing_auth_welcome'), 'success')
       } else {
         await register(email, password, name)
-        toast('Account created!', 'success')
+        toast(t('landing_auth_created'), 'success')
       }
       navigate('/dashboard')
     } catch (err) {
@@ -331,11 +331,10 @@ export default function Landing() {
         {/* ── Tagline ──────────────────────────────────────────── */}
         <div className="lp-heading">
           <div className="lp-words-row1">
-            <span>Script.</span>
-            <span>Score.</span>
-            <span className="lp-grad">Go Viral.</span>
+            <span>{t('landing_h1_a')}</span>
+            <span className="lp-grad">{t('landing_h1_b')}</span>
           </div>
-          <p className="lp-sub">AI-powered content studio for creators who mean business.</p>
+          <p className="lp-sub">{t('landing_sub')}</p>
         </div>
 
         {/* Bottom row */}
@@ -355,9 +354,9 @@ export default function Landing() {
             {/* Social buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 18 }}>
               {[
-                { id: 'google',    label: 'Continue with Google',    icon: <GoogleIcon />,    bg: '#fff',                                                        color: '#1f1f1f', border: '1px solid rgba(0,0,0,0.15)', soon: false },
-                { id: 'instagram', label: 'Continue with Instagram', icon: <InstagramIcon />, bg: 'linear-gradient(45deg,#405DE6,#833AB4,#C13584,#E1306C)',     color: '#fff',    border: 'none',                       soon: true  },
-                { id: 'youtube',   label: 'Continue with YouTube',   icon: <YouTubeIcon />,   bg: '#FF0000',                                                     color: '#fff',    border: 'none',                       soon: true  },
+                { id: 'google',    label: t('landing_auth_google'),    icon: <GoogleIcon />,    bg: '#fff',                                                        color: '#1f1f1f', border: '1px solid rgba(0,0,0,0.15)', soon: false },
+                { id: 'instagram', label: t('landing_auth_instagram'), icon: <InstagramIcon />, bg: 'linear-gradient(45deg,#405DE6,#833AB4,#C13584,#E1306C)',     color: '#fff',    border: 'none',                       soon: true  },
+                { id: 'youtube',   label: t('landing_auth_youtube'),   icon: <YouTubeIcon />,   bg: '#FF0000',                                                     color: '#fff',    border: 'none',                       soon: true  },
               ].map(btn => (
                 <button
                   key={btn.id}
@@ -380,7 +379,7 @@ export default function Landing() {
                   <span style={{ flex: 1, textAlign: 'center' }}>{btn.label}</span>
                   {btn.soon && (
                     <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', padding: '2px 7px', borderRadius: 99, background: 'rgba(0,0,0,0.35)', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', flexShrink: 0 }}>
-                      Soon
+                      {t('landing_auth_soon')}
                     </span>
                   )}
                 </button>
@@ -390,7 +389,7 @@ export default function Landing() {
             {/* OR divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>or</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('landing_auth_or')}</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
 
@@ -398,20 +397,20 @@ export default function Landing() {
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {mode === 'register' && (
                 <div className="field">
-                  <label>Name</label>
-                  <input className="input" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
+                  <label>{t('landing_auth_name_label')}</label>
+                  <input className="input" placeholder={t('landing_auth_name_ph')} value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
                 </div>
               )}
               <div className="field">
-                <label>Email</label>
+                <label>{t('landing_auth_email_label')}</label>
                 <input className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
               </div>
               <div className="field">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ margin: 0 }}>Password</label>
+                  <label style={{ margin: 0 }}>{t('landing_auth_pass_label')}</label>
                   {mode === 'login' && (
                     <Link to="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-                      Forgot?
+                      {t('landing_auth_forgot')}
                     </Link>
                   )}
                 </div>
@@ -419,7 +418,7 @@ export default function Landing() {
                   <input
                     className="input"
                     type={showPass ? 'text' : 'password'}
-                    placeholder={mode === 'register' ? 'Min 8 characters' : '••••••••'}
+                    placeholder={mode === 'register' ? t('landing_auth_pass_ph_new') : '••••••••'}
                     value={password}
                     onChange={e => setPass(e.target.value)}
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -431,7 +430,7 @@ export default function Landing() {
                     onClick={() => setShowPass(v => !v)}
                     style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 4, display: 'flex', alignItems: 'center' }}
                     tabIndex={-1}
-                    aria-label={showPass ? 'Hide password' : 'Show password'}
+                    aria-label={showPass ? t('landing_auth_pass_hide') : t('landing_auth_pass_show')}
                   >
                     {showPass ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -456,27 +455,27 @@ export default function Landing() {
                 style={{ marginTop: 2, fontSize: '1rem', fontWeight: 700 }}
               >
                 {loading
-                  ? <><span className="spinner" /> Processing...</>
-                  : mode === 'login' ? 'Sign In →' : 'Create Account →'}
+                  ? <><span className="spinner" /> {t('landing_auth_processing')}</>
+                  : mode === 'login' ? t('landing_auth_signin_btn') : t('landing_auth_signup_btn')}
               </button>
             </form>
 
             {/* Toggle */}
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 16, marginBottom: 0 }}>
-              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+              {mode === 'login' ? t('landing_auth_no_account') : t('landing_auth_has_account')}
               <button
                 type="button"
                 onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'var(--font-body)', padding: 0 }}
               >
-                {mode === 'login' ? 'Sign up free' : 'Sign in'}
+                {mode === 'login' ? t('landing_auth_signup_link') : t('landing_auth_signin_link')}
               </button>
             </p>
           </div>
 
           {/* Fine print below card — width matches card so text sits centered under it */}
           <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 14, width: 360 }}>
-            No credit card · Cancel anytime · Free to start
+            {t('landing_cta_fine')}
           </p>
         </div>
         </div>{/* /lp-bottom-row */}
