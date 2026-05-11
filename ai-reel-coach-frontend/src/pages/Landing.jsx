@@ -799,18 +799,15 @@ export default function Landing() {
           background: radial-gradient(ellipse, rgba(255,45,139,0.14) 0%, transparent 65%);
         }
 
-        /* Phone shell — silver frame */
+        /* Phone shell stays DARK in light mode — like a real device */
         [data-theme="light"] .ap-phone {
-          background: linear-gradient(160deg, #E4E8F0 0%, #C8CDD8 100%);
+          background: #050710;
           box-shadow:
-            0 32px 64px rgba(0,0,0,0.18),
-            0 0 0 1.5px rgba(0,0,0,0.10),
-            inset 0 1px 0 rgba(255,255,255,0.85),
-            inset 0 0 0 1px rgba(255,255,255,0.5);
-        }
-        [data-theme="light"] .ap-island {
-          background: #1A1F2A;
-          box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+            0 32px 72px rgba(0,0,0,0.32),
+            0 0 0 1.5px rgba(0,0,0,0.35),
+            0 0 60px rgba(0,160,255,0.10),
+            0 0 40px rgba(255,45,139,0.08),
+            inset 0 0 0 1px rgba(255,255,255,0.06);
         }
 
         /* Phone SCREEN — bright app UI in light mode */
@@ -825,10 +822,10 @@ export default function Landing() {
 
         /* Headers — dark text on light */
         [data-theme="light"] .ap-hdr {
-          border-bottom: 1px solid rgba(80,100,200,0.12);
+          border-bottom: 1px solid rgba(80,100,200,0.16);
         }
-        [data-theme="light"] .ap-hdr-title { color: #0F1535; }
-        [data-theme="light"] .ap-field-lbl { color: rgba(15,21,53,0.45); }
+        [data-theme="light"] .ap-hdr-title { color: #0A0F2E; font-weight: 900; }
+        [data-theme="light"] .ap-field-lbl { color: #4A5878; font-weight: 800; }
 
         /* Live pill — stays vibrant, contrast on light */
         [data-theme="light"] .ap-live-pill {
@@ -855,9 +852,10 @@ export default function Landing() {
         [data-theme="light"] .ap-cursor { background: #0091BB; }
         [data-theme="light"] .ap-script-line {
           background: #FFFFFF;
-          color: #1A2245;
+          color: #0A0F2E;
+          font-weight: 600;
           border-left: 2px solid rgba(80,100,200,0.18);
-          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
         }
         [data-theme="light"] .ap-sl-hook { border-left-color: #0091BB; }
         [data-theme="light"] .ap-sl-cta  { border-left-color: #D62478; }
@@ -867,49 +865,56 @@ export default function Landing() {
 
         /* Scene 2 — Hook Score */
         [data-theme="light"] .ap-gauge-bg { stroke: rgba(80,100,200,0.18); }
-        [data-theme="light"] .ap-score-sub { color: rgba(15,21,53,0.55); }
-        [data-theme="light"] .ap-bar-lbl { color: rgba(15,21,53,0.60); }
-        [data-theme="light"] .ap-bar-track { background: rgba(80,100,200,0.10); }
+        [data-theme="light"] .ap-score-sub { color: #4A5878; font-weight: 700; }
+        [data-theme="light"] .ap-bar-lbl { color: #2A3458; font-weight: 700; }
+        [data-theme="light"] .ap-bar-track { background: rgba(80,100,200,0.14); }
 
         /* Scene 3 — Crosspost */
-        [data-theme="light"] .ap-cp-desc { color: rgba(15,21,53,0.55); }
+        [data-theme="light"] .ap-cp-desc { color: #2A3458; font-weight: 600; }
         [data-theme="light"] .ap-cp-row {
           background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.12);
-          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+          border: 1px solid rgba(80,100,200,0.14);
+          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
         }
-        [data-theme="light"] .ap-cp-label { color: #1A2245; }
+        [data-theme="light"] .ap-cp-label { color: #0A0F2E; font-weight: 700; }
         [data-theme="light"] .ap-cp-check {
-          color: #2D9B00;
-          background: rgba(168,255,60,0.18);
-          box-shadow: 0 0 8px rgba(120,200,0,0.25);
+          color: #1F8000;
+          background: rgba(168,255,60,0.22);
+          box-shadow: 0 0 10px rgba(100,180,0,0.30);
         }
-        [data-theme="light"] .ap-cp-note { color: rgba(15,21,53,0.45); }
+        [data-theme="light"] .ap-cp-note { color: #4A5878; font-weight: 700; }
 
         /* Scene 4 — Trending */
         [data-theme="light"] .ap-trend-row {
           background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.12);
-          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+          border: 1px solid rgba(80,100,200,0.14);
+          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
         }
-        [data-theme="light"] .ap-trend-tag { color: #1A2245; }
-        [data-theme="light"] .ap-trend-views { color: rgba(15,21,53,0.50); }
+        [data-theme="light"] .ap-trend-tag { color: #0A0F2E; font-weight: 800; }
+        [data-theme="light"] .ap-trend-views { color: #4A5878; font-weight: 600; }
 
         /* Scene 5 — Coach chat */
         [data-theme="light"] .ap-msg-ai {
           background: #FFFFFF;
-          color: #1A2245;
-          border: 1px solid rgba(80,100,200,0.14);
-          box-shadow: 0 1px 3px rgba(30,50,120,0.06);
+          color: #0A0F2E;
+          font-weight: 600;
+          border: 1px solid rgba(80,100,200,0.16);
+          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
         }
         [data-theme="light"] .ap-typing {
           background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.14);
+          border: 1px solid rgba(80,100,200,0.16);
         }
-        [data-theme="light"] .ap-typing span { background: rgba(15,21,53,0.45); }
+        [data-theme="light"] .ap-typing span { background: rgba(15,21,53,0.55); }
 
         /* Indicator dot inactive — visible on light */
-        [data-theme="light"] .ap-dot { background: rgba(15,21,53,0.18); }
+        [data-theme="light"] .ap-dot { background: rgba(15,21,53,0.22); }
+
+        /* Feature heading label below phone — pop on light bg */
+        [data-theme="light"] .ap-label {
+          font-weight: 900;
+          text-shadow: 0 0 12px rgba(255,255,255,0.6), 0 1px 0 rgba(255,255,255,0.5);
+        }
 
         /* Auth card — crisp white, strong shadow for contrast */
         [data-theme="light"] .lp-auth-card {
