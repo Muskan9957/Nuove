@@ -61,26 +61,26 @@ export default function Logo({ size = 40, showWordmark = true, className = '' })
             <path d="M 5 32 L 95 19 L 95 9 L 5 22 Z" />
           </clipPath>
 
-          {/* ── Body gradient — violet → fuchsia → hot-pink ── */}
-          <linearGradient id={gBody} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%"   stopColor="#7C3AED" />
-            <stop offset="45%"  stopColor="#A855F7" />
-            <stop offset="75%"  stopColor="#DB2777" />
-            <stop offset="100%" stopColor="#FF2D8B" />
+          {/* ── Body gradient — amber → magenta → violet (Instagram-style warm) ── */}
+          <linearGradient id={gBody} x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor="#F9A825" />
+            <stop offset="30%"  stopColor="#F06292" />
+            <stop offset="65%"  stopColor="#E040FB" />
+            <stop offset="100%" stopColor="#7C4DFF" />
           </linearGradient>
 
-          {/* ── Clapper bar — cyan → electric blue ── */}
+          {/* ── Clapper bar — neon cyan → electric indigo ── */}
           <linearGradient id={gBar} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#00D4FF" />
-            <stop offset="55%"  stopColor="#38BDF8" />
-            <stop offset="100%" stopColor="#818CF8" />
+            <stop offset="0%"   stopColor="#00E5FF" />
+            <stop offset="50%"  stopColor="#40C4FF" />
+            <stop offset="100%" stopColor="#7C4DFF" />
           </linearGradient>
 
-          {/* ── Upper angled board — cyan → sky ── */}
+          {/* ── Upper angled board — matches bar ── */}
           <linearGradient id={gTop} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#06B6D4" />
-            <stop offset="60%"  stopColor="#00D4FF" />
-            <stop offset="100%" stopColor="#38BDF8" />
+            <stop offset="0%"   stopColor="#00E5FF" />
+            <stop offset="55%"  stopColor="#29B6F6" />
+            <stop offset="100%" stopColor="#7C4DFF" />
           </linearGradient>
 
           {/* ── Play icon — white shimmer ── */}
