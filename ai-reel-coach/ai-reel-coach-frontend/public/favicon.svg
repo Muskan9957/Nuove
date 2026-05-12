@@ -1,58 +1,45 @@
 <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Body: amber → magenta → violet (bottom-left to top-right) -->
-    <linearGradient id="gb" x1="0%" y1="100%" x2="100%" y2="0%">
+    <linearGradient id="bg" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%"   stop-color="#F9A825"/>
-      <stop offset="30%"  stop-color="#F06292"/>
-      <stop offset="65%"  stop-color="#E040FB"/>
+      <stop offset="28%"  stop-color="#F06292"/>
+      <stop offset="62%"  stop-color="#E040FB"/>
       <stop offset="100%" stop-color="#7C4DFF"/>
     </linearGradient>
-    <!-- Bars: neon cyan → electric indigo -->
-    <linearGradient id="gc" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%"   stop-color="#00E5FF"/>
-      <stop offset="50%"  stop-color="#40C4FF"/>
-      <stop offset="100%" stop-color="#7C4DFF"/>
-    </linearGradient>
-    <!-- Drop shadow -->
-    <filter id="fd" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#7C3AED" flood-opacity="0.55"/>
-      <feDropShadow dx="0" dy="0" stdDeviation="5"   flood-color="#00E5FF" flood-opacity="0.30"/>
+    <filter id="fd" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#E040FB" flood-opacity="0.50"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#7C4DFF" flood-opacity="0.35"/>
     </filter>
-    <!-- Stripe pattern -->
     <pattern id="sp" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-48)">
-      <rect x="0" y="0" width="7" height="14" fill="rgba(0,0,0,0.22)"/>
-      <rect x="7" y="0" width="7" height="14" fill="rgba(255,255,255,0.07)"/>
+      <rect x="0" y="0" width="7" height="14" fill="rgba(0,0,0,0.20)"/>
+      <rect x="7" y="0" width="7" height="14" fill="rgba(255,255,255,0.06)"/>
     </pattern>
-    <clipPath id="cl"><rect x="5" y="32" width="90" height="14" rx="4"/></clipPath>
-    <clipPath id="cu"><path d="M 5 32 L 95 19 L 95 9 L 5 22 Z"/></clipPath>
+    <clipPath id="cl"><rect x="12" y="36" width="76" height="14" rx="3"/></clipPath>
+    <clipPath id="cu"><path d="M 12 36 L 88 22 L 88 11 L 12 25 Z"/></clipPath>
   </defs>
 
   <g filter="url(#fd)">
-    <!-- Body -->
-    <rect x="5" y="44" width="90" height="52" rx="12" fill="url(#gb)"/>
-    <!-- Inner top shine -->
-    <rect x="5" y="44" width="90" height="26" rx="12" fill="rgba(255,255,255,0.18)"/>
-    <!-- Bottom shadow -->
-    <rect x="5" y="88" width="90" height="8"  rx="12" fill="rgba(0,0,0,0.18)"/>
+    <!-- Container -->
+    <rect x="3" y="3" width="94" height="94" rx="22" fill="url(#bg)"/>
+    <rect x="3" y="3" width="94" height="50" rx="22" fill="rgba(255,255,255,0.13)"/>
+    <rect x="3" y="80" width="94" height="17" rx="22" fill="rgba(0,0,0,0.18)"/>
 
-    <!-- Lower clapper bar -->
-    <rect x="5" y="32" width="90" height="14" rx="4" fill="url(#gc)"/>
-    <rect x="5" y="32" width="90" height="14" fill="url(#sp)" clip-path="url(#cl)"/>
-    <rect x="5" y="32" width="90" height="5"  rx="4" fill="rgba(255,255,255,0.28)"/>
-    <line x1="5" y1="46" x2="95" y2="46" stroke="rgba(0,0,0,0.14)" stroke-width="1"/>
+    <!-- Lower bar -->
+    <rect x="12" y="36" width="76" height="14" rx="3" fill="rgba(255,255,255,0.93)"/>
+    <rect x="12" y="36" width="76" height="14" fill="url(#sp)" clip-path="url(#cl)"/>
+    <rect x="12" y="36" width="76" height="5"  rx="3" fill="rgba(255,255,255,0.45)"/>
+    <line x1="12" y1="50" x2="88" y2="50" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
 
-    <!-- Upper angled board -->
-    <path d="M 5 32 L 95 19 L 95 9 L 5 22 Z" fill="url(#gc)"/>
-    <path d="M 5 32 L 95 19 L 95 9 L 5 22 Z" fill="url(#sp)" clip-path="url(#cu)"/>
-    <path d="M 5 22 L 95 9 L 95 12.5 L 5 25.5 Z" fill="rgba(255,255,255,0.30)"/>
-    <path d="M 5 29.5 L 95 16.5 L 95 19 L 5 32 Z"  fill="rgba(0,0,0,0.12)"/>
+    <!-- Upper board -->
+    <path d="M 12 36 L 88 22 L 88 11 L 12 25 Z" fill="rgba(255,255,255,0.88)"/>
+    <path d="M 12 36 L 88 22 L 88 11 L 12 25 Z" fill="url(#sp)" clip-path="url(#cu)"/>
+    <path d="M 12 25 L 88 11 L 88 14.5 L 12 28.5 Z" fill="rgba(255,255,255,0.50)"/>
 
     <!-- Hinge pin -->
-    <circle cx="10" cy="27" r="4"   fill="rgba(0,0,0,0.35)"/>
-    <circle cx="10" cy="27" r="2.5" fill="url(#gc)" opacity="0.95"/>
-    <circle cx="9"  cy="26" r="1"   fill="rgba(255,255,255,0.70)"/>
+    <circle cx="17" cy="30.5" r="4.5" fill="rgba(0,0,0,0.30)"/>
+    <circle cx="17" cy="30.5" r="2.8" fill="rgba(255,255,255,0.92)"/>
 
-    <!-- Play ▶ -->
-    <path d="M 36 56 L 36 81 L 70 68.5 Z" fill="rgba(255,255,255,0.90)"/>
+    <!-- Play -->
+    <path d="M 36 56 L 36 80 L 70 68 Z" fill="rgba(255,255,255,0.95)"/>
   </g>
 </svg>
