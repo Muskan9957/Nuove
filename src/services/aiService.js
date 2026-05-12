@@ -892,35 +892,73 @@ CHANGES: [one sentence — the single biggest improvement you made and why]`
 // ─────────────────────────────────────────────────────────────────
 // SONG RECOMMENDATIONS — curated picks based on the actual script
 // ─────────────────────────────────────────────────────────────────
-const recommendSongs = async ({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience = 'India' }) => {
-  const audienceCtx = getAudienceContext(audience)
+// Map region → primary music market language/genre
+const REGIONAL_MUSIC_CONTEXT = {
+  India: `CRITICAL — REGIONAL MUSIC RULE:
+The audience is INDIA. You MUST recommend Indian music:
+- Popular picks: Bollywood songs, Punjabi pop (AP Dhillon, Diljit, Arijit Singh, Pritam, Shankar-Ehsaan-Loy, A.R. Rahman), indie Hindi (Prateek Kuhad, Ritviz, When Chai Met Toast), or regional language hits that are currently trending
+- If the topic itself involves Bollywood, movies, celebrity, or Hindi film culture → pick only Bollywood songs, specifically from relevant films/artists
+- If the topic is fitness/gym → Punjabi high-energy beats (Diljit, Badshah, AP Dhillon)
+- If the topic is finance/business/motivational → AR Rahman, background scores, or trending Hindi motivational tracks
+- Royalty-free picks: Look for Indian/Hindi music on Pixabay, YouTube Audio Library, or Hoopr.ai (India's leading royalty-free platform for creators)
+- searchUrl for popular songs: use https://www.youtube.com/results?search_query= (YouTube is the primary platform in India)
+- DO NOT suggest Western English songs unless the topic specifically demands it (e.g. an English podcast or Western pop commentary)`,
+
+  US: `REGIONAL MUSIC RULE:
+The audience is the US. Pick music that resonates with American culture:
+- Popular: current Billboard/trending artists relevant to the niche
+- Royalty-free: Epidemic Sound, Artlist, Musicbed, YouTube Audio Library`,
+
+  UK: `REGIONAL MUSIC RULE:
+The audience is the UK. Pick music that resonates with British culture:
+- Popular: UK chart artists, grime, British indie, or genre-appropriate artists
+- Royalty-free: Epidemic Sound, Artlist, YouTube Audio Library`,
+
+  'Middle East': `REGIONAL MUSIC RULE:
+The audience is the Middle East. Pick music that resonates with the region:
+- Popular: Arabic pop (Amr Diab, Mohamed Ramadan, Nancy Ajram), khaleeji music, or genre-appropriate international tracks that work well in the region
+- Royalty-free: YouTube Audio Library, Pixabay`,
+
+  'Southeast Asia': `REGIONAL MUSIC RULE:
+The audience is Southeast Asia. Pick music relevant to the region:
+- Popular: local language pop from Indonesia/Philippines/Thailand/Vietnam/Malaysia relevant to the topic niche, or K-pop if that fits
+- Royalty-free: YouTube Audio Library, Pixabay`,
+
+  Global: `REGIONAL MUSIC RULE:
+Global audience — pick universally recognisable tracks that work across cultures. Lean toward international English-language hits unless the topic is clearly region-specific.`,
+}
+
+const getRegionalMusicContext = (audience) => REGIONAL_MUSIC_CONTEXT[audience] || REGIONAL_MUSIC_CONTEXT['Global']
+
+const recommendSongs = async ({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience = 'India', language = 'en' }) => {
+  const regionalMusicRule = getRegionalMusicContext(audience)
 
   const prompt = `
-You are a world-class music supervisor who has placed songs in hundreds of viral Instagram Reels and YouTube Shorts. You have deep knowledge of what tracks make content explode across fitness, finance, lifestyle, tech, comedy, and every other creator niche.
+You are a music supervisor who picks background tracks for viral Instagram Reels and YouTube Shorts. You have deep knowledge of regional music markets worldwide — Bollywood, K-pop, Latin pop, Afrobeats, Western pop — and know exactly which songs creators in each market actually use.
 
-${audienceCtx}
+${regionalMusicRule}
 
-THE SCRIPT YOU ARE SCORING MUSIC FOR:
-Topic  : ${topic}
-Niche  : ${niche || 'general'}
-Tone   : ${tone || 'motivational'}
-Hook   : "${hook}"
-Body   : "${body}"
-CTA    : "${cta}"
-Music metadata already identified: ${genre || 'upbeat'}, ${mood || 'energetic'}, ~${bpm || '120'} BPM
+THE SCRIPT:
+Topic    : ${topic}
+Niche    : ${niche || 'general'}
+Tone     : ${tone || 'motivational'}
+Language : ${language}
+Audience : ${audience}
+Hook     : "${hook}"
+Body     : "${body}"
+CTA      : "${cta}"
+Music vibe already identified: ${genre || 'upbeat'}, ${mood || 'energetic'}, ~${bpm || '120'} BPM
 
-YOUR TASK: Pick 6 specific songs — real tracks that will make this reel hit differently.
+YOUR TASK: Pick exactly 6 songs — 3 popular/well-known + 3 royalty-free/creator-safe.
 
-RULES FOR YOUR PICKS (follow these strictly):
-1. MATCH THE EMOTIONAL ARC — the music energy must mirror the script's journey (hook tension → body build → CTA payoff)
-2. BE NICHE-AWARE — fitness creators, finance creators, comedy creators each have distinct music cultures; pick accordingly
-3. MIX YOUR SELECTIONS:
-   - 3 × popular/well-known tracks (for cultural resonance and association — listeners know these)
-   - 3 × royalty-free / creator-safe tracks (practical, safe to publish without copyright claim)
-4. BE BRUTALLY SPECIFIC in "why" — reference the actual hook text, the tone, or the niche moment. No vague answers.
-5. INCLUDE BPM — it must align with the speech pace and edit rhythm
-6. ONLY recommend songs that actually exist and are well-known or genuinely exist in royalty-free libraries
-7. For royalty-free picks, mention which library they're on (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library)
+STRICT RULES:
+1. FOLLOW THE REGIONAL MUSIC RULE ABOVE — it is the most important instruction
+2. Read the topic carefully — if the topic mentions a specific music genre, artist, language, or culture, pick songs from that exact world
+3. Match the emotional energy of the script (hook tension → body momentum → CTA punch)
+4. BPM must align with the script's speech and edit pace
+5. Only recommend songs that actually exist and are genuinely available
+6. For royalty-free: specify the library (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library, Hoopr.ai)
+7. searchUrl: for popular songs use YouTube search; for royalty-free use the library's search page
 
 Return ONLY valid JSON, no markdown, no code blocks:
 {
@@ -928,46 +966,47 @@ Return ONLY valid JSON, no markdown, no code blocks:
     {
       "title": "Song Title",
       "artist": "Artist Name",
-      "why": "Specific reason referencing this script's hook/tone/niche — 1-2 crisp sentences",
       "bpm": 120,
       "energy": "high",
-      "mood": "2-3 word mood description",
+      "mood": "2-3 word mood",
       "royaltyFree": false,
       "library": null,
       "searchUrl": "https://www.youtube.com/results?search_query=Song+Title+Artist+Name"
-    },
-    {
-      "title": "Royalty Free Song Title",
-      "artist": "Artist Name",
-      "why": "Specific reason this fits",
-      "bpm": 115,
-      "energy": "medium",
-      "mood": "warm motivational",
-      "royaltyFree": true,
-      "library": "Uppbeat",
-      "searchUrl": "https://uppbeat.io/browse/music"
     }
   ]
 }
 `
 
   try {
-    const raw = await ask(prompt, 1200, MODEL)
+    const raw = await ask(prompt, 900, MODEL)
     const match = raw.match(/\{[\s\S]*\}/)
     if (!match) throw new Error('No JSON')
     const parsed = JSON.parse(match[0])
     if (!Array.isArray(parsed.songs) || parsed.songs.length === 0) throw new Error('Empty songs')
     return parsed
   } catch {
-    // Graceful fallback — still useful generic picks
+    // Fallback is region-aware
+    const isIndia = audience === 'India' || language === 'hi'
+    if (isIndia) {
+      return {
+        songs: [
+          { title: 'Tum Hi Ho', artist: 'Arijit Singh', bpm: 68, energy: 'medium', mood: 'emotional, soulful', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Tum+Hi+Ho+Arijit+Singh' },
+          { title: 'Kesariya', artist: 'Arijit Singh', bpm: 112, energy: 'high', mood: 'romantic, uplifting', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Kesariya+Arijit+Singh' },
+          { title: 'Pasoori', artist: 'Ali Sethi & Shae Gill', bpm: 95, energy: 'medium', mood: 'dreamy, vibrant', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Pasoori+Ali+Sethi' },
+          { title: 'Hindi Motivational Background', artist: 'Various', bpm: 120, energy: 'high', mood: 'powerful, uplifting', royaltyFree: true, library: 'Hoopr.ai', searchUrl: 'https://hoopr.ai/playlists/motivational' },
+          { title: 'Desi Beats Instrumental', artist: 'Various', bpm: 110, energy: 'high', mood: 'energetic, desi', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/indian/' },
+          { title: 'Bollywood Background Score', artist: 'Various', bpm: 100, energy: 'medium', mood: 'cinematic, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
+        ]
+      }
+    }
     return {
       songs: [
-        { title: 'Blinding Lights', artist: 'The Weeknd', why: 'High-energy synth-pop that mirrors fast-paced motivational content perfectly.', bpm: 171, energy: 'high', mood: 'urgent, nostalgic', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd' },
-        { title: 'Levitating', artist: 'Dua Lipa', why: 'Upbeat, feel-good pop that keeps viewers engaged through the whole reel.', bpm: 103, energy: 'high', mood: 'euphoric, fun', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Levitating+Dua+Lipa' },
-        { title: 'As It Was', artist: 'Harry Styles', why: 'Melancholic yet driving energy — works for reflective or transformation content.', bpm: 174, energy: 'medium', mood: 'bittersweet, reflective', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=As+It+Was+Harry+Styles' },
-        { title: 'Inspiring Corporate', artist: 'Various', why: 'Clean, royalty-free motivational track used widely in creator content.', bpm: 120, energy: 'medium', mood: 'clean, professional', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/motivational/' },
-        { title: 'Energetic Sport', artist: 'Various', why: 'Driving beat that pairs with high-energy transformation or fitness content.', bpm: 130, energy: 'high', mood: 'powerful, athletic', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/sport' },
-        { title: 'Positive Upbeat', artist: 'Various', why: 'Light, feel-good royalty-free track suitable for lifestyle and education niches.', bpm: 108, energy: 'medium', mood: 'happy, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
+        { title: 'Blinding Lights', artist: 'The Weeknd', bpm: 171, energy: 'high', mood: 'urgent, driving', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd' },
+        { title: 'Levitating', artist: 'Dua Lipa', bpm: 103, energy: 'high', mood: 'euphoric, fun', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Levitating+Dua+Lipa' },
+        { title: 'STAY', artist: 'The Kid LAROI & Justin Bieber', bpm: 170, energy: 'high', mood: 'emotional, intense', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=STAY+The+Kid+LAROI+Justin+Bieber' },
+        { title: 'Inspiring Uplifting', artist: 'Various', bpm: 120, energy: 'medium', mood: 'motivational', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/motivational/' },
+        { title: 'Energetic Sport', artist: 'Various', bpm: 130, energy: 'high', mood: 'powerful, athletic', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/sport' },
+        { title: 'Positive Upbeat', artist: 'Various', bpm: 108, energy: 'medium', mood: 'happy, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
       ]
     }
   }

@@ -338,6 +338,7 @@ export default function Generate() {
         mood    : s.music?.mood,
         bpm     : s.music?.bpm,
         audience: form.audience,
+        language: form.scriptLang,
       })
       setSongs(data.songs || [])
     } catch (err) {
