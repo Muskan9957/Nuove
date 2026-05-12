@@ -762,7 +762,6 @@ export default function Generate() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 <span style={{ fontSize: '1.1rem' }}>🎬</span>
                 <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1rem', margin: 0 }}>Visual Direction</h3>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 99 }}>shoot guide</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {/* Background */}
@@ -810,7 +809,6 @@ export default function Generate() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 <span style={{ fontSize: '1.1rem' }}>🎵</span>
                 <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1rem', margin: 0 }}>Music Vibe</h3>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)', background: 'var(--surface2)', padding: '2px 8px', borderRadius: 99 }}>background score</span>
               </div>
               {/* Genre / Mood / BPM chips */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -946,10 +944,6 @@ export default function Generate() {
                                   <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text)' }}>{song.title}</span>
                                   <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>— {song.artist}</span>
                                 </div>
-                                {/* Why it fits */}
-                                <p style={{ margin: '0 0 8px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                  {song.why}
-                                </p>
                                 {/* Chips row */}
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                                   {song.bpm && (
