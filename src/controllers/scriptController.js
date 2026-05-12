@@ -195,4 +195,16 @@ const getOne = async (req, res, next) => {
   }
 };
 
-module.exports = { generate, retake, refine, getAll, getOne };
+// ─── POST /api/scripts/songs ─────────────────────────────────────
+const songs = async (req, res, next) => {
+  try {
+    const { hook, body, cta, topic, niche, tone, genre, mood, bpm, audience } = req.body;
+    if (!hook || !topic) return res.status(400).json({ error: 'hook and topic are required.' });
+    const result = await aiService.recommendSongs({ hook, body: body || '', cta: cta || '', topic, niche, tone, genre, mood, bpm, audience });
+    return res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { generate, retake, refine, getAll, getOne, songs };

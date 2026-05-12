@@ -53,6 +53,7 @@ export const api = {
   refineScript:  (body) => req('POST', '/scripts/refine', body),
   getScripts:    ()     => req('GET',  '/scripts'),
   getScript:     (id)   => req('GET',  `/scripts/${id}`),
+  recommendSongs:(body) => req('POST', '/scripts/songs', body),
 
   // Hooks
   scoreHook:    (body) => req('POST', '/hooks/score', body),

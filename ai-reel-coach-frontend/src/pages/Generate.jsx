@@ -84,6 +84,10 @@ export default function Generate() {
       .catch(() => {})
   }, [])
 
+  // Song recommendations state
+  const [songs, setSongs]             = useState(null)
+  const [songsLoading, setSongsLoading] = useState(false)
+
   // Refinement / re-roll state
   const [versions, setVersions]       = useState([])
   const [activeVer, setActiveVer]     = useState(0)
@@ -175,6 +179,7 @@ export default function Generate() {
     setVersions([])
     setActiveVer(0)
     setRerollCount(0)
+    setSongs(null)
 
     saveRegion(form.audience)
     localStorage.setItem(SCRIPT_LANG_KEY, form.scriptLang)
@@ -315,6 +320,31 @@ export default function Generate() {
   const switchVersion = (idx) => {
     setActiveVer(idx)
     setResult(prev => ({ ...prev, script: versions[idx] }))
+  }
+
+  const fetchSongs = async () => {
+    if (!result?.script) return
+    setSongsLoading(true)
+    try {
+      const s = result.script
+      const data = await api.recommendSongs({
+        hook    : s.hook,
+        body    : s.body,
+        cta     : s.cta,
+        topic   : form.topic,
+        niche   : form.niche,
+        tone    : form.tone,
+        genre   : s.music?.genre,
+        mood    : s.music?.mood,
+        bpm     : s.music?.bpm,
+        audience: form.audience,
+      })
+      setSongs(data.songs || [])
+    } catch (err) {
+      toast(err.message || 'Could not fetch song picks', 'error')
+    } finally {
+      setSongsLoading(false)
+    }
   }
 
   const copyScript = () => {
@@ -774,7 +804,7 @@ export default function Generate() {
             </div>
           )}
 
-          {/* ── Music Vibe ───────────────────────────────────────── */}
+          {/* ── Music Vibe + Song Picks ──────────────────────────── */}
           {result.script?.music && (
             <div className="card" style={{ borderLeft: '3px solid #34D399' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -812,7 +842,7 @@ export default function Generate() {
                 💡 {result.script.music.tip}
               </div>
               {/* Free music source links */}
-              <div>
+              <div style={{ marginBottom: 18 }}>
                 <div style={visualLabelStyle}>🆓 Free Music Sources</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                   {[
@@ -840,6 +870,134 @@ export default function Generate() {
                     </a>
                   ))}
                 </div>
+              </div>
+
+              {/* ── AI Song Picks ──────────────────────────────────── */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18, marginTop: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '0.95rem', color: 'var(--text)', marginBottom: 2 }}>
+                      🎧 AI Song Picks
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+                      Curated tracks that match your script's energy &amp; vibe
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchSongs}
+                    disabled={songsLoading}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7,
+                      padding: '9px 18px', borderRadius: 22,
+                      fontSize: '0.82rem', fontWeight: 700,
+                      background: songsLoading
+                        ? 'var(--surface2)'
+                        : 'linear-gradient(135deg, #1DB954 0%, #17A44A 100%)',
+                      color: songsLoading ? 'var(--text-muted)' : '#fff',
+                      border: 'none', cursor: songsLoading ? 'default' : 'pointer',
+                      transition: 'opacity 0.15s, transform 0.1s',
+                      boxShadow: songsLoading ? 'none' : '0 2px 12px rgba(29,185,84,0.35)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {songsLoading
+                      ? <><span className="spinner" style={{ width: 11, height: 11, borderColor: 'rgba(255,255,255,0.2)', borderTopColor: 'var(--text-muted)' }} /> Finding songs…</>
+                      : songs ? '🔄 Refresh Picks' : '🎵 Get Song Picks'
+                    }
+                  </button>
+                </div>
+
+                {/* Song list */}
+                {songs && songs.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {/* Section labels */}
+                    {[
+                      { label: '🔥 Popular Picks', items: songs.filter(s => !s.royaltyFree) },
+                      { label: '🆓 Royalty-Free', items: songs.filter(s => s.royaltyFree) },
+                    ].map(section => section.items.length > 0 && (
+                      <div key={section.label}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8, marginTop: 4 }}>
+                          {section.label}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {section.items.map((song, i) => (
+                            <div key={i} style={{
+                              background: song.royaltyFree ? 'rgba(29,185,84,0.06)' : 'rgba(255,255,255,0.03)',
+                              border: `1px solid ${song.royaltyFree ? 'rgba(29,185,84,0.2)' : 'var(--border)'}`,
+                              borderRadius: 12,
+                              padding: '12px 14px',
+                              display: 'flex', gap: 12, alignItems: 'flex-start',
+                            }}>
+                              {/* Music note icon */}
+                              <div style={{
+                                width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                                background: song.royaltyFree
+                                  ? 'linear-gradient(135deg, rgba(29,185,84,0.25), rgba(29,185,84,0.1))'
+                                  : 'linear-gradient(135deg, rgba(252,175,69,0.2), rgba(225,48,108,0.15))',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '1.1rem',
+                              }}>
+                                🎵
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                {/* Title + artist row */}
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text)' }}>{song.title}</span>
+                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>— {song.artist}</span>
+                                </div>
+                                {/* Why it fits */}
+                                <p style={{ margin: '0 0 8px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                  {song.why}
+                                </p>
+                                {/* Chips row */}
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                  {song.bpm && (
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--surface2)', color: 'var(--text-faint)' }}>
+                                      ⚡ {song.bpm} BPM
+                                    </span>
+                                  )}
+                                  {song.energy && (
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--surface2)', color: 'var(--text-faint)' }}>
+                                      🔥 {song.energy}
+                                    </span>
+                                  )}
+                                  {song.mood && (
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'var(--surface2)', color: 'var(--text-faint)' }}>
+                                      💫 {song.mood}
+                                    </span>
+                                  )}
+                                  {song.royaltyFree && song.library && (
+                                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(29,185,84,0.12)', color: '#1DB954', border: '1px solid rgba(29,185,84,0.25)' }}>
+                                      🆓 {song.library}
+                                    </span>
+                                  )}
+                                  {song.searchUrl && (
+                                    <a
+                                      href={song.searchUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        marginLeft: 'auto', fontSize: '0.72rem', fontWeight: 700,
+                                        padding: '3px 10px', borderRadius: 99,
+                                        background: song.royaltyFree ? 'rgba(29,185,84,0.12)' : 'rgba(252,175,69,0.12)',
+                                        color: song.royaltyFree ? '#1DB954' : '#FCAF45',
+                                        border: `1px solid ${song.royaltyFree ? 'rgba(29,185,84,0.3)' : 'rgba(252,175,69,0.3)'}`,
+                                        textDecoration: 'none',
+                                      }}
+                                    >
+                                      Find ↗
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

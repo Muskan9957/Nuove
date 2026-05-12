@@ -889,6 +889,90 @@ CHANGES: [one sentence — the single biggest improvement you made and why]`
   }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// SONG RECOMMENDATIONS — curated picks based on the actual script
+// ─────────────────────────────────────────────────────────────────
+const recommendSongs = async ({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience = 'India' }) => {
+  const audienceCtx = getAudienceContext(audience)
+
+  const prompt = `
+You are a world-class music supervisor who has placed songs in hundreds of viral Instagram Reels and YouTube Shorts. You have deep knowledge of what tracks make content explode across fitness, finance, lifestyle, tech, comedy, and every other creator niche.
+
+${audienceCtx}
+
+THE SCRIPT YOU ARE SCORING MUSIC FOR:
+Topic  : ${topic}
+Niche  : ${niche || 'general'}
+Tone   : ${tone || 'motivational'}
+Hook   : "${hook}"
+Body   : "${body}"
+CTA    : "${cta}"
+Music metadata already identified: ${genre || 'upbeat'}, ${mood || 'energetic'}, ~${bpm || '120'} BPM
+
+YOUR TASK: Pick 6 specific songs — real tracks that will make this reel hit differently.
+
+RULES FOR YOUR PICKS (follow these strictly):
+1. MATCH THE EMOTIONAL ARC — the music energy must mirror the script's journey (hook tension → body build → CTA payoff)
+2. BE NICHE-AWARE — fitness creators, finance creators, comedy creators each have distinct music cultures; pick accordingly
+3. MIX YOUR SELECTIONS:
+   - 3 × popular/well-known tracks (for cultural resonance and association — listeners know these)
+   - 3 × royalty-free / creator-safe tracks (practical, safe to publish without copyright claim)
+4. BE BRUTALLY SPECIFIC in "why" — reference the actual hook text, the tone, or the niche moment. No vague answers.
+5. INCLUDE BPM — it must align with the speech pace and edit rhythm
+6. ONLY recommend songs that actually exist and are well-known or genuinely exist in royalty-free libraries
+7. For royalty-free picks, mention which library they're on (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library)
+
+Return ONLY valid JSON, no markdown, no code blocks:
+{
+  "songs": [
+    {
+      "title": "Song Title",
+      "artist": "Artist Name",
+      "why": "Specific reason referencing this script's hook/tone/niche — 1-2 crisp sentences",
+      "bpm": 120,
+      "energy": "high",
+      "mood": "2-3 word mood description",
+      "royaltyFree": false,
+      "library": null,
+      "searchUrl": "https://www.youtube.com/results?search_query=Song+Title+Artist+Name"
+    },
+    {
+      "title": "Royalty Free Song Title",
+      "artist": "Artist Name",
+      "why": "Specific reason this fits",
+      "bpm": 115,
+      "energy": "medium",
+      "mood": "warm motivational",
+      "royaltyFree": true,
+      "library": "Uppbeat",
+      "searchUrl": "https://uppbeat.io/browse/music"
+    }
+  ]
+}
+`
+
+  try {
+    const raw = await ask(prompt, 1200, MODEL)
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('No JSON')
+    const parsed = JSON.parse(match[0])
+    if (!Array.isArray(parsed.songs) || parsed.songs.length === 0) throw new Error('Empty songs')
+    return parsed
+  } catch {
+    // Graceful fallback — still useful generic picks
+    return {
+      songs: [
+        { title: 'Blinding Lights', artist: 'The Weeknd', why: 'High-energy synth-pop that mirrors fast-paced motivational content perfectly.', bpm: 171, energy: 'high', mood: 'urgent, nostalgic', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd' },
+        { title: 'Levitating', artist: 'Dua Lipa', why: 'Upbeat, feel-good pop that keeps viewers engaged through the whole reel.', bpm: 103, energy: 'high', mood: 'euphoric, fun', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Levitating+Dua+Lipa' },
+        { title: 'As It Was', artist: 'Harry Styles', why: 'Melancholic yet driving energy — works for reflective or transformation content.', bpm: 174, energy: 'medium', mood: 'bittersweet, reflective', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=As+It+Was+Harry+Styles' },
+        { title: 'Inspiring Corporate', artist: 'Various', why: 'Clean, royalty-free motivational track used widely in creator content.', bpm: 120, energy: 'medium', mood: 'clean, professional', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/motivational/' },
+        { title: 'Energetic Sport', artist: 'Various', why: 'Driving beat that pairs with high-energy transformation or fitness content.', bpm: 130, energy: 'high', mood: 'powerful, athletic', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/sport' },
+        { title: 'Positive Upbeat', artist: 'Various', why: 'Light, feel-good royalty-free track suitable for lifestyle and education niches.', bpm: 108, energy: 'medium', mood: 'happy, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
+      ]
+    }
+  }
+}
+
 module.exports = {
   analyzeCreatorStyle,
   viralEdit,
@@ -906,4 +990,5 @@ module.exports = {
   generateCaptions,
   remixContent,
   coachChat,
+  recommendSongs,
 };

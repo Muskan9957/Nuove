@@ -46,6 +46,9 @@ router.post(
   controller.refine
 );
 
+// POST /api/scripts/songs — AI-curated song picks for a generated script
+router.post('/songs', aiLimiter, controller.songs);
+
 // GET /api/scripts
 router.get('/', controller.getAll);
 
