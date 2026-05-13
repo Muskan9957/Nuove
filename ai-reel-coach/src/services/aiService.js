@@ -4,9 +4,12 @@ const MODEL       = 'claude-sonnet-4-6';           // Quality model for creative
 const MODEL_FAST  = 'claude-haiku-4-5-20251001';   // Fast model for scoring/rewriting
 
 // ─── Language instruction helper ─────────────────────────────────
+// NOTE: 'en' has an EXPLICIT instruction so the AI never drifts into
+// Hinglish / code-switching when the audience context is India or
+// another non-English region. Language and region are fully independent.
 const LANG_INSTRUCTIONS = {
-  hi:       'IMPORTANT: Write ALL content entirely in Hindi (Devanagari script). Every word must be in Hindi only.',
-  hinglish: 'IMPORTANT: Write ALL content in Hinglish — a natural mix of Hindi and English used by Indian millennials. Use Roman script (not Devanagari). Example: "Aaj main tumhe bataunga ek secret jo 10k followers dilayega."',
+  en:       'IMPORTANT: Write ALL content entirely in English. Every single word must be in English only — no Hindi, no transliteration, no code-switching, no regional words. Cultural references (cricket, Bollywood, ₹) are fine, but the language of every sentence must be pure English.',
+  hi:       'IMPORTANT: Write ALL content entirely in Hindi (Devanagari script). Every word must be in Hindi only — no English words or Hinglish mixing.',
   es:       'IMPORTANT: Write ALL content entirely in Spanish. Every word must be in Spanish only.',
   fr:       'IMPORTANT: Write ALL content entirely in French. Every word must be in French only.',
   pt:       'IMPORTANT: Write ALL content entirely in Portuguese (Brazilian). Every word must be in Portuguese only.',
@@ -17,14 +20,51 @@ const LANG_INSTRUCTIONS = {
   ko:       'IMPORTANT: Write ALL content entirely in Korean. Every word must be in Korean only.',
 }
 
-const getLangInstruction = (language) => LANG_INSTRUCTIONS[language] || ''
+const getLangInstruction = (language) => LANG_INSTRUCTIONS[language] || LANG_INSTRUCTIONS['en']
 
-// ─── Singleton client ─────────────────────────────────────────────
-const getClient = () => new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ─── Audience / geography context ────────────────────────────────
+const AUDIENCE_CONTEXTS = {
+  India: `TARGET AUDIENCE: India 🇮🇳
+- Use Indian currency (₹, lakhs, crores) — NEVER use $ or USD
+- Reference Indian cities and scenarios (Mumbai, Delhi, Bangalore, tier-2 cities)
+- Use Indian cultural anchors: cricket, Bollywood, chai, festivals (Diwali, Holi), UPI, Zomato/Swiggy, Instagram Reels culture
+- Relatable Indian pain points: job pressure, family expectations, real estate prices, competitive exams (CAT/UPSC/JEE)
+- Indian aspirations: financial freedom, starting a business, going viral, cracking a dream job
+- Indian social proof: "10 lakh views", "5 lakh followers", "₹50,000/month"
+- Speak to both metro and tier-2 audiences — keep it grounded and real`,
 
-// ─── Helper — non-streaming request ──────────────────────────────
+  'US': `TARGET AUDIENCE: United States 🇺🇸
+- Use US currency ($) and American cultural references
+- Reference US scenarios: side hustle culture, 9-5 grind, student loans, credit scores, Amazon/Netflix
+- American pain points: inflation, healthcare costs, work-life balance, hustle culture
+- Social proof in US numbers: "$10K/month", "1M views", "100K followers"`,
+
+  'UK': `TARGET AUDIENCE: United Kingdom 🇬🇧
+- Use British currency (£) and UK cultural references
+- Reference UK scenarios: cost of living crisis, NHS, commuting in London, British humour
+- British tone: slightly understated, dry wit works well`,
+
+  'Middle East': `TARGET AUDIENCE: Middle East 🇦🇪
+- Use local currency references (AED, SAR, KWD) or keep amounts in USD
+- Reference regional culture: Ramadan content, luxury lifestyle, family values, business culture in Dubai/Riyadh
+- Arabic/English bilingual content performs well — keep it aspirational`,
+
+  'Southeast Asia': `TARGET AUDIENCE: Southeast Asia 🌏
+- Reference countries like Indonesia, Philippines, Malaysia, Thailand, Vietnam
+- Use relatable local scenarios, hustle culture, growing middle class aspirations
+- Keep currency references flexible (IDR, PHP, MYR) or use USD`,
+
+  'Global': `TARGET AUDIENCE: Global 🌐
+- Use universal examples that resonate across all cultures
+- Avoid region-specific currency, celebrities, or cultural references
+- Keep examples generic, aspirational, and universally understood`,
+}
+
+const getAudienceContext = (audience) => AUDIENCE_CONTEXTS[audience] || AUDIENCE_CONTEXTS['Global']
+
+// ─── Helper — client created per-call so it always picks up the env var ─
 const ask = async (prompt, maxTokens = 1024, model = MODEL) => {
-  const client = getClient();
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const response = await client.messages.create({
     model,
     max_tokens: maxTokens,
@@ -34,97 +74,161 @@ const ask = async (prompt, maxTokens = 1024, model = MODEL) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
-// 0. STREAMING SCRIPT GENERATION (async generator)
+// 0a. ANALYZE CREATOR STYLE  (premium voice fingerprinting)
 // ─────────────────────────────────────────────────────────────────
-const generateScriptStream = async function* ({ topic, niche, tone, language = 'en', voiceInstruction }) {
-  const langInstruction = getLangInstruction(language)
-  const voiceSuffix = voiceInstruction
-    ? `\n\nVOICE STYLE INSTRUCTION (follow strictly):\n${voiceInstruction}`
-    : ''
+const analyzeCreatorStyle = async (samples) => {
+  const combinedSamples = samples
+    .map((s, i) => `--- Sample ${i + 1} ---\n${s.trim()}`)
+    .join('\n\n')
 
   const prompt = `
-You are an expert short-form content coach who specializes in viral Instagram Reels and YouTube Shorts.
-${langInstruction ? '\n' + langInstruction + '\n' : ''}
-Generate a high-performing short-form video script for the following:
-- Topic : ${topic}
-- Niche  : ${niche || 'general'}
-- Tone   : ${tone  || 'engaging and conversational'}
-${voiceSuffix}
+You are a professional voice and style analyst for short-form video creators.
+Analyze the writing samples below and extract a detailed "voice fingerprint" for this creator.
 
-The script must follow this exact structure:
+SAMPLES:
+${combinedSamples}
 
-HOOK (first 3 seconds — must stop the scroll immediately):
-[Write 1-2 sentences. Use curiosity, a bold claim, a question, or a shocking statement.]
-
-BODY (the main value — 45-75 seconds when spoken):
-[3-5 punchy points or a mini story. Keep sentences short. No filler words.]
-
-CTA (call to action — last 5 seconds):
-[One clear action: follow, comment, save, or share. Make it feel natural, not forced.]
-
----
-Rules:
-- Total speaking time must be 60-90 seconds (roughly 150-225 words)
-- Write like you are talking to a friend, not presenting to a boardroom
-- Do NOT use hashtags, emojis, or stage directions
-- Return ONLY the script, no extra commentary
-
-Script:
+Return ONLY valid JSON (no markdown, no code blocks):
+{
+  "summary": "One punchy sentence (max 25 words) capturing the essence of this creator's voice — their style, energy, and what makes them unique",
+  "energy": "One of: High-energy & urgent | Calm & conversational | Motivational & inspiring | Educational & precise | Playful & humorous | Dramatic & storytelling",
+  "sentenceStyle": "Describe their sentence length and rhythm in one sentence (e.g. 'Short punchy lines, usually 6-9 words, with frequent pauses for effect')",
+  "vocabulary": "Describe their vocabulary level and style in one sentence",
+  "humor": "Describe their humor style or write 'None — serious tone' if not present",
+  "structure": "Their typical content structure in one sentence (e.g. 'Opens with personal failure → shares the lesson → gives actionable tip → soft CTA')",
+  "signature": "Any signature phrases, patterns, or verbal habits they repeat (or 'None detected')",
+  "promptInstruction": "A 3-4 sentence instruction paragraph written in second person ('You write like...') that would help an AI mimic this exact voice. Be very specific — mention vocabulary choices, sentence patterns, energy, structure, and any unique quirks. This is injected directly into the script generation prompt."
+}
 `
 
-  const client = getClient()
-  const stream = client.messages.stream({
-    model     : MODEL_FAST,   // Haiku — 5x faster, still great for scripts
-    max_tokens: 800,
-    messages  : [{ role: 'user', content: prompt }],
-  })
-
-  let fullText = ''
-
-  for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta?.type === 'text_delta' &&
-      event.delta.text
-    ) {
-      fullText += event.delta.text
-      yield { type: 'chunk', text: event.delta.text }
-    }
+  const raw = await ask(prompt, 800, MODEL_FAST)
+  try {
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('No JSON')
+    return JSON.parse(match[0])
+  } catch {
+    return null
   }
+}
 
-  // Parse sections from the complete streamed text
-  const hookMatch = fullText.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY|$)/i)
-  const bodyMatch = fullText.match(/BODY[^:]*:\s*([\s\S]*?)(?=CTA|$)/i)
-  const ctaMatch  = fullText.match(/CTA[^:]*:\s*([\s\S]*?)$/i)
+// ─────────────────────────────────────────────────────────────────
+// 0. REFINE SCRIPT (iteration on existing result)
+// ─────────────────────────────────────────────────────────────────
+const refineScript = async ({ hook, body, cta, instruction, language = 'en', audience = 'India', topic = '' }) => {
+  const langInstruction    = getLangInstruction(language)
+  const audienceInstruction = getAudienceContext(audience)
 
-  yield {
-    type      : 'parsed',
-    hook      : hookMatch ? hookMatch[1].trim() : '',
-    body      : bodyMatch ? bodyMatch[1].trim() : '',
-    cta       : ctaMatch  ? ctaMatch[1].trim()  : '',
-    fullScript: fullText,
-  }
+  const prompt = `
+You are refining an existing viral short-form video script based on the creator's feedback.
+
+LANGUAGE RULE (non-negotiable):
+${langInstruction}
+
+AUDIENCE CONTEXT (cultural references only — does NOT change the language):
+${audienceInstruction}
+
+ORIGINAL TOPIC: ${topic}
+
+CURRENT SCRIPT:
+HOOK: ${hook}
+BODY: ${body}
+CTA: ${cta}
+
+CREATOR'S REFINEMENT INSTRUCTION:
+"${instruction}"
+
+Your job:
+- Apply the instruction PRECISELY — change only what is asked
+- Keep everything that is already strong and working
+- If the hook needs to change, make it Grade A (85+ score worthy)
+- Maintain the same language and tone unless explicitly told otherwise
+- Keep total speaking time 60-90 seconds
+
+Return ONLY the refined script in this exact format — no commentary:
+
+HOOK:
+[refined hook]
+
+BODY:
+[refined body]
+
+CTA:
+[refined cta]
+`;
+
+  const raw = await ask(prompt, 1200);
+  const hookMatch = raw.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY|$)/i);
+  const bodyMatch = raw.match(/BODY[^:]*:\s*([\s\S]*?)(?=CTA|$)/i);
+  const ctaMatch  = raw.match(/CTA[^:]*:\s*([\s\S]*?)$/i);
+
+  return {
+    hook      : hookMatch ? hookMatch[1].trim() : hook,
+    body      : bodyMatch ? bodyMatch[1].trim() : body,
+    cta       : ctaMatch  ? ctaMatch[1].trim()  : cta,
+    fullScript: raw,
+  };
 };
 
 // ─────────────────────────────────────────────────────────────────
 // 1. GENERATE SCRIPT
 // ─────────────────────────────────────────────────────────────────
-const generateScript = async ({ topic, niche, tone, language = 'en' }) => {
-  const langInstruction = getLangInstruction(language)
+const generateScript = async ({ topic, niche, tone, language = 'en', audience = 'India', voiceProfile = null, duration = '' }) => {
+  const langInstruction    = getLangInstruction(language)
+  const audienceInstruction = getAudienceContext(audience)
+
+  // Build the voice-match instruction block (only for premium users with a saved profile)
+  const voiceBlock = voiceProfile?.promptInstruction
+    ? `\nCREATOR VOICE (match this style precisely — this is a premium personalisation):
+${voiceProfile.promptInstruction}
+Ignore generic "best practice" advice above if it conflicts with the creator's established voice. Their authenticity > textbook hooks.\n`
+    : ''
+
+  const durationInstruction = duration
+    ? `- Target Duration: ${duration} minute${parseFloat(duration) === 1 ? '' : 's'} — calibrate the script length precisely for this. A 0.5 min script is ~75 words, 1 min ~150 words, 2 min ~300 words. Match the word count accordingly.`
+    : ''
+
   const prompt = `
-You are an expert short-form content coach who specializes in viral Instagram Reels and YouTube Shorts.
-${langInstruction ? '\n' + langInstruction + '\n' : ''}
+You are an expert viral content strategist who writes Grade A hooks that score 85+ on Instagram Reels and YouTube Shorts.
+
+LANGUAGE RULE (non-negotiable):
+${langInstruction}
+
+AUDIENCE CONTEXT (cultural references only — does NOT change the language):
+${audienceInstruction}
+${voiceBlock}
 Generate a high-performing short-form video script for the following:
 - Topic : ${topic}
 - Niche  : ${niche || 'general'}
 - Tone   : ${tone  || 'engaging and conversational'}
+${durationInstruction}
 
 The script must follow this exact structure:
 
-HOOK (first 3 seconds — must stop the scroll immediately):
-[Write 1-2 sentences. Use curiosity, a bold claim, a question, or a shocking statement.]
+HOOK (first 3 seconds — must score Grade A, 85+/100 for scroll-stopping power):
+Your hook will be graded on these 5 criteria — nail ALL of them:
+1. EMOTIONAL TRIGGER: Spark a strong emotion — fear, FOMO, excitement, anger, or desire. Weak emotions = low scores.
+2. CURIOSITY GAP: Create an open loop the viewer CANNOT fill without watching. They must feel "I NEED to see this."
+3. CLARITY: Instantly understandable in under 2 seconds. No setup required.
+4. SPECIFICITY: Use concrete numbers, names, or facts. Vague = forgettable. "3 clients ghosted me" beats "many people".
+5. SCROLL-STOPPING POWER: Would a person mid-scroll freeze at this? If not, rewrite it.
 
-BODY (the main value — 45-75 seconds when spoken):
+STRICTLY AVOID these weak patterns:
+- "What if I told you…" (too soft, predictable)
+- "Have you ever…" (overused, no urgency)
+- "Today I'm going to show you…" (boring, no hook)
+- "In this video…" (nobody cares)
+- Generic openers with no tension
+
+USE these proven high-scoring patterns instead:
+- Bold shocking claim: "I lost ₹2 lakh following this advice — here's what actually works"
+- Fear/warning: "If you're doing [X], you're silently killing your [Y]"
+- Surprising revelation: "Nobody tells you this about [topic] — and it cost me [X]"
+- Specific failure/win: "I went from [bad state] to [good state] in [time] using one change"
+- Open-ended tension: "The [topic] mistake every beginner makes — and how to fix it today"
+
+Write 1-2 sentences ONLY. No setup. No preamble. Start with impact.
+
+BODY (the main value — deliver on the hook's promise):
 [3-5 punchy points or a mini story. Keep sentences short. No filler words.]
 
 CTA (call to action — last 5 seconds):
@@ -132,15 +236,14 @@ CTA (call to action — last 5 seconds):
 
 ---
 Rules:
-- Total speaking time must be 60-90 seconds (roughly 150-225 words)
 - Write like you are talking to a friend, not presenting to a boardroom
 - Do NOT use hashtags, emojis, or stage directions
-- Return ONLY the script, no extra commentary
+- Return ONLY the script in the format above, no extra commentary
 
 Script:
 `;
 
-  const raw = await ask(prompt, 800);
+  const raw = await ask(prompt, 1400);
 
   // Parse the three sections from the response
   const hookMatch = raw.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY|$)/i);
@@ -156,7 +259,109 @@ Script:
 };
 
 // ─────────────────────────────────────────────────────────────────
-// 2. SCORE A HOOK
+// HOOK ALTERNATIVES — 3 improved rewrites for a weak hook
+// Used by the Score page; no scriptId required
+// ─────────────────────────────────────────────────────────────────
+const generateHookAlternatives = async (hookText, score, language = 'en') => {
+  const langInstruction = getLangInstruction(language)
+
+  const prompt = `You are a viral hook specialist. A creator wrote this hook that scored ${score}/100 — it needs improvement.
+
+LANGUAGE RULE (non-negotiable):
+${langInstruction}
+
+Original hook: "${hookText}"
+
+Write 3 completely different, improved versions. Each must score 85+/100 by:
+- Opening with maximum tension, specificity, or a bold claim
+- Creating an irresistible curiosity gap
+- Being instantly clear in under 2 seconds
+- Using concrete numbers or facts where possible
+
+Return ONLY valid JSON — no markdown, no code blocks:
+[
+  { "hook": "rewritten hook 1", "reason": "one sentence on why this is stronger" },
+  { "hook": "rewritten hook 2", "reason": "one sentence on why this is stronger" },
+  { "hook": "rewritten hook 3", "reason": "one sentence on why this is stronger" }
+]`
+
+  try {
+    const raw = await ask(prompt, 600, MODEL_FAST)
+    const cleaned = raw.replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(cleaned)
+    return Array.isArray(parsed) ? parsed.slice(0, 3) : []
+  } catch {
+    return []
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 2. GENERATE VISUAL DIRECTION + MUSIC VIBE
+// ─────────────────────────────────────────────────────────────────
+const generateVisualMusic = async ({ topic, niche, hook, audience = 'India' }) => {
+  const audienceInstruction = getAudienceContext(audience)
+
+  const prompt = `
+You are a professional short-form video director helping a creator produce a viral Instagram Reel or YouTube Short.
+
+${'\n' + audienceInstruction + '\n'}
+
+SCRIPT DETAILS:
+- Topic  : ${topic}
+- Niche  : ${niche || 'general'}
+- Hook   : "${hook}"
+
+Give the creator a practical production guide for shooting this reel.
+
+Return ONLY valid JSON (no markdown, no code blocks):
+{
+  "visual": {
+    "background": "One specific background/setting description (e.g. 'Clean white wall with a ring light' or 'Busy café with blurred background')",
+    "style": "Shooting style in 5-8 words (e.g. 'Talking head with bold text overlays')",
+    "broll": [
+      "Specific B-roll shot idea 1",
+      "Specific B-roll shot idea 2",
+      "Specific B-roll shot idea 3"
+    ],
+    "colorMood": "2-3 words describing the visual vibe (e.g. 'Dark, cinematic, bold' or 'Bright, clean, energetic')",
+    "textOverlay": "Suggestion for on-screen text or caption style"
+  },
+  "music": {
+    "genre": "Music genre (e.g. 'Lo-fi hip-hop' or 'Upbeat corporate')",
+    "mood": "Mood in 3-4 words",
+    "bpm": "Recommended BPM range (e.g. '110-125')",
+    "searchQuery": "Exact search term to find this track on a free music site (e.g. 'motivational corporate upbeat no copyright')",
+    "tip": "One practical tip about music timing or volume for this specific reel"
+  }
+}
+`
+  try {
+    const raw = await ask(prompt, 600, MODEL_FAST)
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('No JSON')
+    return JSON.parse(match[0])
+  } catch {
+    return {
+      visual: {
+        background : 'Clean, well-lit background — solid wall or minimal setup',
+        style      : 'Talking head with text overlays',
+        broll      : ['Close-up of hands demonstrating the concept', 'Screen recording or relevant product shot', 'Reaction shot or results reveal'],
+        colorMood  : 'Clean, bright, professional',
+        textOverlay: 'Bold key phrases on screen in sync with speech',
+      },
+      music: {
+        genre      : 'Upbeat background',
+        mood       : 'Energetic and motivating',
+        bpm        : '110-130',
+        searchQuery: 'upbeat motivational background music no copyright',
+        tip        : 'Keep music at 10-15% volume — voice must be clearly audible',
+      },
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 3. SCORE A HOOK
 // ─────────────────────────────────────────────────────────────────
 const scoreHook = async (hookText, language = 'en') => {
   const langInstruction = getLangInstruction(language)
@@ -312,7 +517,6 @@ Return ONLY a JSON array of 10 strings. No extra text. Example:
   } catch {
     const fallbackTopics = {
       hi: ['30 दिनों में 1000 फॉलोअर्स कैसे पाए','नए क्रिएटर्स की सबसे बड़ी गलती','मेरी कंटेंट क्रिएशन रूटीन','वीडियो पर व्यूज़ क्यों नहीं आते','हुक फॉर्मूला जो हमेशा काम करता है','रोज़ काम आने वाले कंटेंट टूल्स','एक दिन में 30 वीडियो कैसे रिकॉर्ड करें','मेरी एडिटिंग वर्कफ़्लो','क्वालिटी से ज़्यादा कंसिस्टेंसी क्यों ज़रूरी है','वायरल होने की असली सच्चाई'],
-      hinglish: ['30 days mein 1000 followers kaise paye','Naye creators ki sabse badi galti','Meri honest content creation routine','Videos pe views kyun nahi aate','Hook formula jo hamesha kaam karta hai','Daily use hone wale content tools','Ek din mein 30 videos kaise record karein','Mera editing workflow revealed','Consistency quality se zyada kyun zaroori hai','Viral hone ki sach mein kya reality hai'],
       es: ['Cómo gané 1000 seguidores en 30 días','El mayor error de los nuevos creadores','Mi rutina honesta de creación de contenido','Por qué tus videos no tienen vistas','La fórmula de gancho que siempre funciona','Herramientas de contenido que uso a diario','Cómo grabar 30 videos en un día','Mi flujo de edición revelado','Por qué la consistencia supera a la calidad','La verdad sobre hacerse viral'],
       fr: ['Comment j\'ai gagné 1000 abonnés en 30 jours','La plus grande erreur des nouveaux créateurs','Ma routine honnête de création de contenu','Pourquoi vos vidéos n\'ont pas de vues','La formule d\'accroche qui fonctionne toujours','Outils de contenu que j\'utilise quotidiennement','Comment enregistrer 30 vidéos en une journée','Mon flux de montage révélé','Pourquoi la régularité bat la qualité','La vérité sur devenir viral'],
       pt: ['Como conquistei 1000 seguidores em 30 dias','O maior erro dos novos criadores','Minha rotina honesta de criação de conteúdo','Por que seus vídeos não têm visualizações','A fórmula de gancho que sempre funciona','Ferramentas de conteúdo que uso diariamente','Como gravar 30 vídeos em um dia','Meu fluxo de edição revelado','Por que consistência supera qualidade','A verdade sobre se tornar viral'],
@@ -402,14 +606,6 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
           { title: 'शॉर्ट-फॉर्म वीडियो ट्रेंड', description: 'Reels और Shorts अभी फीड पर छाए हुए हैं।', category: 'Content' },
           { title: 'क्रिएटर इकोनॉमी की वृद्धि', description: 'ब्रांड्स अब माइक्रो-इन्फ्लुएंसर्स में ज़्यादा निवेश कर रहे हैं।', category: 'Business' },
           { title: 'असली कहानियां', description: 'रॉ, अनफिल्टर्ड कंटेंट पॉलिश्ड वीडियो से बेहतर प्रदर्शन कर रहा है।', category: 'Strategy' },
-        ],
-      },
-      hinglish: {
-        greeting: `${region} ka social media aaj buzz kar raha hai — chalo kuch viral banate hain!`,
-        trends: [
-          { title: 'Short-form video trends', description: 'Reels aur Shorts abhi feeds pe chhaye hue hain.', category: 'Content' },
-          { title: 'Creator economy ka growth', description: 'Brands ab micro-influencers mein zyada invest kar rahe hain.', category: 'Business' },
-          { title: 'Authentic storytelling', description: 'Raw, unfiltered content polished videos se better perform kar raha hai.', category: 'Strategy' },
         ],
       },
       es: {
@@ -645,9 +841,286 @@ const coachChat = async ({ message, history = [], userContext, language = 'en' }
   return { reply: response.content[0].text.trim() };
 };
 
+// ─────────────────────────────────────────────────────────────────
+// VIRAL EDITOR — second-pass punch-up on the first draft
+// Runs in parallel with hook scoring; costs ~$0.001 extra per script
+// ─────────────────────────────────────────────────────────────────
+const viralEdit = async (script, { language = 'en' } = {}) => {
+  const langInstruction = getLangInstruction(language)
+
+  const prompt = `You are a ruthless viral content editor for short-form video. A writer just drafted this script. Your ONLY job: make it land harder without changing the core message or making it longer.
+
+LANGUAGE RULE (non-negotiable):
+${langInstruction}
+
+Original:
+HOOK: ${script.hook}
+BODY: ${script.body}
+CTA: ${script.cta}
+
+Attack each section:
+- HOOK: If a person mid-scroll would keep scrolling past this, rewrite it completely. Maximum specificity. Maximum emotional punch. No soft openers.
+- BODY: Cut every word that doesn't pull its weight. Shorter sentences. Replace vague claims with concrete details.
+- CTA: Must feel like the natural next move, not a sales pitch.
+
+Return ONLY this — no commentary, no preamble:
+HOOK: [punched-up hook]
+BODY: [tightened body]
+CTA: [sharpened CTA]
+CHANGES: [one sentence — the single biggest improvement you made and why]`
+
+  try {
+    const raw = await ask(prompt, 900, MODEL_FAST)
+
+    const hookMatch    = raw.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY|$)/i)
+    const bodyMatch    = raw.match(/BODY[^:]*:\s*([\s\S]*?)(?=CTA|$)/i)
+    const ctaMatch     = raw.match(/CTA[^:]*:\s*([\s\S]*?)(?=CHANGES|$)/i)
+    const changesMatch = raw.match(/CHANGES[^:]*:\s*([\s\S]*?)$/i)
+
+    return {
+      hook   : hookMatch    ? hookMatch[1].trim()    : script.hook,
+      body   : bodyMatch    ? bodyMatch[1].trim()    : script.body,
+      cta    : ctaMatch     ? ctaMatch[1].trim()     : script.cta,
+      changes: changesMatch ? changesMatch[1].trim() : null,
+    }
+  } catch {
+    // If the edit fails for any reason, silently fall back to original
+    return { ...script, changes: null }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SONG RECOMMENDATIONS — curated picks based on the actual script
+// ─────────────────────────────────────────────────────────────────
+// Map region → primary music market language/genre
+const REGIONAL_MUSIC_CONTEXT = {
+  India: `CRITICAL — REGIONAL MUSIC RULE:
+The audience is INDIA. You MUST recommend Indian music:
+- Popular picks: Bollywood songs, Punjabi pop (AP Dhillon, Diljit, Arijit Singh, Pritam, Shankar-Ehsaan-Loy, A.R. Rahman), indie Hindi (Prateek Kuhad, Ritviz, When Chai Met Toast), or regional language hits that are currently trending
+- If the topic itself involves Bollywood, movies, celebrity, or Hindi film culture → pick only Bollywood songs, specifically from relevant films/artists
+- If the topic is fitness/gym → Punjabi high-energy beats (Diljit, Badshah, AP Dhillon)
+- If the topic is finance/business/motivational → AR Rahman, background scores, or trending Hindi motivational tracks
+- Royalty-free picks: Look for Indian/Hindi music on Pixabay, YouTube Audio Library, or Hoopr.ai (India's leading royalty-free platform for creators)
+- searchUrl for popular songs: use https://www.youtube.com/results?search_query= (YouTube is the primary platform in India)
+- DO NOT suggest Western English songs unless the topic specifically demands it (e.g. an English podcast or Western pop commentary)`,
+
+  US: `REGIONAL MUSIC RULE:
+The audience is the US. Pick music that resonates with American culture:
+- Popular: current Billboard/trending artists relevant to the niche
+- Royalty-free: Epidemic Sound, Artlist, Musicbed, YouTube Audio Library`,
+
+  UK: `REGIONAL MUSIC RULE:
+The audience is the UK. Pick music that resonates with British culture:
+- Popular: UK chart artists, grime, British indie, or genre-appropriate artists
+- Royalty-free: Epidemic Sound, Artlist, YouTube Audio Library`,
+
+  'Middle East': `REGIONAL MUSIC RULE:
+The audience is the Middle East. Pick music that resonates with the region:
+- Popular: Arabic pop (Amr Diab, Mohamed Ramadan, Nancy Ajram), khaleeji music, or genre-appropriate international tracks that work well in the region
+- Royalty-free: YouTube Audio Library, Pixabay`,
+
+  'Southeast Asia': `REGIONAL MUSIC RULE:
+The audience is Southeast Asia. Pick music relevant to the region:
+- Popular: local language pop from Indonesia/Philippines/Thailand/Vietnam/Malaysia relevant to the topic niche, or K-pop if that fits
+- Royalty-free: YouTube Audio Library, Pixabay`,
+
+  Global: `REGIONAL MUSIC RULE:
+Global audience — pick universally recognisable tracks that work across cultures. Lean toward international English-language hits unless the topic is clearly region-specific.`,
+}
+
+const getRegionalMusicContext = (audience) => REGIONAL_MUSIC_CONTEXT[audience] || REGIONAL_MUSIC_CONTEXT['Global']
+
+const recommendSongs = async ({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience = 'India', language = 'en' }) => {
+  const regionalMusicRule = getRegionalMusicContext(audience)
+
+  const prompt = `
+You are a music supervisor who picks background tracks for viral Instagram Reels and YouTube Shorts. You have deep knowledge of regional music markets worldwide — Bollywood, K-pop, Latin pop, Afrobeats, Western pop — and know exactly which songs creators in each market actually use.
+
+${regionalMusicRule}
+
+THE SCRIPT:
+Topic    : ${topic}
+Niche    : ${niche || 'general'}
+Tone     : ${tone || 'motivational'}
+Language : ${language}
+Audience : ${audience}
+Hook     : "${hook}"
+Body     : "${body}"
+CTA      : "${cta}"
+Music vibe already identified: ${genre || 'upbeat'}, ${mood || 'energetic'}, ~${bpm || '120'} BPM
+
+YOUR TASK: Pick exactly 6 songs — 3 popular/well-known + 3 royalty-free/creator-safe.
+
+STRICT RULES:
+1. FOLLOW THE REGIONAL MUSIC RULE ABOVE — it is the most important instruction
+2. Read the topic carefully — if the topic mentions a specific music genre, artist, language, or culture, pick songs from that exact world
+3. Match the emotional energy of the script (hook tension → body momentum → CTA punch)
+4. BPM must align with the script's speech and edit pace
+5. Only recommend songs that actually exist and are genuinely available
+6. For royalty-free: specify the library (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library, Hoopr.ai)
+7. searchUrl: for popular songs use YouTube search; for royalty-free use the library's search page
+
+Return ONLY valid JSON, no markdown, no code blocks:
+{
+  "songs": [
+    {
+      "title": "Song Title",
+      "artist": "Artist Name",
+      "bpm": 120,
+      "energy": "high",
+      "mood": "2-3 word mood",
+      "royaltyFree": false,
+      "library": null,
+      "searchUrl": "https://www.youtube.com/results?search_query=Song+Title+Artist+Name"
+    }
+  ]
+}
+`
+
+  try {
+    const raw = await ask(prompt, 900, MODEL)
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('No JSON')
+    const parsed = JSON.parse(match[0])
+    if (!Array.isArray(parsed.songs) || parsed.songs.length === 0) throw new Error('Empty songs')
+    return parsed
+  } catch {
+    // Fallback is region-aware
+    const isIndia = audience === 'India' || language === 'hi'
+    if (isIndia) {
+      return {
+        songs: [
+          { title: 'Tum Hi Ho', artist: 'Arijit Singh', bpm: 68, energy: 'medium', mood: 'emotional, soulful', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Tum+Hi+Ho+Arijit+Singh' },
+          { title: 'Kesariya', artist: 'Arijit Singh', bpm: 112, energy: 'high', mood: 'romantic, uplifting', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Kesariya+Arijit+Singh' },
+          { title: 'Pasoori', artist: 'Ali Sethi & Shae Gill', bpm: 95, energy: 'medium', mood: 'dreamy, vibrant', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Pasoori+Ali+Sethi' },
+          { title: 'Hindi Motivational Background', artist: 'Various', bpm: 120, energy: 'high', mood: 'powerful, uplifting', royaltyFree: true, library: 'Hoopr.ai', searchUrl: 'https://hoopr.ai/playlists/motivational' },
+          { title: 'Desi Beats Instrumental', artist: 'Various', bpm: 110, energy: 'high', mood: 'energetic, desi', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/indian/' },
+          { title: 'Bollywood Background Score', artist: 'Various', bpm: 100, energy: 'medium', mood: 'cinematic, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
+        ]
+      }
+    }
+    return {
+      songs: [
+        { title: 'Blinding Lights', artist: 'The Weeknd', bpm: 171, energy: 'high', mood: 'urgent, driving', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd' },
+        { title: 'Levitating', artist: 'Dua Lipa', bpm: 103, energy: 'high', mood: 'euphoric, fun', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Levitating+Dua+Lipa' },
+        { title: 'STAY', artist: 'The Kid LAROI & Justin Bieber', bpm: 170, energy: 'high', mood: 'emotional, intense', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=STAY+The+Kid+LAROI+Justin+Bieber' },
+        { title: 'Inspiring Uplifting', artist: 'Various', bpm: 120, energy: 'medium', mood: 'motivational', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/motivational/' },
+        { title: 'Energetic Sport', artist: 'Various', bpm: 130, energy: 'high', mood: 'powerful, athletic', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/sport' },
+        { title: 'Positive Upbeat', artist: 'Various', bpm: 108, energy: 'medium', mood: 'happy, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
+      ]
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// REEL READY — Vision-based complete post package
+// ─────────────────────────────────────────────────────────────────
+const analyzeReelContent = async ({ imageBase64Array, mediaTypes, audience = 'India', language = 'en' }) => {
+  const audienceCtx   = getAudienceContext(audience)
+  const langLabel     = { en: 'English', hi: 'Hindi', es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', ar: 'Arabic', id: 'Bahasa Indonesia', ja: 'Japanese', ko: 'Korean' }[language] || 'English'
+
+  const imageContent = imageBase64Array.map((data, i) => ({
+    type  : 'image',
+    source: { type: 'base64', media_type: mediaTypes[i] || 'image/jpeg', data },
+  }))
+
+  const prompt = `You are a senior social media strategist who builds complete Instagram Reel/Short post packages for creators.
+
+${audienceCtx}
+
+ALL text you generate (script, captions, hashtags) must be written in ${langLabel}.
+
+Carefully analyse the image(s). Understand what is happening, the mood and energy, the likely content niche, and what a creator would want to say about it.
+
+Then return ONLY valid JSON — no markdown, no code fences:
+{
+  "contentUnderstanding": "One sentence: what you see in the content",
+  "niche": "single niche keyword (fitness|food|travel|finance|lifestyle|comedy|fashion|tech|bollywood|education|beauty|motivation)",
+  "topic": "specific short topic phrase for this content",
+  "tone": "one of: motivational|educational|funny|storytelling|controversial|conversational",
+  "mood": "2-3 word mood (e.g. energetic and bold)",
+  "script": "Complete voiceover script the creator would say — hook (first line grabs attention) + body (value/story) + CTA. 80–120 words. Sound natural, not AI-generated.",
+  "captions": [
+    { "style": "punchy",       "label": "One-liner",    "text": "A punchy single-line caption under 12 words with an emoji" },
+    { "style": "storytelling", "label": "Story",        "text": "A 50–70 word story-style caption that hooks, delivers value, ends with a question or CTA" },
+    { "style": "hook",         "label": "Hook + CTA",   "text": "Opens with a bold hook statement or question, body in 2-3 lines, ends with a clear CTA" },
+    { "style": "question",     "label": "Question",     "text": "Start with a provocative question that makes the viewer stop and think, then answer it in 2 lines" },
+    { "style": "bold",         "label": "Bold Take",    "text": "A controversial or surprising opinion/statement about the content — 2-3 lines, no fluff, ends with a call to debate" }
+  ],
+  "hashtags": {
+    "niche":    ["exactly 10 niche-specific hashtags — without spaces"],
+    "broad":    ["exactly 10 broad-reach hashtags"],
+    "trending": ["exactly 10 trending/timely hashtags relevant to this niche and region"]
+  },
+  "bestTime": "e.g. 7–9 PM IST",
+  "bestDay":  "e.g. Tuesday or Thursday"
+}`
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const response = await client.messages.create({
+    model     : MODEL,
+    max_tokens: 1600,
+    messages  : [{
+      role   : 'user',
+      content: [...imageContent, { type: 'text', text: prompt }],
+    }],
+  })
+
+  const raw   = response.content[0].text
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('Could not parse vision response')
+  return JSON.parse(match[0])
+}
+
+// Generate 5 fresh captions for existing analysed content
+const generateMoreCaptions = async ({ contentUnderstanding, topic, niche, tone, mood, audience = 'India', language = 'en' }) => {
+  const langLabel = { en: 'English', hi: 'Hindi', es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', ar: 'Arabic', id: 'Bahasa Indonesia', ja: 'Japanese', ko: 'Korean' }[language] || 'English'
+  const audienceCtx = getAudienceContext(audience)
+
+  const prompt = `You are a viral social media copywriter specialising in Instagram Reels captions.
+
+${audienceCtx}
+
+ALL captions must be written in ${langLabel}.
+
+Content: "${contentUnderstanding}"
+Topic: "${topic}" | Niche: ${niche} | Tone: ${tone} | Mood: ${mood}
+
+Generate 5 FRESH and DIFFERENT captions. Each must be distinctly different in style.
+
+Return ONLY valid JSON — no markdown, no code fences:
+{
+  "captions": [
+    { "style": "punchy",       "label": "One-liner",    "text": "..." },
+    { "style": "storytelling", "label": "Story",        "text": "..." },
+    { "style": "hook",         "label": "Hook + CTA",   "text": "..." },
+    { "style": "question",     "label": "Question",     "text": "..." },
+    { "style": "bold",         "label": "Bold Take",    "text": "..." }
+  ]
+}`
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const response = await client.messages.create({
+    model     : FAST_MODEL,
+    max_tokens: 900,
+    messages  : [{ role: 'user', content: prompt }],
+  })
+
+  const raw   = response.content[0].text
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('Could not parse captions response')
+  const parsed = JSON.parse(match[0])
+  if (!Array.isArray(parsed.captions)) throw new Error('captions not array')
+  return parsed.captions
+}
+
 module.exports = {
-  generateScriptStream,
+  analyzeCreatorStyle,
+  viralEdit,
+  generateHookAlternatives,
+  refineScript,
   generateScript,
+  generateVisualMusic,
   scoreHook,
   rewriteHook,
   analyzePerformance,
@@ -658,4 +1131,7 @@ module.exports = {
   generateCaptions,
   remixContent,
   coachChat,
+  recommendSongs,
+  analyzeReelContent,
+  generateMoreCaptions,
 };

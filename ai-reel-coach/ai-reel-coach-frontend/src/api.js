@@ -53,8 +53,9 @@ export const api = {
   refineScript:  (body) => req('POST', '/scripts/refine', body),
   getScripts:    ()     => req('GET',  '/scripts'),
   getScript:     (id)   => req('GET',  `/scripts/${id}`),
-  recommendSongs:(body) => req('POST', '/scripts/songs', body),
-  reelReady:     (body) => req('POST', '/reel-ready/analyze', body),
+  recommendSongs:    (body) => req('POST', '/scripts/songs', body),
+  reelReady:         (body) => req('POST', '/reel-ready/analyze', body),
+  reelMoreCaptions:  (body) => req('POST', '/reel-ready/more-captions', body),
 
   // Hooks
   scoreHook:    (body) => req('POST', '/hooks/score', body),

@@ -1041,9 +1041,11 @@ Then return ONLY valid JSON — no markdown, no code fences:
   "mood": "2-3 word mood (e.g. energetic and bold)",
   "script": "Complete voiceover script the creator would say — hook (first line grabs attention) + body (value/story) + CTA. 80–120 words. Sound natural, not AI-generated.",
   "captions": [
-    { "style": "punchy",       "label": "One-liner",  "text": "A punchy single-line caption under 12 words with an emoji" },
-    { "style": "storytelling", "label": "Story",      "text": "A 50–70 word story-style caption that hooks, delivers value, ends with a question or CTA" },
-    { "style": "hook",         "label": "Hook + CTA", "text": "Opens with a bold hook statement or question, body in 2-3 lines, ends with a clear CTA" }
+    { "style": "punchy",       "label": "One-liner",    "text": "A punchy single-line caption under 12 words with an emoji" },
+    { "style": "storytelling", "label": "Story",        "text": "A 50–70 word story-style caption that hooks, delivers value, ends with a question or CTA" },
+    { "style": "hook",         "label": "Hook + CTA",   "text": "Opens with a bold hook statement or question, body in 2-3 lines, ends with a clear CTA" },
+    { "style": "question",     "label": "Question",     "text": "Start with a provocative question that makes the viewer stop and think, then answer it in 2 lines" },
+    { "style": "bold",         "label": "Bold Take",    "text": "A controversial or surprising opinion/statement about the content — 2-3 lines, no fluff, ends with a call to debate" }
   ],
   "hashtags": {
     "niche":    ["exactly 10 niche-specific hashtags — without spaces"],
@@ -1070,6 +1072,48 @@ Then return ONLY valid JSON — no markdown, no code fences:
   return JSON.parse(match[0])
 }
 
+// Generate 5 fresh captions for existing analysed content
+const generateMoreCaptions = async ({ contentUnderstanding, topic, niche, tone, mood, audience = 'India', language = 'en' }) => {
+  const langLabel = { en: 'English', hi: 'Hindi', es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', ar: 'Arabic', id: 'Bahasa Indonesia', ja: 'Japanese', ko: 'Korean' }[language] || 'English'
+  const audienceCtx = getAudienceContext(audience)
+
+  const prompt = `You are a viral social media copywriter specialising in Instagram Reels captions.
+
+${audienceCtx}
+
+ALL captions must be written in ${langLabel}.
+
+Content: "${contentUnderstanding}"
+Topic: "${topic}" | Niche: ${niche} | Tone: ${tone} | Mood: ${mood}
+
+Generate 5 FRESH and DIFFERENT captions. Each must be distinctly different in style.
+
+Return ONLY valid JSON — no markdown, no code fences:
+{
+  "captions": [
+    { "style": "punchy",       "label": "One-liner",    "text": "..." },
+    { "style": "storytelling", "label": "Story",        "text": "..." },
+    { "style": "hook",         "label": "Hook + CTA",   "text": "..." },
+    { "style": "question",     "label": "Question",     "text": "..." },
+    { "style": "bold",         "label": "Bold Take",    "text": "..." }
+  ]
+}`
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const response = await client.messages.create({
+    model     : FAST_MODEL,
+    max_tokens: 900,
+    messages  : [{ role: 'user', content: prompt }],
+  })
+
+  const raw   = response.content[0].text
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('Could not parse captions response')
+  const parsed = JSON.parse(match[0])
+  if (!Array.isArray(parsed.captions)) throw new Error('captions not array')
+  return parsed.captions
+}
+
 module.exports = {
   analyzeCreatorStyle,
   viralEdit,
@@ -1089,4 +1133,5 @@ module.exports = {
   coachChat,
   recommendSongs,
   analyzeReelContent,
+  generateMoreCaptions,
 };
