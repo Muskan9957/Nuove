@@ -72,7 +72,6 @@ const CAPTION_COLORS = [
   { id: 'pink',   label: 'Pink',   fill: '#FF6EC7', stroke: '#000000' },
 ]
 
-const AUDIENCES   = ['India', 'US', 'UK', 'Middle East', 'Southeast Asia', 'Global']
 const LANG_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'hi', label: 'Hindi' },
@@ -238,7 +237,7 @@ export default function ReelReady() {
   const [dragging,  setDragging]  = useState(false)
   const fileInputRef = useRef(null)
 
-  const [audience,  setAudience]  = useState(getSavedRegion() || 'India')
+  const [audience]               = useState(getSavedRegion() || 'India')
   const [language,  setLanguage]  = useState('en')
 
   const [analysis,  setAnalysis]  = useState(null)
@@ -415,22 +414,8 @@ export default function ReelReady() {
               </div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text)', marginBottom: 2 }}>{file.name}</div>
-                <div style={{ fontSize: '0.73rem', color: 'var(--text-faint)', marginBottom: 14 }}>
+                <div style={{ fontSize: '0.73rem', color: 'var(--text-faint)' }}>
                   {fileType === 'video' ? '🎥' : '🖼'} {(file.size / 1024 / 1024).toFixed(1)} MB
-                </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={S.microLabel}>Audience</div>
-                    <select value={audience} onChange={e => setAudience(e.target.value)} className="select" style={{ fontSize: '0.82rem', padding: '6px 10px' }}>
-                      {AUDIENCES.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <div style={S.microLabel}>Language</div>
-                    <select value={language} onChange={e => setLanguage(e.target.value)} className="select" style={{ fontSize: '0.82rem', padding: '6px 10px' }}>
-                      {LANG_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                    </select>
-                  </div>
                 </div>
               </div>
             </div>
@@ -524,9 +509,19 @@ export default function ReelReady() {
             <div style={S.section}>
               <div style={S.sectionHead}>
                 <span style={S.sectionTitle}>Caption</span>
-                <button style={S.moreBtn} onClick={moreCaptions} disabled={captionLoading}>
-                  {captionLoading ? '⏳' : '✦ More'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <select
+                    value={language}
+                    onChange={e => setLanguage(e.target.value)}
+                    className="select"
+                    style={{ fontSize: '0.76rem', padding: '4px 8px', borderRadius: 7 }}
+                  >
+                    {LANG_OPTIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                  </select>
+                  <button style={S.moreBtn} onClick={moreCaptions} disabled={captionLoading}>
+                    {captionLoading ? '⏳' : '✦ More'}
+                  </button>
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {captions.map((c, i) => (
