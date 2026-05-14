@@ -1,5 +1,5 @@
 /* ─── Google Fonts ───────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Nunito:wght@400;600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@700&family=Nunito:wght@400;600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap');
 
 /* ─── Design Tokens ─────────────────────────────────────────────── */
 :root {
@@ -50,7 +50,7 @@
 
   /* ── Typography ── */
   --font-display: 'Plus Jakarta Sans', sans-serif;
-  --font-head:    'Nunito', 'Bricolage Grotesque', sans-serif;
+  --font-head:    'Dancing Script', cursive;
   --font-body:    'Inter', sans-serif;
   --font-creator: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif; /* big-energy moments */
   --font-mono:    'DM Mono', monospace;
@@ -699,10 +699,10 @@ h1, h2, h3, h4 {
 
 .page-title {
   font-family: var(--font-head);
-  font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
   margin-bottom: 8px;
 }
 .page-sub {
