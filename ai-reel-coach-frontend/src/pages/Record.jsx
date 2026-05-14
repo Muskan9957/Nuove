@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 /* ─────────────────── constants ─────────────────── */
 const SPEEDS = [
@@ -20,8 +19,6 @@ const FONT_SIZES = [
 
 /* ─────────────────── component ─────────────────── */
 export default function Record() {
-  const navigate = useNavigate()
-
   // script
   const [script,     setScript]     = useState(() => sessionStorage.getItem('rc_script') || '')
   const [editing,    setEditing]    = useState(false)
@@ -198,18 +195,16 @@ export default function Record() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
 
-      {/* ── Top bar (setup only) ── */}
-      {phase === 'setup' && (
-        <div style={S.topBar}>
-          <button onClick={() => navigate(-1)} style={S.backBtn}>← Back</button>
-          <h1 className="gradient-text" style={S.topTitle}>Teleprompter &amp; Recorder</h1>
-          <div style={{ width: 60 }} />
-        </div>
-      )}
-
       {/* ─── SETUP PHASE ─── */}
       {phase === 'setup' && (
         <div style={S.setupWrap}>
+          {/* Page header — matches all other feature pages */}
+          <div style={{ width: '100%', marginBottom: 8 }}>
+            <h1 className="page-title" style={{ marginBottom: 4 }}>Record</h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+              Script scrolls while you record — no second device needed.
+            </p>
+          </div>
 
           {/* Left: Script editor */}
           <div style={S.setupLeft}>
@@ -417,13 +412,6 @@ export default function Record() {
 
 /* ─────────────── styles ─────────────── */
 const S = {
-  topBar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 20px', borderBottom: '1px solid var(--border)',
-    background: 'var(--surface)', position: 'sticky', top: 0, zIndex: 10,
-  },
-  backBtn: { background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: '0.88rem', cursor: 'pointer', padding: '4px 0', width: 60 },
-  topTitle: { margin: 0, fontWeight: 900, fontSize: '1.1rem', fontFamily: 'var(--font-head)' },
 
   setupWrap: {
     display: 'flex', gap: 24, padding: '24px 20px', maxWidth: 960, margin: '0 auto', width: '100%', flexWrap: 'wrap',

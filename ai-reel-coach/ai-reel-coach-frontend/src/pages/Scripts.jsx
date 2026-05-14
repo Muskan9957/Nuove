@@ -127,22 +127,13 @@ export default function Scripts() {
                     textAlign: 'left',
                   }}
                 >
-                  {/* Score badge */}
+                  {/* Script icon */}
                   <div style={{
-                    width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                    background: s.hookScore ? gradeColor(s.hookScore) + '18' : 'var(--surface2)',
-                    border: `1px solid ${s.hookScore ? gradeColor(s.hookScore) + '40' : 'var(--border)'}`,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
+                    width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                    background: 'var(--surface2)', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    {s.hookScore ? (
-                      <>
-                        <span style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '0.85rem', color: gradeColor(s.hookScore), lineHeight: 1 }}>{s.hookScore}</span>
-                        <span style={{ fontSize: '0.55rem', color: gradeColor(s.hookScore), opacity: 0.8, marginTop: 1 }}>score</span>
-                      </>
-                    ) : (
-                      <span style={{ fontSize: '1rem' }}>✍️</span>
-                    )}
+                    <span style={{ fontSize: '1rem' }}>✍️</span>
                   </div>
 
                   {/* Topic + meta */}
@@ -152,7 +143,6 @@ export default function Scripts() {
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 3, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                       <span>{new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      {s.hookScore && <span style={{ color: gradeColor(s.hookScore) }}>● {gradeLabel(s.hookScore)}</span>}
                     </div>
                   </div>
 
