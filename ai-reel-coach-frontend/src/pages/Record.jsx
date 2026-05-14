@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom'
 
 /* ─────────────────── constants ─────────────────── */
 const SPEEDS = [
-  { label: 'Slow',   value: 35 },
-  { label: 'Normal', value: 65 },
-  { label: 'Fast',   value: 110 },
+  { label: '1',  value: 12 },
+  { label: '2',  value: 22 },
+  { label: '3',  value: 35 },
+  { label: '4',  value: 50 },
+  { label: '5',  value: 70 },
+  { label: '6',  value: 100 },
+  { label: '7',  value: 140 },
 ]
 const FONT_SIZES = [
   { label: 'S',  value: 22 },
@@ -23,7 +27,7 @@ export default function Record() {
   const [editing,    setEditing]    = useState(false)
 
   // settings
-  const [speedIdx,   setSpeedIdx]   = useState(1)   // Normal
+  const [speedIdx,   setSpeedIdx]   = useState(2)   // default speed 3
   const [fontIdx,    setFontIdx]    = useState(1)    // M
   const [mirror,     setMirror]     = useState(true) // front cam default mirrored
   const [facingMode, setFacingMode] = useState('user')
