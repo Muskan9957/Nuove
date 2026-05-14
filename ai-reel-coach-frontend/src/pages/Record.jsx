@@ -403,9 +403,9 @@ export default function Record() {
               </button>
               <button
                 style={{ ...S.ghostBtn, flex: 1 }}
-                onClick={() => navigate('/generate')}
+                onClick={() => { setPhase('setup'); setScript(''); setOutputBlob(null); scrollPosRef.current = 0 }}
               >
-                ← Back to Generate
+                + New Recording
               </button>
             </div>
           </div>
