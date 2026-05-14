@@ -723,6 +723,17 @@ export default function Generate() {
                 <button onClick={copyScript} className="btn btn-ghost btn-sm">
                   {copied ? `✓ ${t('generate_copied')}` : t('generate_copy_all')}
                 </button>
+                <button
+                  className="btn btn-sm"
+                  style={{ background: '#E1306C', color: '#fff', border: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    const full = [result.script?.hook, result.script?.body, result.script?.cta].filter(Boolean).join('\n\n')
+                    sessionStorage.setItem('rc_script', full)
+                    window.location.href = '/record'
+                  }}
+                >
+                  ● Record
+                </button>
               </div>
             </div>
 

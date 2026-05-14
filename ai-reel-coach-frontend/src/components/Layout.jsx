@@ -112,6 +112,13 @@ const ReelReadyIcon = ({ size = 22 }) => (
   </svg>
 )
 
+const RecordIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9"/>
+    <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>
+  </svg>
+)
+
 const IconLogout = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -147,6 +154,7 @@ const NAV_CONFIG = [
   { to: '/scripts',     icon: IconScripts,     labelKey: 'nav_scripts'     },
   { to: '/coach',       icon: CoachIcon,       labelKey: 'nav_coach'       },
   { to: '/reel-ready',  icon: ReelReadyIcon,   labelKey: 'nav_reel_ready' },
+  { to: '/record',      icon: RecordIcon,      labelKey: 'nav_record'     },
   { section: 'Content',  sectionClass: 'nav-section-content'  },
   { to: '/captions',    icon: CaptionIcon,     labelKey: 'nav_captions'    },
   { to: '/crosspost',   icon: RemixIcon,       labelKey: 'nav_remix'       },

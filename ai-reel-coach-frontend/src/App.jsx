@@ -27,6 +27,7 @@ import Scripts from './pages/Scripts'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import Terms from './pages/Terms'
 import ReelReady from './pages/ReelReady'
+import Record from './pages/Record'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -93,6 +94,7 @@ export default function App() {
                 <Route path="/coach"        element={<Protected><Coach /></Protected>} />
                 <Route path="/profile"      element={<Protected><Profile /></Protected>} />
                 <Route path="/reel-ready"   element={<Protected><ReelReady /></Protected>} />
+                <Route path="/record"       element={<Protected><Record /></Protected>} />
                 <Route path="/creator-dna"  element={<Navigate to="/reel-ready" replace />} />
                 <Route path="/my-voice"     element={<Navigate to="/reel-ready" replace />} />
                 <Route path="*"             element={<Navigate to="/" replace />} />
