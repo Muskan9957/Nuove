@@ -687,14 +687,15 @@ h1, h2, h3, h4 {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ─── Page titles ────────────────────────────────────────────────── */
-/* shared gradient — reuse anywhere with className="gradient-text" */
+/* shared gradient — matches logo wordmark exactly */
 .gradient-text,
 .page-title {
-  background: linear-gradient(120deg, #FCAF45 0%, #F77737 25%, #E1306C 55%, #C13584 78%, #833AB4 100%);
+  background: linear-gradient(135deg, #00D4FF 0%, #FF2D8B 50%, #FFB800 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  color: transparent;       /* fallback so inline color: var(--text) can't override */
+  color: transparent;
+  display: inline-block;    /* gradient spans text width, not full container */
 }
 
 .page-title {
@@ -704,7 +705,6 @@ h1, h2, h3, h4 {
   letter-spacing: 0.01em;
   line-height: 1.15;
   margin-bottom: 8px;
-  display: block;
 }
 .page-sub {
   color: var(--text-muted);
