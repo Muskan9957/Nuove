@@ -137,7 +137,7 @@ const welcomeHtml = ({ name }) => layout(`
 
     <table cellpadding="0" cellspacing="0" width="100%">
       <tr><td align="center">
-        <a href="${process.env.FRONTEND_URL || 'https://viralstudio.in'}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#FF5F1F,#FF3CAC);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;">
+        <a href="${process.env.FRONTEND_URL || 'https://nuove.in'}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#FF5F1F,#FF3CAC);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;">
           Open my dashboard →
         </a>
       </td></tr>
