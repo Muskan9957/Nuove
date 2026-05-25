@@ -182,7 +182,7 @@ export default function Record() {
     if (!outputBlob) return
     const a = document.createElement('a')
     a.href = URL.createObjectURL(outputBlob)
-    a.download = `viralcoach-recording.${outputExt}`
+    a.download = `nuove-recording.${outputExt}`
     a.click()
   }
 
