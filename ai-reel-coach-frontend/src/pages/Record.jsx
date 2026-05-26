@@ -173,6 +173,14 @@ export default function Record() {
     if (phase === 'recording') { stopScroll(); startScroll() }
   }, [speedIdx]) // eslint-disable-line
 
+  /* ── re-attach stream whenever a new <video> element mounts (phase change) ── */
+  useEffect(() => {
+    if ((phase === 'countdown' || phase === 'recording') && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch(() => {})
+    }
+  }, [phase])
+
   /* ── keep scrolling state in sync with ref ── */
   useEffect(() => {
     // scrolling ref used inside rAF — handled by re-reading state flag
