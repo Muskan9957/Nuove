@@ -31,9 +31,11 @@ export const api = {
   resetPassword: (body)          => req('POST', '/auth/reset-password', body),
 
   // Payments (Razorpay)
-  createCheckout: (plan)  => req('POST', '/payments/checkout', { plan }),
-  verifyPayment:  (body)  => req('POST', '/payments/verify', body),
-  openPortal:     ()      => req('POST', '/payments/portal'),
+  createCheckout:      (plan, billing = 'monthly') => req('POST', '/payments/checkout', { plan, billing }),
+  verifyPayment:       (body)                      => req('POST', '/payments/verify', body),
+  getSubscription:     ()                          => req('GET',  '/payments/subscription'),
+  cancelSubscription:  ()                          => req('POST', '/payments/cancel'),
+  openPortal:          ()                          => req('POST', '/payments/portal'),
 
   // Scripts
   // Calls the Vercel Edge Function — true streaming, no Railway buffering

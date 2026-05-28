@@ -196,8 +196,38 @@ export default function Profile() {
     api.getUserProfile().then(p => { if (p?.streak != null) setLiveStreak(p.streak) }).catch(() => {})
   }, [])
 
-  const [showDanger, setShowDanger]       = useState(false)
-  const [showAvatarGen, setShowAvatarGen] = useState(false)
+  const [showDanger, setShowDanger]         = useState(false)
+  const [showAvatarGen, setShowAvatarGen]   = useState(false)
+  const [subData, setSubData]               = useState(null)
+  const [subLoading, setSubLoading]         = useState(false)
+  const [cancelConfirm, setCancelConfirm]   = useState(false)
+  const [cancelling, setCancelling]         = useState(false)
+
+  useEffect(() => {
+    if (user?.plan && user.plan !== 'FREE') {
+      setSubLoading(true)
+      api.getSubscription()
+        .then(d => setSubData(d))
+        .catch(() => {})
+        .finally(() => setSubLoading(false))
+    }
+  }, [user?.plan])
+
+  const handleCancelSub = async () => {
+    setCancelling(true)
+    try {
+      await api.cancelSubscription()
+      toast('Subscription cancelled — you keep access until the end of your billing period.', 'success')
+      setCancelConfirm(false)
+      // Refresh subscription data
+      const d = await api.getSubscription()
+      setSubData(d)
+    } catch (err) {
+      toast(err.message || 'Could not cancel. Please try again.', 'error')
+    } finally {
+      setCancelling(false)
+    }
+  }
   const [avatarTab, setAvatarTab]         = useState('gallery') // 'gallery' | 'custom'
   const [selectedAvatar, setSelectedAvatar] = useState(null)
   const [custom, setCustom]               = useState(DEFAULT_CUSTOM)
@@ -410,60 +440,216 @@ export default function Profile() {
         </Section>
       </div>
 
-      {/* Plan */}
+      {/* Plan & Billing */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '8px 24px', marginBottom: 16 }}>
         <Section title="Plan & Billing">
+
+          {/* Current plan row */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 0',
-            borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 0', borderBottom: '1px solid var(--border)',
           }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
-                background: 'linear-gradient(135deg, #00C8FF, #7B5CF0)',
+                background: user?.plan === 'FREE'
+                  ? 'var(--surface2)'
+                  : 'linear-gradient(135deg, #00C8FF, #7B5CF0)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '1rem',
               }}>
-                ✦
+                {user?.plan === 'FREE' ? '🎯' : '✦'}
               </div>
               <div>
                 <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.9rem' }}>
                   {planMeta.label} Plan
+                  {subData?.subscription?.status === 'cancelled' && (
+                    <span style={{ marginLeft: 8, fontSize: '0.7rem', color: '#FF9933', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      · Cancelling
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                   {planMeta.limit === 999 ? 'Unlimited scripts' : `${planMeta.limit} scripts / month`}
                 </div>
               </div>
             </div>
-            {user?.plan === 'FREE' && (
-              <button
-                onClick={() => navigate('/pricing')}
-                className="btn btn-primary btn-sm"
-              >
-                Upgrade ↗
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {user?.plan === 'FREE' ? (
+                <button onClick={() => navigate('/pricing')} className="btn btn-primary btn-sm">
+                  Upgrade ↗
+                </button>
+              ) : (
+                <button onClick={() => navigate('/pricing')} className="btn btn-ghost btn-sm">
+                  Change plan
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Free plan upsell */}
           {user?.plan === 'FREE' && (
-            <div style={{
-              padding: '14px 0',
-              display: 'flex',
-              gap: 10,
-              alignItems: 'flex-start',
-            }}>
+            <div style={{ padding: '14px 0', display: 'flex', gap: 10, alignItems: 'flex-start', borderBottom: '1px solid var(--border)' }}>
               <span style={{ fontSize: '1.1rem' }}>💎</span>
               <div>
                 <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem', marginBottom: 2 }}>
                   Unlock unlimited scripts
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Go Pro for ₹799/month — unlimited AI scripts, all features, priority support.
+                  Go Pro for ₹799/month — unlimited AI scripts, Content Remix, Creator Advisor & more.
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Active subscription details */}
+          {user?.plan !== 'FREE' && (
+            <>
+              {subLoading ? (
+                <div style={{ padding: '16px 0', color: 'var(--text-faint)', fontSize: '0.82rem' }}>
+                  Loading subscription details…
+                </div>
+              ) : subData?.subscription ? (
+                <>
+                  {/* Next billing / status */}
+                  <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {subData.subscription.currentEnd && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          {subData.subscription.status === 'cancelled' ? 'Access until' : 'Next billing date'}
+                        </span>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                          {new Date(subData.subscription.currentEnd * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Billing cycles paid</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                        {subData.subscription.paidCount} / {subData.subscription.totalCount}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status</span>
+                      <span style={{
+                        fontSize: '0.72rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                        padding: '2px 8px', borderRadius: 99,
+                        background: subData.subscription.status === 'active'
+                          ? 'rgba(34,197,94,0.12)'
+                          : subData.subscription.status === 'cancelled'
+                          ? 'rgba(255,153,51,0.12)'
+                          : 'rgba(107,107,144,0.12)',
+                        color: subData.subscription.status === 'active'
+                          ? '#22C55E'
+                          : subData.subscription.status === 'cancelled'
+                          ? '#FF9933'
+                          : 'var(--text-muted)',
+                      }}>
+                        {subData.subscription.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Payment history */}
+                  {subData.payments?.length > 0 && (
+                    <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                        Payment History
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {subData.payments.map((p) => (
+                          <div key={p.id} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: 'var(--surface2)', borderRadius: 10, padding: '10px 14px',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{
+                                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                background: p.status === 'captured' ? '#22C55E' : '#ff6b6b',
+                              }} />
+                              <div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                                  ₹{p.amount.toLocaleString('en-IN')}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>
+                                  {new Date(p.createdAt * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  {p.method && ` · ${p.method}`}
+                                </div>
+                              </div>
+                            </div>
+                            <span style={{
+                              fontSize: '0.68rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                              textTransform: 'uppercase', color: p.status === 'captured' ? '#22C55E' : '#ff6b6b',
+                            }}>
+                              {p.status === 'captured' ? 'Paid' : p.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cancel subscription */}
+                  {subData.subscription.status !== 'cancelled' && (
+                    <div style={{ padding: '14px 0' }}>
+                      {!cancelConfirm ? (
+                        <button
+                          onClick={() => setCancelConfirm(true)}
+                          style={{
+                            background: 'none', border: '1px solid rgba(255,107,107,0.25)',
+                            color: '#ff6b6b', padding: '8px 16px', borderRadius: 10,
+                            cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          Cancel subscription
+                        </button>
+                      ) : (
+                        <div style={{ background: 'rgba(255,107,107,0.06)', border: '1px solid rgba(255,107,107,0.2)', borderRadius: 12, padding: '14px 16px' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                            Cancel your subscription?
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.5 }}>
+                            You'll keep access until the end of your current billing period. No refunds are issued for partial periods.
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              onClick={() => setCancelConfirm(false)}
+                              disabled={cancelling}
+                              style={{
+                                flex: 1, padding: '8px', borderRadius: 8, border: '1px solid var(--border)',
+                                background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer',
+                                fontSize: '0.8rem', fontWeight: 600, fontFamily: 'var(--font-body)',
+                              }}
+                            >
+                              Keep subscription
+                            </button>
+                            <button
+                              onClick={handleCancelSub}
+                              disabled={cancelling}
+                              style={{
+                                flex: 1, padding: '8px', borderRadius: 8, border: 'none',
+                                background: 'rgba(255,107,107,0.15)', color: '#ff6b6b',
+                                cursor: cancelling ? 'not-allowed' : 'pointer',
+                                fontSize: '0.8rem', fontWeight: 700, fontFamily: 'var(--font-body)',
+                                opacity: cancelling ? 0.7 : 1,
+                              }}
+                            >
+                              {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ padding: '14px 0', fontSize: '0.82rem', color: 'var(--text-faint)' }}>
+                  Subscription details unavailable — contact support if this persists.
+                </div>
+              )}
+            </>
           )}
         </Section>
       </div>
@@ -515,7 +701,7 @@ export default function Profile() {
                 gap: 8,
               }}
             >
-              🚪 Sign out of Viral Studio
+              🚪 Sign out of Nuove
             </button>
           ) : (
             <div style={{ padding: '12px 0' }}>

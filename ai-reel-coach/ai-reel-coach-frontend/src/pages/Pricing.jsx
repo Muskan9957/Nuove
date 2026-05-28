@@ -115,7 +115,7 @@ export default function Pricing() {
   const [annual, setAnnual]           = useState(true)
   const [openFaq, setOpenFaq]         = useState(null)
   const [checkingOut, setCheckingOut] = useState(null)
-  const { user, login }               = useAuth()
+  const { user, refreshUser }         = useAuth()
   const navigate                      = useNavigate()
   const toast                         = useToast()
 
@@ -127,7 +127,8 @@ export default function Pricing() {
       setCheckingOut(plan.id)
 
       // 1. Ask backend to create a Razorpay subscription
-      const data = await api.createCheckout(plan.id.toUpperCase())
+      const billing = annual ? 'annual' : 'monthly'
+      const data = await api.createCheckout(plan.id.toUpperCase(), billing)
 
       // If not configured yet, show friendly message
       if (!data?.subscriptionId) {
@@ -168,10 +169,12 @@ export default function Pricing() {
               subscriptionId : response.razorpay_subscription_id,
               signature      : response.razorpay_signature,
               plan           : plan.id.toUpperCase(),
+              billing,
             })
             if (verified.success) {
+              // Refresh user object in global store so plan badge updates immediately
+              await refreshUser()
               toast(`🎉 Welcome to ${plan.name}! Your plan is now active.`, 'success')
-              // Refresh user data then redirect
               setTimeout(() => navigate('/dashboard'), 1500)
             }
           } catch {

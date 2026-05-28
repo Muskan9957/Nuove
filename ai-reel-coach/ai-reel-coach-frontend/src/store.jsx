@@ -53,13 +53,23 @@ export const AuthProvider = ({ children }) => {
     return data
   }
 
+  const refreshUser = async () => {
+    try {
+      const d = await api.getMe()
+      setUser(d.user)
+      return d.user
+    } catch {
+      return null
+    }
+  }
+
   const logout = () => {
     localStorage.removeItem('arc_token')
     setUser(null)
   }
 
   return (
-    <AuthCtx.Provider value={{ user, loading, login, register, logout }}>
+    <AuthCtx.Provider value={{ user, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthCtx.Provider>
   )
