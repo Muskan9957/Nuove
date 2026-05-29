@@ -124,7 +124,17 @@ function TrendingBrief({ userName, niches = [] }) {
   const playGreeting = () => {
     if (!greeting) return
     if (speaking) { stopSpeaking(); return }
-    speak(`${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`)
+    
+    let text = `${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`
+    
+    // Dynamically append the top 3 trends if they exist
+    if (greeting.trends && greeting.trends.length > 0) {
+      // Ensure we clean up the trend titles slightly for speech (e.g. removing emojis if necessary, though TTS usually handles them okay or ignores them)
+      const topTrends = greeting.trends.slice(0, 3).map(trend => trend.title).join(', ')
+      text += ` Today's top trending topics are: ${topTrends}.`
+    }
+    
+    speak(text)
     setPlayed(true)
   }
 

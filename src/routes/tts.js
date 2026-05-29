@@ -1,5 +1,9 @@
 const express = require('express')
 const axios   = require('axios')
+const { EdgeTTS } = require('node-edge-tts')
+const fs      = require('fs').promises
+const os      = require('os')
+const path    = require('path')
 const router  = express.Router()
 
 // ─── Google Translate TTS ─────────────────────────────────────────
@@ -30,8 +34,33 @@ router.post('/', async (req, res) => {
   const { text, lang = 'en-IN' } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'text required' })
 
+  const textToSpeak = text.slice(0, 1500)
+
+  // ─── 1. Try Premium Microsoft Edge Neural TTS (100% Free) ─────────────────
+  try {
+    const voiceId = process.env.EDGE_VOICE_ID || 'en-IN-NeerjaNeural'
+    const tts = new EdgeTTS({ 
+      voice: voiceId, 
+      lang: voiceId.substring(0, 5),
+      rate: '+10%'
+    })
+    
+    const tmpFile = path.join(os.tmpdir(), `tts-${Date.now()}-${Math.random().toString(36).substring(7)}.mp3`)
+    await tts.ttsPromise(textToSpeak, tmpFile)
+    
+    const buffer = await fs.readFile(tmpFile)
+    await fs.unlink(tmpFile).catch(() => {}) // silently clean up
+    
+    res.set('Content-Type', 'audio/mpeg')
+    res.set('Cache-Control', 'public, max-age=3600')
+    return res.send(buffer)
+  } catch (err) {
+    console.warn('[TTS] Edge Neural failed, falling back to Google:', err.message)
+  }
+
+  // ─── 2. Fallback to Free Google Translate TTS ────────────────────────────
   const tl     = LANG_MAP[lang] || 'en'
-  const chunks = splitSentences(text.slice(0, 1500))
+  const chunks = splitSentences(textToSpeak)
 
   try {
     const buffers = []
