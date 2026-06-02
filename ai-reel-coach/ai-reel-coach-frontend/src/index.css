@@ -415,7 +415,13 @@ body {
   overflow-x: hidden;
 }
 
-/* ─── Atmospheric mesh — layer 1: soft colour orbs ──────────────── */
+/* ─── Layer 1: Bokeh depth — near-focus light pockets ──────────────── */
+/*
+   Six circular radial gradients mimic shallow depth-of-field bokeh lights.
+   Heavy blur creates the soft, out-of-focus camera effect.
+   Positions match a real 3-point lighting rig (key / back / fill)
+   with secondary accent lights for visual interest across the viewport.
+*/
 body::before {
   content: '';
   position: fixed;
@@ -423,46 +429,46 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    /* key light — warm saffron, top-left */
-    radial-gradient(ellipse 85% 75% at 2%   5%,   rgba(255,110,0,0.24)  0%, transparent 52%),
+    /* key light — saffron amber, top-left */
+    radial-gradient(circle 36vw at 18%  28%, rgba(255,140,0,0.22)   0%, transparent 65%),
     /* backlight — hot magenta, top-right */
-    radial-gradient(ellipse 70% 85% at 98%  8%,   rgba(255,45,111,0.17) 0%, transparent 50%),
-    /* floor bounce — violet, bottom-center */
-    radial-gradient(ellipse 80% 60% at 48%  108%,  rgba(179,109,255,0.13) 0%, transparent 52%),
-    /* fill — amber, mid-right */
-    radial-gradient(ellipse 52% 58% at 88%  70%,  rgba(255,140,0,0.09)  0%, transparent 46%),
-    /* accent — coral, mid-left */
-    radial-gradient(ellipse 48% 52% at 14%  68%,  rgba(255,80,30,0.07)  0%, transparent 50%),
-    /* subtle centre warmth */
-    radial-gradient(ellipse 36% 38% at 58%  38%,  rgba(210,80,0,0.05)   0%, transparent 58%);
-  animation: meshDrift 28s ease-in-out infinite alternate;
+    radial-gradient(circle 30vw at 80%  18%, rgba(255,45,111,0.18)  0%, transparent 65%),
+    /* floor spill — violet, bottom-center */
+    radial-gradient(circle 44vw at 52%  90%, rgba(179,109,255,0.14) 0%, transparent 65%),
+    /* fill — warm amber, mid-right */
+    radial-gradient(circle 22vw at 88%  65%, rgba(255,140,0,0.12)   0%, transparent 65%),
+    /* accent — emerald mint, mid-left */
+    radial-gradient(circle 16vw at 10%  72%, rgba(0,229,160,0.10)   0%, transparent 65%),
+    /* centre haze — magenta */
+    radial-gradient(circle 14vw at 62%  42%, rgba(255,45,111,0.08)  0%, transparent 65%);
+  filter: blur(40px);
+  animation: bokehDrift 22s ease-in-out infinite alternate;
 }
 
-@keyframes meshDrift {
-  0%   { transform: translate(0,     0)     scale(1);    opacity: 1;    }
-  20%  { transform: translate(-1.5%, 2.5%)  scale(1.02); opacity: 0.93; }
-  45%  { transform: translate(2%,   -1.5%)  scale(0.98); opacity: 1;    }
-  70%  { transform: translate(-0.8%, 1.2%)  scale(1.015);opacity: 0.95; }
-  100% { transform: translate(1.2%, -0.4%)  scale(1.01); opacity: 0.98; }
+@keyframes bokehDrift {
+  0%   { transform: translate(0,     0)     scale(1);    }
+  25%  { transform: translate(-2%,   3%)    scale(1.04); }
+  55%  { transform: translate(2.5%, -2%)    scale(0.97); }
+  80%  { transform: translate(-1%,   1.5%)  scale(1.02); }
+  100% { transform: translate(1.5%, -0.5%)  scale(1.01); }
 }
 
 [data-theme="light"] body::before {
   background:
-    radial-gradient(ellipse 72% 62% at  2%  5%,   rgba(255,130,0,0.36)  0%, transparent 54%),
-    radial-gradient(ellipse 58% 68% at 97%  8%,   rgba(220,0,80,0.26)   0%, transparent 50%),
-    radial-gradient(ellipse 62% 52% at 52%  102%, rgba(255,110,0,0.30)  0%, transparent 50%),
-    radial-gradient(ellipse 46% 52% at 86%  76%,  rgba(160,70,255,0.14) 0%, transparent 46%),
-    radial-gradient(ellipse 42% 46% at 16%  72%,  rgba(255,60,60,0.16)  0%, transparent 48%),
-    radial-gradient(ellipse 32% 36% at 52%  42%,  rgba(255,160,0,0.10)  0%, transparent 54%);
-  opacity: 1;
-  animation: meshDrift 22s ease-in-out infinite alternate;
+    radial-gradient(circle 36vw at 18%  28%, rgba(255,130,0,0.32)   0%, transparent 60%),
+    radial-gradient(circle 30vw at 80%  18%, rgba(220,0,80,0.24)    0%, transparent 60%),
+    radial-gradient(circle 44vw at 52%  90%, rgba(150,80,255,0.18)  0%, transparent 60%),
+    radial-gradient(circle 22vw at 88%  65%, rgba(255,140,0,0.18)   0%, transparent 60%),
+    radial-gradient(circle 16vw at 10%  72%, rgba(0,180,120,0.14)   0%, transparent 60%),
+    radial-gradient(circle 14vw at 62%  42%, rgba(255,45,111,0.12)  0%, transparent 60%);
+  filter: blur(40px);
+  animation: bokehDrift 18s ease-in-out infinite alternate;
 }
 
-/* ─── Layer 2: isometric studio grid ─────────────────────────────── */
+/* ─── Layer 2: wide ambient glow — deep-focus background bokeh ─────── */
 /*
-   60° crosshatch — like a director's storyboard or DP's viewfinder grid.
-   Two sets of diagonal lines crossing at 60° form equilateral triangles,
-   giving a creative/isometric feel rather than the standard 45° diamond.
+   Larger, softer orbs with heavier blur create the far-background
+   bokeh layer, adding depth separation between fore and background.
 */
 body::after {
   content: '';
@@ -470,43 +476,21 @@ body::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      60deg,
-      transparent 0px, transparent 54px,
-      rgba(255,140,0,0.055) 54px, rgba(255,140,0,0.055) 55px
-    ),
-    repeating-linear-gradient(
-      -60deg,
-      transparent 0px, transparent 54px,
-      rgba(255,45,111,0.032) 54px, rgba(255,45,111,0.032) 55px
-    ),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0px, transparent 54px,
-      rgba(255,140,0,0.018) 54px, rgba(255,140,0,0.018) 55px
-    );
+  background:
+    radial-gradient(circle 60vw at  5%  10%, rgba(255,100,0,0.10)   0%, transparent 55%),
+    radial-gradient(circle 50vw at 96%   5%, rgba(255,45,111,0.08)  0%, transparent 55%),
+    radial-gradient(circle 56vw at 50% 106%, rgba(179,109,255,0.07) 0%, transparent 55%),
+    radial-gradient(circle 38vw at 90%  72%, rgba(0,229,160,0.05)   0%, transparent 55%);
+  filter: blur(80px);
 }
 
-/* Light mode: slightly warmer/darker lines to show on bright bg */
 [data-theme="light"] body::after {
-  background-image:
-    repeating-linear-gradient(
-      60deg,
-      transparent 0px, transparent 54px,
-      rgba(200,80,0,0.07) 54px, rgba(200,80,0,0.07) 55px
-    ),
-    repeating-linear-gradient(
-      -60deg,
-      transparent 0px, transparent 54px,
-      rgba(200,0,74,0.042) 54px, rgba(200,0,74,0.042) 55px
-    ),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0px, transparent 54px,
-      rgba(200,80,0,0.022) 54px, rgba(200,80,0,0.022) 55px
-    );
-  opacity: 1;
+  background:
+    radial-gradient(circle 60vw at  5%  10%, rgba(255,120,0,0.16)   0%, transparent 55%),
+    radial-gradient(circle 50vw at 96%   5%, rgba(200,0,80,0.12)    0%, transparent 55%),
+    radial-gradient(circle 56vw at 50% 106%, rgba(140,70,240,0.10)  0%, transparent 55%),
+    radial-gradient(circle 38vw at 90%  72%, rgba(0,200,130,0.08)   0%, transparent 55%);
+  filter: blur(80px);
 }
 
 /* ─── Layer 3: cinematic vignette ────────────────────────────────── */
@@ -518,16 +502,16 @@ body::after {
   pointer-events: none;
   background: radial-gradient(
     ellipse 130% 130% at 50% 50%,
-    transparent 40%,
-    rgba(4,2,8,0.55) 100%
+    transparent 35%,
+    rgba(4,2,8,0.62) 100%
   );
 }
 
 [data-theme="light"] #root::before {
   background: radial-gradient(
     ellipse 140% 140% at 50% 50%,
-    transparent 38%,
-    rgba(80,20,0,0.12) 100%
+    transparent 36%,
+    rgba(60,15,0,0.14) 100%
   );
 }
 
