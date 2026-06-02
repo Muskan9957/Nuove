@@ -110,12 +110,16 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
 
     const region = getSavedRegion() || 'India'
     const ts = Date.now()
-    // _t param busts any CDN / backend cache so we always get fresh topics
-    const bust = `&_t=${ts}`
+    const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
+    // _t + date params bust CDN/backend cache and anchor AI to today's real events
+    const bust = `&_t=${ts}&date=${today}`
 
     const greetingPromise = api.getGreeting(region, lang, niches, bust)
-    const trendingPromise = primaryNiche
-      ? api.getTrending(primaryNiche, lang, bust).catch(() => null)
+    // Pass ALL niches (not just primary) so backend scores multiple categories
+    const trendingPromise = niches.length
+      ? api.getTrending(niches.join(','), lang, bust).catch(() =>
+          primaryNiche ? api.getTrending(primaryNiche, lang, bust).catch(() => null) : null
+        )
       : Promise.resolve(null)
 
     Promise.all([greetingPromise, trendingPromise])
@@ -187,21 +191,6 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
           color: 'var(--text-faint)', letterSpacing: '0.06em',
         }}>{today}</span>
-
-        {/* Niche badge — shows active niche */}
-        {greeting?.nicheLabel && (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            padding: '3px 9px', borderRadius: 99, letterSpacing: '0.06em',
-            background: `${greeting.nicheColor || C.violet}18`,
-            border: `1px solid ${greeting.nicheColor || C.violet}40`,
-            color: greeting.nicheColor || C.violet,
-            textTransform: 'uppercase',
-          }}>
-            {greeting.nicheEmoji} {greeting.nicheLabel}
-          </span>
-        )}
 
         {/* Freshness stamp */}
         {ago && !loading && !refreshing && (
@@ -351,12 +340,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                       : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
                   }}
                 >
-                  {/* Rank watermark */}
+                  {/* Rank watermark — opacity on element so all hues render equally visible */}
                   <span style={{
                     position: 'absolute', right: 12, top: 8,
                     fontFamily: 'var(--font-creator)', fontWeight: 900,
                     fontSize: '4rem', lineHeight: 1,
-                    color: `${color}${isLight ? '10' : '12'}`,
+                    color,
+                    opacity: isLight ? 0.14 : 0.20,
                     userSelect: 'none', pointerEvents: 'none',
                     letterSpacing: '-0.05em',
                   }}>{rank}</span>
@@ -817,43 +807,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* ─── Active niche chips ───────────────────────────────────── */}
-      {niches.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-          <span style={{
-            fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0,
-          }}>Niche</span>
-          {niches.map(n => {
-            const meta = NICHE_META[n] || { emoji: '🎯', color: C.cyan }
-            return (
-              <Link key={n} to="/trending" style={{ textDecoration: 'none' }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '4px 12px', borderRadius: 99,
-                  background: `${meta.color}12`, border: `1px solid ${meta.color}38`,
-                  color: meta.color, fontSize: '0.73rem', fontWeight: 700,
-                  fontFamily: 'var(--font-mono)', cursor: 'pointer',
-                  transition: 'all 0.15s', letterSpacing: '0.03em',
-                }}>
-                  {meta.emoji} {n.charAt(0).toUpperCase() + n.slice(1)}
-                </span>
-              </Link>
-            )
-          })}
-          <button
-            onClick={handleEditNiche}
-            style={{
-              background: 'none', border: 'none', padding: 0, marginLeft: 2,
-              fontSize: '0.65rem', color: 'var(--text-faint)',
-              fontFamily: 'var(--font-mono)', cursor: 'pointer',
-              transition: 'color 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = C.amber}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-          >edit niche →</button>
-        </div>
-      )}
+      {/* niche chips removed — niche filters briefs silently */}
 
       {/* ─── Stats strip ──────────────────────────────────────────── */}
       <StatsStrip

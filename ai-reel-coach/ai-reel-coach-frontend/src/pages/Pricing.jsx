@@ -9,73 +9,77 @@ const PLANS = [
   {
     id:       'free',
     name:     'Free',
-    tagline:  'Start creating today',
+    tagline:  'Try Nuove, no card needed',
     priceM:   0,
     priceY:   0,
     badge:    null,
-    accent:   '#6B6B90',
-    accentBg: 'rgba(107,107,144,0.10)',
+    accent:   '#6B7280',
+    accentBg: 'rgba(107,114,128,0.10)',
     cta:      'Get started free',
     ctaStyle: 'ghost',
     features: [
-      { text: '10 AI scripts / month',         ok: true  },
-      { text: '5 hook scores / month',          ok: true  },
-      { text: 'Caption Generator',              ok: true  },
-      { text: 'Hook Library (40 templates)',    ok: true  },
-      { text: 'Basic trending topics',          ok: true  },
-      { text: 'Content Remix',                  ok: false },
-      { text: 'Creator Advisor (unlimited chat)', ok: false },
-      { text: 'Voice assistant',                ok: false },
-      { text: 'Performance analytics',          ok: false },
-      { text: 'Priority AI (faster)',           ok: false },
+      { text: '5 AI scripts / month',              ok: true  },
+      { text: '5 hook scores / month',             ok: true  },
+      { text: 'Scripts library',                   ok: true  },
+      { text: 'Hook Library (browse)',             ok: true  },
+      { text: 'General daily brief',               ok: true  },
+      { text: 'Niche-personalised brief',          ok: false },
+      { text: 'Caption Generator',                 ok: false },
+      { text: 'Teleprompter & Recorder',           ok: false },
+      { text: 'Performance Analytics',             ok: false },
+      { text: 'Content Calendar',                  ok: false },
+      { text: 'Creator Coach (AI chat)',            ok: false },
+      { text: 'My Voice — Creator DNA',            ok: false },
     ],
   },
   {
     id:       'pro',
     name:     'Pro',
-    tagline:  'For serious creators',
-    priceM:   799,
-    priceY:   599,
+    tagline:  'Everything a creator needs',
+    priceM:   99,
+    priceY:   74,
     badge:    'Most Popular',
     accent:   '#FF8C00',
     accentBg: 'rgba(255,140,0,0.10)',
-    cta:      'Start Pro — 7 days free',
+    cta:      'Start Pro',
     ctaStyle: 'primary',
     features: [
-      { text: 'Unlimited AI scripts',           ok: true  },
-      { text: 'Unlimited hook scores',          ok: true  },
-      { text: 'Caption Generator',              ok: true  },
-      { text: 'Hook Library (40 templates)',    ok: true  },
-      { text: 'Live trending topics',           ok: true  },
-      { text: 'Content Remix (all platforms)',  ok: true  },
-      { text: 'Creator Advisor (unlimited chat)', ok: true  },
-      { text: 'Voice assistant',                ok: true  },
-      { text: 'Performance analytics',          ok: true  },
-      { text: 'Priority AI (faster)',           ok: false },
+      { text: 'Unlimited AI scripts',              ok: true  },
+      { text: 'Unlimited hook scores',             ok: true  },
+      { text: 'Niche-personalised daily brief',    ok: true  },
+      { text: 'Caption Generator (unlimited)',     ok: true  },
+      { text: 'Teleprompter & Recorder',           ok: true  },
+      { text: 'Reel Ready (captions + songs)',     ok: true  },
+      { text: 'Trending Topics (live)',            ok: true  },
+      { text: 'Script Templates',                  ok: true  },
+      { text: 'Performance Analytics',             ok: true  },
+      { text: 'Content Calendar',                  ok: true  },
+      { text: 'Creator Coach (unlimited chat)',    ok: true  },
+      { text: 'My Voice — Creator DNA',            ok: false },
     ],
   },
   {
     id:       'studio',
     name:     'Studio',
-    tagline:  'For agencies & teams',
-    priceM:   1999,
-    priceY:   1499,
+    tagline:  'For power creators & brands',
+    priceM:   499,
+    priceY:   374,
     badge:    'Best Value',
     accent:   '#FF2D6F',
     accentBg: 'rgba(255,45,111,0.10)',
-    cta:      'Start Studio — 7 days free',
+    cta:      'Start Studio',
     ctaStyle: 'gradient',
     features: [
-      { text: 'Everything in Pro',              ok: true  },
-      { text: 'Priority AI (2× faster)',        ok: true  },
-      { text: 'Up to 5 team members',           ok: true  },
-      { text: 'Custom brand voice',             ok: true  },
-      { text: 'Bulk script generation',         ok: true  },
-      { text: 'Advanced performance reports',   ok: true  },
-      { text: 'Dedicated creator success call', ok: true  },
-      { text: 'Early access to new features',   ok: true  },
-      { text: 'White-label exports',            ok: true  },
-      { text: 'API access (coming soon)',        ok: true  },
+      { text: 'Everything in Pro',                 ok: true  },
+      { text: 'My Voice — Creator DNA',            ok: true  },
+      { text: 'Content Remix (all platforms)',     ok: true  },
+      { text: 'Priority AI (2× faster)',           ok: true  },
+      { text: 'Advanced performance reports',      ok: true  },
+      { text: 'Creator Score insights',            ok: true  },
+      { text: 'Script retakes & refinements',      ok: true  },
+      { text: 'Full Hook Library + Templates',     ok: true  },
+      { text: 'Early access to new features',      ok: true  },
+      { text: 'Dedicated support',                 ok: true  },
     ],
   },
 ]
@@ -83,19 +87,19 @@ const PLANS = [
 const FAQS = [
   {
     q: 'Can I cancel anytime?',
-    a: 'Yes — cancel from your profile, no questions asked. You keep access until the end of your billing period.',
+    a: 'Yes — cancel from your profile page, no questions asked. You keep access until the end of your current billing period.',
   },
   {
-    q: 'Do you support Hindi scripts?',
-    a: 'Absolutely. Select Hindi or Hinglish in your settings and the AI writes in your chosen language with native expressions.',
+    q: 'Do you support Hindi / regional language scripts?',
+    a: 'Absolutely. Select Hindi, Hinglish, or your regional language in settings and the AI writes naturally in that language.',
   },
   {
-    q: 'What is the 7-day free trial?',
-    a: 'Start Pro or Studio without entering a card. After 7 days, you decide whether to continue — we send you a reminder first.',
+    q: 'What\'s the difference between Pro and Studio?',
+    a: 'Pro (₹99/mo) unlocks everything — unlimited scripts, niche brief, captions, teleprompter, reel ready, analytics, calendar, and coach. Studio (₹499/mo) adds My Voice (Creator DNA), Content Remix, Priority AI, advanced reports, and early feature access.',
   },
   {
     q: 'Can I upgrade or downgrade later?',
-    a: 'Yes, any time. Upgrades are prorated. Downgrades take effect at the next billing cycle.',
+    a: 'Yes, any time. Upgrades take effect immediately. Downgrades apply at the start of the next billing cycle.',
   },
 ]
 
@@ -112,7 +116,7 @@ function loadRazorpayScript() {
 }
 
 export default function Pricing() {
-  const [annual, setAnnual]           = useState(true)
+  const [annual, setAnnual]           = useState(false)
   const [openFaq, setOpenFaq]         = useState(null)
   const [checkingOut, setCheckingOut] = useState(null)
   const { user, refreshUser }         = useAuth()
@@ -410,9 +414,9 @@ export default function Pricing() {
                 </div>
                 {annual && price > 0 && (
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: 3 }}>
-                    Billed ₹{(price * 12).toLocaleString('en-IN')}/year &nbsp;
+                    Billed ₹{(plan.priceY * 12).toLocaleString('en-IN')}/year &nbsp;
                     <span style={{ color: '#22C55E', fontWeight: 600 }}>
-                      (save ₹{((plan.priceM - plan.priceY) * 12).toLocaleString('en-IN')})
+                      save ₹{((plan.priceM - plan.priceY) * 12).toLocaleString('en-IN')}
                     </span>
                   </div>
                 )}
