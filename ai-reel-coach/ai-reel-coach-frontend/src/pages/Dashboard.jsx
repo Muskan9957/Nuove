@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
 import { useLang } from '../i18n.jsx'
@@ -62,6 +62,22 @@ function getTimeMood() {
 }
 
 const BRIEF_CACHE_KEY = 'arc_brief_cache'
+const BRIEF_CACHE_TTL_MS = 6 * 60 * 60 * 1000   // 6 h — after this, always re-fetch
+
+/* Virality heat: rank 1 = 95%, 2 = 80%, 3 = 67%, 4 = 56%, 5 = 48%, 6 = 40% */
+const VIRALITY = [95, 80, 67, 56, 48, 40]
+
+/* "Freshness" badge driven by rank */
+const TREND_BADGE = ['🔥 HOT', '⚡ RISING', '✨ NEW', '📈 TRENDING', '💡 INSIGHT', '🚀 VIRAL']
+
+function timeAgo(ts) {
+  if (!ts) return null
+  const diff = Math.floor((Date.now() - ts) / 60000)
+  if (diff < 1)  return 'just now'
+  if (diff < 60) return `${diff}m ago`
+  const h = Math.floor(diff / 60)
+  return `${h}h ago`
+}
 
 /* ─── Pulsing LIVE dot ────────────────────────────────────────────── */
 function LiveDot() {
@@ -78,27 +94,39 @@ function LiveDot() {
 }
 
 /* ─── Today's Brief — editorial redesign ─────────────────────────── */
-function TrendingBrief({ userName, niches = [] }) {
+function TrendingBrief({ userName, niches = [], onEditNiche }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
   const isLight = theme === 'light'
   const { speak, speaking, stopSpeaking } = useTextToSpeech()
   const [played, setPlayed] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const primaryNiche = niches[0] || ''
 
   const cacheKey = `${BRIEF_CACHE_KEY}_${niches.join(',')}_${lang}`
-  const [greeting, setGreeting] = useState(() => {
+
+  const readCache = useCallback(() => {
     try {
       const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
-      if (c?.date === new Date().toISOString().slice(0,10)) return c.data
-    } catch {}
-    return null
-  })
-  const [loading, setLoading] = useState(!greeting)
+      if (!c) return null
+      // Expire after TTL
+      if (Date.now() - (c.ts || 0) > BRIEF_CACHE_TTL_MS) return null
+      return c
+    } catch { return null }
+  }, [cacheKey])
 
-  useEffect(() => {
+  const [cached, setCached] = useState(() => readCache())
+  const [greeting, setGreeting] = useState(() => cached?.data || null)
+  const [fetchedAt, setFetchedAt] = useState(() => cached?.ts || null)
+  const [loading, setLoading] = useState(!cached?.data)
+
+  const fetchBrief = useCallback((force = false) => {
+    if (force) setRefreshing(true)
+    else setLoading(true)
     const region = getSavedRegion() || 'India'
-    const today  = new Date().toISOString().slice(0, 10)
+    const ts = Date.now()
+
+    // Fetch both greeting (with niches) AND niche-specific trending in parallel
     const greetingPromise = api.getGreeting(region, lang, niches)
     const trendingPromise = primaryNiche
       ? api.getTrending(primaryNiche, lang).catch(() => null)
@@ -106,16 +134,25 @@ function TrendingBrief({ userName, niches = [] }) {
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
+        // Prefer niche-specific trends; fall back to greeting trends
         const merged = {
           ...greetData,
           trends: trendData?.trends?.length ? trendData.trends : greetData?.trends,
           nicheLabel: primaryNiche ? primaryNiche.charAt(0).toUpperCase() + primaryNiche.slice(1) : null,
+          nicheEmoji: primaryNiche ? (NICHE_META[primaryNiche]?.emoji || '🎯') : null,
+          nicheColor: primaryNiche ? (NICHE_META[primaryNiche]?.color || C.cyan) : null,
         }
         setGreeting(merged)
-        localStorage.setItem(cacheKey, JSON.stringify({ data: merged, date: today }))
+        setFetchedAt(ts)
+        localStorage.setItem(cacheKey, JSON.stringify({ data: merged, ts }))
       })
       .catch(() => {})
-      .finally(() => setLoading(false))
+      .finally(() => { setLoading(false); setRefreshing(false) })
+  }, [lang, niches.join(','), cacheKey])
+
+  useEffect(() => {
+    // Re-fetch if cache is empty (or expired)
+    if (!cached?.data) fetchBrief(false)
   }, [lang, niches.join(',')])
 
   const playGreeting = () => {
@@ -123,7 +160,7 @@ function TrendingBrief({ userName, niches = [] }) {
     if (speaking) { stopSpeaking(); return }
     let text = `${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`
     if (greeting.trends?.length) {
-      const topTrends = greeting.trends.slice(0, 3).map(t => t.title).join(', ')
+      const topTrends = greeting.trends.slice(0, 3).map(tr => tr.title).join(', ')
       text += ` Today's top trending topics are: ${topTrends}.`
     }
     speak(text)
@@ -131,9 +168,12 @@ function TrendingBrief({ userName, niches = [] }) {
   }
 
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const ago   = timeAgo(fetchedAt)
+  const trends = greeting?.trends || []
 
   return (
     <section style={{ marginBottom: 32 }}>
+
       {/* ── Section header ── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
@@ -157,7 +197,7 @@ function TrendingBrief({ userName, niches = [] }) {
           margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
           fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
         }}>
-          Trending Now
+          Today's Brief
         </h2>
 
         {/* Date chip */}
@@ -166,19 +206,53 @@ function TrendingBrief({ userName, niches = [] }) {
           color: 'var(--text-faint)', letterSpacing: '0.06em',
         }}>{today}</span>
 
-        {/* Niche badge */}
+        {/* Niche badge — shows active niche */}
         {greeting?.nicheLabel && (
           <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
             fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
             padding: '3px 9px', borderRadius: 99, letterSpacing: '0.06em',
-            background: `${C.violet}16`, border: `1px solid ${C.violet}38`, color: C.violet,
+            background: `${greeting.nicheColor || C.violet}18`,
+            border: `1px solid ${greeting.nicheColor || C.violet}40`,
+            color: greeting.nicheColor || C.violet,
             textTransform: 'uppercase',
           }}>
-            {greeting.nicheLabel}
+            {greeting.nicheEmoji} {greeting.nicheLabel}
           </span>
         )}
 
+        {/* Freshness stamp */}
+        {ago && !loading && !refreshing && (
+          <span style={{
+            fontSize: '0.58rem', fontFamily: 'var(--font-mono)',
+            color: 'var(--text-faint)', letterSpacing: '0.04em',
+          }}>Updated {ago}</span>
+        )}
+
         <div style={{ flex: 1 }} />
+
+        {/* Refresh button */}
+        <button
+          onClick={() => fetchBrief(true)}
+          disabled={refreshing || loading}
+          title="Refresh brief"
+          style={{
+            padding: '5px 11px', borderRadius: 99,
+            border: `1px solid var(--border)`,
+            background: 'transparent',
+            color: refreshing ? C.amber : 'var(--text-faint)',
+            cursor: refreshing || loading ? 'default' : 'pointer',
+            fontSize: '0.8rem',
+            transition: 'all 0.15s',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}
+        >
+          <span style={{
+            display: 'inline-block',
+            animation: refreshing ? 'spinOnce 0.8s linear infinite' : 'none',
+            fontSize: '0.72rem',
+          }}>↻</span>
+        </button>
 
         {/* Listen button */}
         <button
@@ -213,20 +287,24 @@ function TrendingBrief({ userName, niches = [] }) {
               📌 Personalise your brief
             </p>
             <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-faint)' }}>
-              Set your niche to get content ideas tailored to your audience
+              Pick your niche — your daily brief will be tailored to your content category
             </p>
           </div>
-          <Link to="/profile" style={{
-            textDecoration: 'none', flexShrink: 0,
-            padding: '8px 18px', borderRadius: 99,
-            background: C.amber, color: '#000',
-            fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-          }}>Set niche →</Link>
+          <button
+            onClick={onEditNiche}
+            style={{
+              textDecoration: 'none', flexShrink: 0,
+              padding: '8px 18px', borderRadius: 99,
+              background: C.amber, color: '#000', border: 'none',
+              fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+            }}
+          >Set niche →</button>
         </div>
       )}
 
-      {/* ── Context line from AI ── */}
-      {!loading && greeting?.greeting && (
+      {/* ── AI context line ── */}
+      {!loading && !refreshing && greeting?.greeting && (
         <p style={{
           fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.65,
           margin: '0 0 20px',
@@ -238,25 +316,19 @@ function TrendingBrief({ userName, niches = [] }) {
       )}
 
       {/* ── Trend cards ── */}
-      {loading ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 14,
-        }}>
-          {[0,1,2].map(i => (
-            <div key={i} className="shimmer" style={{ height: 140, borderRadius: 16 }} />
+      {(loading || refreshing) ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {[0,1,2,3,4,5].map(i => (
+            <div key={i} className="shimmer" style={{ height: 160, borderRadius: 16 }} />
           ))}
         </div>
-      ) : greeting?.trends?.length ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 14,
-        }}>
-          {greeting.trends.slice(0, 3).map((trend, i) => {
-            const color = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
-            const rank  = String(i + 1).padStart(2, '0')
+      ) : trends.length ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {trends.slice(0, 6).map((trend, i) => {
+            const color    = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
+            const rank     = String(i + 1).padStart(2, '0')
+            const virality = VIRALITY[i] || 38
+            const badge    = TREND_BADGE[i] || '📊 TRENDING'
             return (
               <Link
                 key={i}
@@ -267,8 +339,9 @@ function TrendingBrief({ userName, niches = [] }) {
                 <div
                   style={{
                     position: 'relative',
-                    padding: '20px 22px 18px',
+                    padding: '18px 20px 16px',
                     borderRadius: 16,
+                    height: '100%',
                     background: isLight
                       ? 'rgba(255,255,255,0.97)'
                       : 'var(--surface-card-deep)',
@@ -279,6 +352,7 @@ function TrendingBrief({ userName, niches = [] }) {
                     boxShadow: isLight
                       ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
                       : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`,
+                    display: 'flex', flexDirection: 'column',
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.transform = 'translateY(-3px)'
@@ -297,62 +371,100 @@ function TrendingBrief({ userName, niches = [] }) {
                 >
                   {/* Rank watermark */}
                   <span style={{
-                    position: 'absolute', right: 14, top: 10,
+                    position: 'absolute', right: 12, top: 8,
                     fontFamily: 'var(--font-creator)', fontWeight: 900,
-                    fontSize: '4.5rem', lineHeight: 1,
-                    color: `${color}12`,
+                    fontSize: '4rem', lineHeight: 1,
+                    color: `${color}${isLight ? '10' : '12'}`,
                     userSelect: 'none', pointerEvents: 'none',
                     letterSpacing: '-0.05em',
                   }}>{rank}</span>
 
-                  {/* Top row: rank label + category chip */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  {/* Top row: badge + category chip */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                    {/* Freshness badge */}
                     <span style={{
-                      fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
-                      color: `${color}88`, letterSpacing: '0.14em',
-                    }}>#{rank}</span>
-                    <span style={{
-                      fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                      padding: '2px 8px', borderRadius: 99, letterSpacing: '0.06em',
-                      background: `${color}16`, border: `1px solid ${color}35`, color,
-                      textTransform: 'uppercase',
-                    }}>{trend.category}</span>
+                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
+                      padding: '2px 7px', borderRadius: 99, letterSpacing: '0.08em',
+                      background: `${color}20`, border: `1px solid ${color}40`, color,
+                      textTransform: 'uppercase', whiteSpace: 'nowrap',
+                    }}>{badge}</span>
+
+                    {trend.category && (
+                      <span style={{
+                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                        padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
+                        background: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.07)',
+                        color: 'var(--text-faint)',
+                        textTransform: 'uppercase', whiteSpace: 'nowrap',
+                      }}>{trend.category}</span>
+                    )}
                   </div>
 
                   {/* Title */}
                   <div style={{
                     fontFamily: 'var(--font-creator)', fontWeight: 800,
-                    fontSize: '1rem', lineHeight: 1.35,
+                    fontSize: '0.95rem', lineHeight: 1.35,
                     letterSpacing: '-0.02em',
                     color: 'var(--text)',
-                    marginBottom: 8,
+                    marginBottom: 7, flex: 1,
                   }}>
                     {trend.title}
                   </div>
 
-                  {/* Description */}
-                  <div style={{
-                    fontSize: '0.78rem', color: 'var(--text-faint)',
-                    lineHeight: 1.55, marginBottom: 14,
-                  }}>
-                    {trend.description}
+                  {/* Description (truncated) */}
+                  {trend.description && (
+                    <div style={{
+                      fontSize: '0.74rem', color: 'var(--text-faint)',
+                      lineHeight: 1.5, marginBottom: 12,
+                      display: '-webkit-box', WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    }}>
+                      {trend.description}
+                    </div>
+                  )}
+
+                  {/* Virality bar */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      marginBottom: 4,
+                    }}>
+                      <span style={{
+                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase',
+                      }}>Virality</span>
+                      <span style={{
+                        fontSize: '0.6rem', fontFamily: 'var(--font-mono)',
+                        fontWeight: 700, color,
+                      }}>{virality}%</span>
+                    </div>
+                    <div style={{
+                      height: 3, borderRadius: 99,
+                      background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        height: '100%', width: `${virality}%`,
+                        background: `linear-gradient(90deg, ${color}, ${color}88)`,
+                        borderRadius: 99, transition: 'width 0.6s ease',
+                      }} />
+                    </div>
                   </div>
 
                   {/* CTA */}
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
+                    fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
                     fontWeight: 700, color, letterSpacing: '0.04em',
                   }}>
-                    Write this script
-                    <span style={{ fontSize: '0.85rem', transition: 'transform 0.15s' }}>→</span>
+                    Write this script →
                   </div>
 
-                  {/* Bottom accent line */}
+                  {/* Bottom accent */}
                   <div style={{
                     position: 'absolute', bottom: 0, left: 0, right: 0,
                     height: 2,
-                    background: `linear-gradient(90deg, ${color}80, ${color}18, transparent)`,
+                    background: `linear-gradient(90deg, ${color}70, ${color}18, transparent)`,
                     borderRadius: '0 0 16px 16px',
                   }} />
                 </div>
@@ -364,7 +476,7 @@ function TrendingBrief({ userName, niches = [] }) {
         niches.length > 0 && (
           <p style={{ fontSize: '0.85rem', color: 'var(--text-faint)', margin: 0 }}>
             Could not load today's trends.{' '}
-            <button onClick={() => window.location.reload()} style={{
+            <button onClick={() => fetchBrief(true)} style={{
               background: 'none', border: 'none', color: C.cyan,
               cursor: 'pointer', fontSize: 'inherit', padding: 0, textDecoration: 'underline',
             }}>Retry</button>
@@ -643,6 +755,7 @@ export default function Dashboard() {
   const { user }          = useAuth()
   const { t, lang }       = useLang()
   const { niches, goals, platform } = usePrefs()
+  const navigate = useNavigate()
   const [scripts, setSc]  = useState([])
   const [logs, setLogs]   = useState([])
   const [badges, setBadges] = useState([])
@@ -684,6 +797,12 @@ export default function Dashboard() {
   const { theme } = useTheme()
   const isLight  = theme === 'light'
   const limit    = { FREE: 5, STARTER: 50, PRO: '∞' }[user?.plan] || 5
+
+  // Edit niche: clear onboarded flag → go straight to Step 1 (niche picker)
+  const handleEditNiche = () => {
+    localStorage.removeItem('vs_onboarded')
+    navigate('/onboarding')
+  }
   const used     = user?.generationsUsed || 0
   const streak   = profile?.streak || 0
   const firstName = user?.name?.split(' ')[0] || 'Creator'
@@ -740,10 +859,17 @@ export default function Dashboard() {
               </Link>
             )
           })}
-          <Link to="/profile" style={{
-            textDecoration: 'none', fontSize: '0.65rem',
-            color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', marginLeft: 2,
-          }}>edit →</Link>
+          <button
+            onClick={handleEditNiche}
+            style={{
+              background: 'none', border: 'none', padding: 0, marginLeft: 2,
+              fontSize: '0.65rem', color: 'var(--text-faint)',
+              fontFamily: 'var(--font-mono)', cursor: 'pointer',
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = C.amber}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
+          >edit niche →</button>
         </div>
       )}
 
@@ -760,7 +886,7 @@ export default function Dashboard() {
       <StreakBanner streak={streak} isLight={isLight} />
 
       {/* ─── Trending brief ───────────────────────────────────────── */}
-      <TrendingBrief userName={firstName} niches={niches} />
+      <TrendingBrief userName={firstName} niches={niches} onEditNiche={handleEditNiche} />
 
       {/* ─── Badges shelf ─────────────────────────────────────────── */}
       <BadgesShelf badges={badges} isLight={isLight} />

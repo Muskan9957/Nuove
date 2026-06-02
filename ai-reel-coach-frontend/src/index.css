@@ -1148,6 +1148,7 @@ h1, h2, h3, h4 {
 
 /* ─── Animations ─────────────────────────────────────────────────── */
 @keyframes livePulse   { 0% { transform:scale(1);   opacity:0.7; } 70% { transform:scale(2.8); opacity:0; } 100% { transform:scale(2.8); opacity:0; } }
+@keyframes spinOnce    { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 @keyframes fadeUp      { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 @keyframes fadeIn      { from { opacity:0; } to { opacity:1; } }
 @keyframes slideRight  { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
