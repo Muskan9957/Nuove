@@ -1,5 +1,5 @@
 /* ─── Google Fonts ───────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap');
 
 /* ─── Design Tokens — Saffron Noir ──────────────────────────────── */
 /*
@@ -56,9 +56,9 @@
   --text-faint:  #786050;   /* warm faint */
 
   /* ── Typography ── */
-  --font-display: 'Syne', sans-serif;
-  --font-head:    'Syne', sans-serif;        /* replaces Dancing Script */
-  --font-body:    'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-head:    'Dancing Script', cursive;
+  --font-body:    'Inter', sans-serif;
   --font-creator: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
   --font-mono:    'DM Mono', monospace;
 
