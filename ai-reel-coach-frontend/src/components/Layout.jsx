@@ -193,25 +193,21 @@ export default function Layout({ children }) {
     <div style={styles.root}>
 
       {/* ── Global logo watermark ───────────────────────────────── */}
-      <div aria-hidden="true" style={{
-        position: 'fixed',
-        right: '-4vw',
-        bottom: '-3vh',
-        fontFamily: '"Dancing Script", cursive',
-        fontWeight: 700,
-        fontSize: 'clamp(120px, 18vw, 260px)',
-        lineHeight: 1,
-        letterSpacing: '-0.03em',
-        background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        opacity: 0.035,
-        pointerEvents: 'none',
-        userSelect: 'none',
-        zIndex: 0,
-        whiteSpace: 'nowrap',
-      }}>nuove</div>
+      <img
+        src="/favicon.svg"
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          bottom: 28,
+          right: 28,
+          width: 180,
+          height: 180,
+          opacity: 0.07,
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0,
+        }}
+      />
 
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       {!isMobile && (
