@@ -192,6 +192,27 @@ export default function Layout({ children }) {
   return (
     <div style={styles.root}>
 
+      {/* ── Global logo watermark ───────────────────────────────── */}
+      <div aria-hidden="true" style={{
+        position: 'fixed',
+        right: '-4vw',
+        bottom: '-3vh',
+        fontFamily: '"Dancing Script", cursive',
+        fontWeight: 700,
+        fontSize: 'clamp(120px, 18vw, 260px)',
+        lineHeight: 1,
+        letterSpacing: '-0.03em',
+        background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+        opacity: 0.035,
+        pointerEvents: 'none',
+        userSelect: 'none',
+        zIndex: 0,
+        whiteSpace: 'nowrap',
+      }}>nuove</div>
+
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       {!isMobile && (
         <aside style={styles.sidebar} className="app-sidebar">

@@ -185,7 +185,6 @@ function TrendingBrief({ userName, niches = [] }) {
           onClick={playGreeting}
           disabled={!greeting}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
             padding: '6px 14px', borderRadius: 99,
             border: `1px solid ${speaking ? C.teal : 'var(--border)'}`,
             background: speaking ? `${C.teal}14` : 'transparent',
@@ -195,7 +194,6 @@ function TrendingBrief({ userName, niches = [] }) {
             transition: 'all 0.15s',
           }}
         >
-          <span style={{ fontSize: '0.8rem' }}>{speaking ? '⏹' : '▶'}</span>
           {speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen')}
         </button>
       </div>
@@ -243,7 +241,7 @@ function TrendingBrief({ userName, niches = [] }) {
       {loading ? (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 14,
         }}>
           {[0,1,2].map(i => (
@@ -253,7 +251,7 @@ function TrendingBrief({ userName, niches = [] }) {
       ) : greeting?.trends?.length ? (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 14,
         }}>
           {greeting.trends.slice(0, 3).map((trend, i) => {
