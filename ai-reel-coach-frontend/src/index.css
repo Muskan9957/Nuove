@@ -415,7 +415,7 @@ body {
   overflow-x: hidden;
 }
 
-/* ─── Warm amber-rose mesh background (Saffron Noir) ────────────── */
+/* ─── Atmospheric mesh — layer 1: soft colour orbs ──────────────── */
 body::before {
   content: '';
   position: fixed;
@@ -423,36 +423,47 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 70% at 5%  8%,  rgba(255,100,0,0.22)  0%, transparent 55%),
-    radial-gradient(ellipse 65% 80% at 92% 12%,  rgba(255,45,111,0.16) 0%, transparent 52%),
-    radial-gradient(ellipse 75% 60% at 50% 108%, rgba(179,109,255,0.14) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 55% at 82% 72%,  rgba(255,140,0,0.10)  0%, transparent 48%),
-    radial-gradient(ellipse 45% 50% at 18% 65%,  rgba(255,80,30,0.08)  0%, transparent 52%),
-    radial-gradient(ellipse 40% 40% at 60% 40%,  rgba(196,80,0,0.07)   0%, transparent 60%);
-  animation: meshDrift 24s ease-in-out infinite alternate;
+    /* key light — warm saffron, top-left */
+    radial-gradient(ellipse 85% 75% at 2%   5%,   rgba(255,110,0,0.24)  0%, transparent 52%),
+    /* backlight — hot magenta, top-right */
+    radial-gradient(ellipse 70% 85% at 98%  8%,   rgba(255,45,111,0.17) 0%, transparent 50%),
+    /* floor bounce — violet, bottom-center */
+    radial-gradient(ellipse 80% 60% at 48%  108%,  rgba(179,109,255,0.13) 0%, transparent 52%),
+    /* fill — amber, mid-right */
+    radial-gradient(ellipse 52% 58% at 88%  70%,  rgba(255,140,0,0.09)  0%, transparent 46%),
+    /* accent — coral, mid-left */
+    radial-gradient(ellipse 48% 52% at 14%  68%,  rgba(255,80,30,0.07)  0%, transparent 50%),
+    /* subtle centre warmth */
+    radial-gradient(ellipse 36% 38% at 58%  38%,  rgba(210,80,0,0.05)   0%, transparent 58%);
+  animation: meshDrift 28s ease-in-out infinite alternate;
 }
 
 @keyframes meshDrift {
-  0%   { transform: translate(0,    0)    scale(1);    opacity: 1; }
-  25%  { transform: translate(-2%,  3%)   scale(1.03); opacity: 0.92; }
-  50%  { transform: translate(2%,  -2%)   scale(0.98); opacity: 1; }
-  75%  { transform: translate(-1%,  1.5%) scale(1.02); opacity: 0.94; }
-  100% { transform: translate(1.5%,-0.5%) scale(1.01); opacity: 0.97; }
+  0%   { transform: translate(0,     0)     scale(1);    opacity: 1;    }
+  20%  { transform: translate(-1.5%, 2.5%)  scale(1.02); opacity: 0.93; }
+  45%  { transform: translate(2%,   -1.5%)  scale(0.98); opacity: 1;    }
+  70%  { transform: translate(-0.8%, 1.2%)  scale(1.015);opacity: 0.95; }
+  100% { transform: translate(1.2%, -0.4%)  scale(1.01); opacity: 0.98; }
 }
 
 [data-theme="light"] body::before {
   background:
-    radial-gradient(ellipse 70% 60% at  2% 5%,   rgba(255,130,0,0.38)  0%, transparent 55%),
-    radial-gradient(ellipse 55% 65% at 96% 8%,   rgba(220,0,80,0.28)   0%, transparent 52%),
-    radial-gradient(ellipse 60% 50% at 55% 100%,  rgba(255,110,0,0.32)  0%, transparent 50%),
-    radial-gradient(ellipse 45% 50% at 85% 75%,   rgba(160,70,255,0.16) 0%, transparent 48%),
-    radial-gradient(ellipse 40% 45% at 15% 70%,   rgba(255,60,60,0.18)  0%, transparent 48%),
-    radial-gradient(ellipse 30% 35% at 50% 40%,   rgba(255,160,0,0.12)  0%, transparent 55%);
+    radial-gradient(ellipse 72% 62% at  2%  5%,   rgba(255,130,0,0.36)  0%, transparent 54%),
+    radial-gradient(ellipse 58% 68% at 97%  8%,   rgba(220,0,80,0.26)   0%, transparent 50%),
+    radial-gradient(ellipse 62% 52% at 52%  102%, rgba(255,110,0,0.30)  0%, transparent 50%),
+    radial-gradient(ellipse 46% 52% at 86%  76%,  rgba(160,70,255,0.14) 0%, transparent 46%),
+    radial-gradient(ellipse 42% 46% at 16%  72%,  rgba(255,60,60,0.16)  0%, transparent 48%),
+    radial-gradient(ellipse 32% 36% at 52%  42%,  rgba(255,160,0,0.10)  0%, transparent 54%);
   opacity: 1;
-  animation: meshDrift 20s ease-in-out infinite alternate;
+  animation: meshDrift 22s ease-in-out infinite alternate;
 }
 
-/* ─── Dot pattern ────────────────────────────────────────────────── */
+/* ─── Layer 2: isometric studio grid ─────────────────────────────── */
+/*
+   60° crosshatch — like a director's storyboard or DP's viewfinder grid.
+   Two sets of diagonal lines crossing at 60° form equilateral triangles,
+   giving a creative/isometric feel rather than the standard 45° diamond.
+*/
 body::after {
   content: '';
   position: fixed;
@@ -460,21 +471,74 @@ body::after {
   z-index: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(circle, rgba(255,140,0,0.14) 1.5px, transparent 1.5px),
-    radial-gradient(circle, rgba(255,45,111,0.07) 1px,  transparent 1px);
-  background-size: 36px 36px, 18px 18px;
-  background-position: 0 0, 9px 9px;
-  opacity: 0.07;
+    repeating-linear-gradient(
+      60deg,
+      transparent 0px, transparent 54px,
+      rgba(255,140,0,0.055) 54px, rgba(255,140,0,0.055) 55px
+    ),
+    repeating-linear-gradient(
+      -60deg,
+      transparent 0px, transparent 54px,
+      rgba(255,45,111,0.032) 54px, rgba(255,45,111,0.032) 55px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 54px,
+      rgba(255,140,0,0.018) 54px, rgba(255,140,0,0.018) 55px
+    );
 }
 
-/* ─── Grain overlay ──────────────────────────────────────────────── */
+/* Light mode: slightly warmer/darker lines to show on bright bg */
+[data-theme="light"] body::after {
+  background-image:
+    repeating-linear-gradient(
+      60deg,
+      transparent 0px, transparent 54px,
+      rgba(200,80,0,0.07) 54px, rgba(200,80,0,0.07) 55px
+    ),
+    repeating-linear-gradient(
+      -60deg,
+      transparent 0px, transparent 54px,
+      rgba(200,0,74,0.042) 54px, rgba(200,0,74,0.042) 55px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 54px,
+      rgba(200,80,0,0.022) 54px, rgba(200,80,0,0.022) 55px
+    );
+  opacity: 1;
+}
+
+/* ─── Layer 3: cinematic vignette ────────────────────────────────── */
+#root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 130% 130% at 50% 50%,
+    transparent 40%,
+    rgba(4,2,8,0.55) 100%
+  );
+}
+
+[data-theme="light"] #root::before {
+  background: radial-gradient(
+    ellipse 140% 140% at 50% 50%,
+    transparent 38%,
+    rgba(80,20,0,0.12) 100%
+  );
+}
+
+/* ─── Layer 4: film grain ────────────────────────────────────────── */
 #root::after {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.022;
+  opacity: 0.028;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
   background-size: 200px 200px;
 }
