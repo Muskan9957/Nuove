@@ -192,23 +192,6 @@ export default function Layout({ children }) {
   return (
     <div style={styles.root}>
 
-      {/* ── Global logo watermark ───────────────────────────────── */}
-      <img
-        src="/favicon.svg"
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          bottom: 28,
-          right: 28,
-          width: 180,
-          height: 180,
-          opacity: 0.07,
-          pointerEvents: 'none',
-          userSelect: 'none',
-          zIndex: 0,
-        }}
-      />
-
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       {!isMobile && (
         <aside style={styles.sidebar} className="app-sidebar">
