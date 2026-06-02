@@ -100,42 +100,60 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
   const [refreshing, setRefreshing] = useState(false)
   const primaryNiche = niches[0] || ''
 
-  const [greeting, setGreeting] = useState(null)
-  const [fetchedAt, setFetchedAt] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [greeting, setGreeting]             = useState(null)
+  const [trends, setTrends]                 = useState([])
+  const [trendFetchedAt, setTrendFetchedAt] = useState(null)
+  const [audioTracks, setAudioTracks]       = useState([])
+  const [audioLoading, setAudioLoading]     = useState(false)
+  const [loading, setLoading]               = useState(true)
+
+  const SOURCE_META = {
+    google:  { label: '🔍 Google Trends', color: '#4285F4' },
+    youtube: { label: '📺 YouTube',        color: '#FF0000' },
+    ai:      { label: '✨ AI Pick',         color: C.violet  },
+  }
 
   const fetchBrief = useCallback((force = false) => {
     if (force) setRefreshing(true)
     else setLoading(true)
 
     const region = getSavedRegion() || 'India'
-    const ts = Date.now()
-    // _t param busts any CDN / backend cache so we always get fresh topics
-    const bust = `&_t=${ts}`
 
-    const greetingPromise = api.getGreeting(region, lang, niches, bust)
+    const greetingPromise = api.getGreeting(region, lang, niches, '')
     const trendingPromise = primaryNiche
-      ? api.getTrending(primaryNiche, lang, bust).catch(() => null)
+      ? api.getTrending(primaryNiche, lang, region, force).catch(() => null)
       : Promise.resolve(null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
-        const merged = {
+        // trendData.topics is the new structured array from live sources
+        const liveTrends = trendData?.topics?.length
+          ? trendData.topics
+          : (trendData?.trends?.length ? trendData.trends : greetData?.trends)
+
+        setGreeting({
           ...greetData,
-          trends: trendData?.trends?.length ? trendData.trends : greetData?.trends,
           nicheLabel: primaryNiche ? primaryNiche.charAt(0).toUpperCase() + primaryNiche.slice(1) : null,
           nicheEmoji: primaryNiche ? (NICHE_META[primaryNiche]?.emoji || '🎯') : null,
           nicheColor: primaryNiche ? (NICHE_META[primaryNiche]?.color || C.cyan) : null,
-        }
-        setGreeting(merged)
-        setFetchedAt(ts)
+        })
+        setTrends(liveTrends || [])
+        setTrendFetchedAt(trendData?.fetchedAt || Date.now())
       })
       .catch(() => {})
       .finally(() => { setLoading(false); setRefreshing(false) })
   }, [lang, niches.join(',')])
 
-  // Always fetch fresh on mount — no localStorage persistence
-  useEffect(() => { fetchBrief(false) }, [lang, niches.join(',')])
+  const fetchAudio = useCallback(() => {
+    const region = getSavedRegion() || 'India'
+    setAudioLoading(true)
+    api.getTrendingAudio(region)
+      .then(data => setAudioTracks(data?.tracks || []))
+      .catch(() => {})
+      .finally(() => setAudioLoading(false))
+  }, [])
+
+  useEffect(() => { fetchBrief(false); fetchAudio() }, [lang, niches.join(',')])
 
   const playGreeting = () => {
     if (!greeting) return
@@ -150,8 +168,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
   }
 
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-  const ago   = timeAgo(fetchedAt)
-  const trends = greeting?.trends || []
+  const ago   = timeAgo(trendFetchedAt)
 
   return (
     <section style={{ marginBottom: 32 }}>
@@ -201,6 +218,21 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           }}>
             {greeting.nicheEmoji} {greeting.nicheLabel}
           </span>
+        )}
+
+        {/* Source chips — live platforms used */}
+        {!loading && !refreshing && trends.length > 0 && (
+          [...new Set(trends.map(tr => tr.source).filter(Boolean))].map(src => {
+            const meta = SOURCE_META[src] || SOURCE_META.ai
+            return (
+              <span key={src} style={{
+                fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                padding: '2px 8px', borderRadius: 99, letterSpacing: '0.06em',
+                background: `${meta.color}18`, border: `1px solid ${meta.color}35`,
+                color: meta.color, whiteSpace: 'nowrap',
+              }}>{meta.label}</span>
+            )
+          })
         )}
 
         {/* Freshness stamp */}
@@ -306,11 +338,12 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
         </div>
       ) : trends.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {trends.slice(0, 3).map((trend, i) => {
+          {trends.slice(0, 6).map((trend, i) => {
             const color    = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
             const rank     = String(i + 1).padStart(2, '0')
             const virality = VIRALITY[i] || 38
             const badge    = TREND_BADGE[i] || '📊 TRENDING'
+            const srcMeta  = SOURCE_META[trend.source] || SOURCE_META.ai
             return (
               <Link
                 key={i}
@@ -371,15 +404,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                       textTransform: 'uppercase', whiteSpace: 'nowrap',
                     }}>{badge}</span>
 
-                    {trend.category && (
-                      <span style={{
-                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                        padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
-                        background: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.07)',
-                        color: 'var(--text-faint)',
-                        textTransform: 'uppercase', whiteSpace: 'nowrap',
-                      }}>{trend.category}</span>
-                    )}
+                    {/* Source badge — where this trend came from */}
+                    <span style={{
+                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                      padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
+                      background: `${srcMeta.color}15`, border: `1px solid ${srcMeta.color}35`,
+                      color: srcMeta.color, whiteSpace: 'nowrap',
+                    }}>{srcMeta.label}</span>
                   </div>
 
                   {/* Title */}
@@ -397,11 +428,27 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                   {trend.description && (
                     <div style={{
                       fontSize: '0.74rem', color: 'var(--text-faint)',
-                      lineHeight: 1.5, marginBottom: 12,
+                      lineHeight: 1.5, marginBottom: 10,
                       display: '-webkit-box', WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     }}>
                       {trend.description}
+                    </div>
+                  )}
+
+                  {/* Hook preview */}
+                  {trend.hook && (
+                    <div style={{
+                      fontSize: '0.68rem', color: color,
+                      fontFamily: 'var(--font-mono)', fontWeight: 600,
+                      lineHeight: 1.4, marginBottom: 10,
+                      padding: '6px 10px',
+                      background: `${color}0C`,
+                      borderRadius: 8, borderLeft: `2px solid ${color}60`,
+                      display: '-webkit-box', WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    }}>
+                      💡 {trend.hook}
                     </div>
                   )}
 
@@ -464,6 +511,76 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
             }}>Retry</button>
           </p>
         )
+      )}
+
+      {/* ── 🎵 Trending Audio Section (Spotify) ── */}
+      {(audioTracks.length > 0 || audioLoading) && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{
+              fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-faint)',
+            }}>🎵 Trending Audio for Reels</span>
+            <span style={{
+              fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+              padding: '2px 8px', borderRadius: 99,
+              background: '#1DB95415', border: '1px solid #1DB95435', color: '#1DB954',
+            }}>Spotify Viral 50</span>
+          </div>
+
+          {audioLoading ? (
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+              {[0,1,2,3,4].map(i => (
+                <div key={i} className="shimmer" style={{ width: 160, height: 64, borderRadius: 12, flexShrink: 0 }} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+              {audioTracks.slice(0, 10).map((track, i) => (
+                <a
+                  key={i}
+                  href={track.spotifyUrl || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none', flexShrink: 0 }}
+                >
+                  <div style={{
+                    width: 168, padding: '12px 14px',
+                    background: isLight ? 'rgba(255,255,255,0.97)' : 'var(--surface)',
+                    border: isLight ? '1px solid rgba(29,185,84,0.18)' : '1px solid rgba(29,185,84,0.22)',
+                    borderRadius: 12, cursor: 'pointer',
+                    transition: 'transform 0.18s, border-color 0.18s',
+                    boxShadow: isLight ? '0 2px 10px rgba(0,0,0,0.06)' : '0 4px 18px rgba(0,0,0,0.45)',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(29,185,84,0.50)' }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = isLight ? 'rgba(29,185,84,0.18)' : 'rgba(29,185,84,0.22)' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                      <span style={{
+                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
+                        padding: '1px 5px', borderRadius: 4,
+                        background: '#1DB95420', color: '#1DB954',
+                      }}>#{i + 1}</span>
+                      <span style={{ fontSize: '0.7rem' }}>🎵</span>
+                    </div>
+                    <div style={{
+                      fontFamily: 'var(--font-creator)', fontWeight: 700,
+                      fontSize: '0.78rem', color: 'var(--text)', lineHeight: 1.3,
+                      marginBottom: 3,
+                      overflow: 'hidden', display: '-webkit-box',
+                      WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                    }}>{track.name}</div>
+                    <div style={{
+                      fontSize: '0.62rem', color: 'var(--text-faint)',
+                      fontFamily: 'var(--font-mono)',
+                      overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                    }}>{track.artist}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </section>
   )

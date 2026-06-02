@@ -75,8 +75,13 @@ export const api = {
   updateCalendarEntry: (id, data)  => req('PATCH',  `/calendar/${id}`, data),
   deleteCalendarEntry: (id)        => req('DELETE', `/calendar/${id}`),
 
-  // Trending — bust accepts an optional "&_t=..." string to bypass backend/CDN caches
-  getTrending:  (niche, language, bust = '') => req('GET', `/trending?niche=${niche}&language=${language}${bust}`),
+  // Trending — region-aware, force=true bypasses cache for refresh button
+  getTrending:  (niche, language, region = 'India', force = false) => {
+    const params = new URLSearchParams({ niche, language, region })
+    if (force) params.set('force', 'true')
+    return req('GET', `/trending?${params}`)
+  },
+  getTrendingAudio: (region = 'India') => req('GET', `/trending/audio?region=${encodeURIComponent(region)}`),
   getGreeting:  (region, language, niches = [], bust = '') => {
     const n = niches.length ? `&niches=${encodeURIComponent(niches.join(','))}` : ''
     return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${n}${bust}`)

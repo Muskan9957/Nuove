@@ -1,11 +1,20 @@
-const prisma    = require('../config/prisma')
-const aiService = require('../services/aiService')
+const prisma      = require('../config/prisma')
+const aiService   = require('../services/aiService')
+const trendsService = require('../services/trendsService')
 
-// ─── In-memory greeting cache (per process, instant after first hit) ─
+// ─── Cache TTL: 3 hours ────────────────────────────────────────────────────
+const CACHE_TTL_MS = 3 * 60 * 60 * 1000   // 3 hours
+
+// ─── In-memory greeting cache ─────────────────────────────────────────────
 const greetingMem = new Map()
 
-// ─── GET /api/trending/greeting?region=India&language=hi ─────────
-// Cached per region+language+day in memory AND DB so it's instant on repeat visits.
+// ─── Helper: 3-hour slot key (e.g. "2025-06-02-14" = 2pm slot) ───────────
+function hourSlot() {
+  const d = new Date()
+  return `${d.toISOString().slice(0, 10)}-${Math.floor(d.getUTCHours() / 3) * 3}`
+}
+
+// ─── GET /api/trending/greeting?region=India&language=hi ─────────────────
 const getGreeting = async (req, res, next) => {
   const region   = (req.query.region   || 'India').trim()
   const userLang = (req.query.language || 'en').trim()
@@ -29,16 +38,15 @@ const getGreeting = async (req, res, next) => {
       return res.json(cached)
     }
 
-    // 3. Stale DB (yesterday or earlier) — return immediately, refresh silently
+    // 3. Stale DB — return immediately, refresh silently
     const stale = await prisma.trendingCache.findFirst({
       where: { niche: dbNiche, language: userLang },
       orderBy: { date: 'desc' },
     })
     if (stale) {
       const staleData = JSON.parse(stale.topics)
-      greetingMem.set(memKey, staleData)   // treat as today so no re-fetch this session
+      greetingMem.set(memKey, staleData)
       res.json(staleData)
-      // Silently regenerate for tomorrow's visits
       aiService.getRegionalGreeting(region, userLang)
         .then(fresh => {
           const { _isFallback, ...d } = fresh
@@ -53,7 +61,7 @@ const getGreeting = async (req, res, next) => {
     }
   } catch {}
 
-  // 4. No cache at all — must call AI (first ever request for this combo)
+  // 4. No cache — call AI
   try {
     const data = await aiService.getRegionalGreeting(region, userLang)
     const { _isFallback, ...responseData } = data
@@ -69,59 +77,92 @@ const getGreeting = async (req, res, next) => {
   }
 }
 
-// ─── Background refresh helper ────────────────────────────────────
-// Generates fresh topics for today and upserts into cache.
-// Never throws — errors are swallowed so they don't affect the response.
-const refreshInBackground = (niche, language, today) => {
-  aiService.getTrendingTopics(niche, language)
-    .then(topics =>
-      prisma.trendingCache.upsert({
-        where  : { niche_language_date: { niche, language, date: today } },
-        create : { niche, language, topics: JSON.stringify(topics), date: today },
-        update : { topics: JSON.stringify(topics) },
+// ─── Background refresh for trending topics ───────────────────────────────
+const refreshInBackground = (niche, language, region, slot) => {
+  aiService.getTrendingTopicsLive(niche, language, region)
+    .then(topics => {
+      const payload = JSON.stringify({ topics, fetchedAt: Date.now(), region, slot })
+      return prisma.trendingCache.upsert({
+        where  : { niche_language_date: { niche, language, date: slot } },
+        create : { niche, language, topics: payload, date: slot },
+        update : { topics: payload },
       })
-    )
+    })
     .catch(err => console.error('[trending] background refresh failed:', err.message))
 }
 
-// ─── GET /api/trending?niche=fitness&language=en ──────────────────
+// ─── GET /api/trending?niche=fitness&language=en&region=India&force=true ──
 const get = async (req, res, next) => {
   try {
     const niche    = (req.query.niche    || 'general').toLowerCase().trim()
     const language = (req.query.language || 'en').toLowerCase().trim()
-    const today    = new Date().toISOString().slice(0, 10)
+    const region   = (req.query.region   || 'India').trim()
+    const force    = req.query.force === 'true'
+    const slot     = hourSlot()   // changes every 3 hours
 
-    // 1. Today's cache — respond instantly
-    const todayCache = await prisma.trendingCache.findUnique({
-      where: { niche_language_date: { niche, language, date: today } },
-    })
-    if (todayCache) {
-      return res.json({ niche, language, date: today, topics: JSON.parse(todayCache.topics), cached: true })
+    // ── Skip cache when force=true (Refresh button) ──────────────────────
+    if (!force) {
+      const cached = await prisma.trendingCache.findUnique({
+        where: { niche_language_date: { niche, language, date: slot } },
+      })
+
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached.topics)
+          // Support both old format (plain array) and new format ({ topics, fetchedAt })
+          const topics    = Array.isArray(parsed) ? parsed : parsed.topics
+          const fetchedAt = Array.isArray(parsed) ? null   : parsed.fetchedAt
+
+          // If cache is older than TTL, refresh in background but still serve it
+          if (fetchedAt && Date.now() - fetchedAt > CACHE_TTL_MS) {
+            res.json({ niche, language, region, topics, fetchedAt, cached: true, stale: true })
+            refreshInBackground(niche, language, region, slot)
+            return
+          }
+
+          return res.json({ niche, language, region, topics, fetchedAt, cached: true })
+        } catch { /* fall through to fresh fetch */ }
+      }
     }
 
-    // 2. Stale cache (any previous day) — respond instantly, refresh in background
-    const staleCache = await prisma.trendingCache.findFirst({
-      where  : { niche, language },
-      orderBy: { date: 'desc' },
-    })
-    if (staleCache) {
-      // Send stale data right away so the user sees content immediately
-      res.json({ niche, language, date: staleCache.date, topics: JSON.parse(staleCache.topics), cached: true, stale: true })
-      // Quietly generate today's topics in background for the next visit
-      refreshInBackground(niche, language, today)
-      return
-    }
+    // ── Fresh fetch from live sources ─────────────────────────────────────
+    const topics    = await aiService.getTrendingTopicsLive(niche, language, region)
+    const fetchedAt = Date.now()
+    const payload   = JSON.stringify({ topics, fetchedAt, region, slot })
 
-    // 3. No cache at all (first-ever request for this niche) — must wait for AI
-    const topics = await aiService.getTrendingTopics(niche, language)
-    await prisma.trendingCache.create({
-      data: { niche, language, topics: JSON.stringify(topics), date: today },
-    })
-    return res.json({ niche, language, date: today, topics, cached: false })
+    prisma.trendingCache.upsert({
+      where  : { niche_language_date: { niche, language, date: slot } },
+      create : { niche, language, topics: payload, date: slot },
+      update : { topics: payload },
+    }).catch(() => {})
+
+    return res.json({ niche, language, region, topics, fetchedAt, cached: false })
 
   } catch (err) {
     next(err)
   }
 }
 
-module.exports = { get, getGreeting }
+// ─── GET /api/trending/audio?region=India ─────────────────────────────────
+// Returns Spotify Viral 50 tracks for the user's region
+const getAudio = async (req, res, next) => {
+  try {
+    const region = (req.query.region || 'India').trim()
+    const tracks = await trendsService.fetchSpotifyTrendingAudio(region)
+
+    // Always return something — fallback message if Spotify not configured
+    if (!tracks.length) {
+      return res.json({
+        region,
+        tracks: [],
+        message: 'Spotify credentials not configured. Add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to .env',
+      })
+    }
+
+    return res.json({ region, tracks, fetchedAt: Date.now() })
+  } catch (err) {
+    next(err)
+  }
+}
+
+module.exports = { get, getGreeting, getAudio }

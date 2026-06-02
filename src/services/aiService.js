@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const trendsService = require('./trendsService');
 
 const MODEL       = 'claude-sonnet-4-6';           // Quality model for creative tasks
 const MODEL_FAST  = 'claude-haiku-4-5-20251001';   // Fast model for scoring/rewriting
@@ -538,6 +539,79 @@ Return ONLY a JSON array of 10 strings. No extra text. Example:
       'Why consistency beats quality',
       'The truth about going viral',
     ]
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 5b. GET TRENDING TOPICS — LIVE (real web data → niche-filtered by Claude)
+// ─────────────────────────────────────────────────────────────────
+const getTrendingTopicsLive = async (niche = 'general', language = 'en', region = 'India') => {
+  const langInstruction = getLangInstruction(language) || 'Respond in English.'
+
+  // ── 1. Fetch real-time data from all sources in parallel ─────────
+  const [googleTrends, youtubeTrending] = await Promise.all([
+    trendsService.fetchGoogleTrends(region),
+    trendsService.fetchYouTubeTrending(region, niche),
+  ])
+
+  const hasLiveData = googleTrends.length > 0 || youtubeTrending.length > 0
+
+  // ── 2. If no live data, fall back to AI-only ──────────────────────
+  if (!hasLiveData) {
+    console.warn('[aiService] No live trend data — falling back to AI-only generation')
+    return getTrendingTopics(niche, language)
+  }
+
+  // ── 3. Build context strings for Claude ───────────────────────────
+  const googleContext = googleTrends.length
+    ? `GOOGLE TRENDS (what people in ${region} are searching RIGHT NOW):\n` +
+      googleTrends.slice(0, 15).map((t, i) => `${i + 1}. "${t.title}"${t.traffic ? ` (~${t.traffic} searches)` : ''}`).join('\n')
+    : ''
+
+  const youtubeContext = youtubeTrending.length
+    ? `\n\nYOUTUBE TRENDING (viral videos in ${region} right now):\n` +
+      youtubeTrending.slice(0, 15).map((v, i) => `${i + 1}. "${v.title}" by ${v.channel}`).join('\n')
+    : ''
+
+  // ── 4. Ask Claude to filter + format for the niche ────────────────
+  const prompt = `You are a viral content strategist for short-form video creators.
+
+${langInstruction}
+
+Here is REAL live trending data from ${region} as of right now:
+${googleContext}${youtubeContext}
+
+Your task: Pick the 6 topics from this real data that a "${niche}" content creator could make a viral Reel or Short about.
+
+For each topic:
+- If it's directly relevant to the niche, use it as-is
+- If it's indirectly relevant (e.g. a celebrity fitness story), angle it for the niche
+- If not enough niche-relevant topics, generate 1-2 niche-specific ideas inspired by the current cultural moment
+
+Return ONLY valid JSON — no markdown, no code blocks:
+[
+  {
+    "title": "Specific, compelling video topic (max 12 words)",
+    "description": "Why this is trending and why a ${niche} creator should make this now — 1 actionable sentence",
+    "category": "One of: Entertainment, Sports, Finance, Tech, Food, Lifestyle, Fashion, Education, Health, Business, Bollywood, Cricket, Motivation",
+    "source": "google" or "youtube" or "ai",
+    "hook": "A punchy 1-sentence hook for this video (starts strong, creates curiosity)"
+  }
+]
+
+IMPORTANT: Return exactly 6 objects. Prioritize topics with the most search traffic / views.`
+
+  try {
+    const raw = await ask(prompt, 1000, MODEL_FAST)
+    const match = raw.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error('No JSON array')
+    const parsed = JSON.parse(match[0])
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty array')
+    return parsed.slice(0, 6)
+  } catch (err) {
+    console.error('[aiService] getTrendingTopicsLive parse failed:', err.message)
+    // Last resort: fall back to old method
+    return getTrendingTopics(niche, language)
   }
 }
 
@@ -1134,4 +1208,6 @@ module.exports = {
   recommendSongs,
   analyzeReelContent,
   generateMoreCaptions,
+  getTrendingTopicsLive,
 };
+
