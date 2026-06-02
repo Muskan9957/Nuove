@@ -529,7 +529,7 @@ const styles = {
   root: {
     display: 'flex',
     minHeight: '100vh',
-    background: 'var(--bg)',
+    background: 'transparent',
   },
 
   /* ── Sidebar ── */

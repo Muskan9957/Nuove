@@ -37,8 +37,8 @@ const PLANS = [
     priceM:   799,
     priceY:   599,
     badge:    'Most Popular',
-    accent:   '#00C8FF',
-    accentBg: 'rgba(0,200,255,0.10)',
+    accent:   '#FF8C00',
+    accentBg: 'rgba(255,140,0,0.10)',
     cta:      'Start Pro — 7 days free',
     ctaStyle: 'primary',
     features: [
@@ -61,8 +61,8 @@ const PLANS = [
     priceM:   1999,
     priceY:   1499,
     badge:    'Best Value',
-    accent:   '#7B5CF0',
-    accentBg: 'rgba(123,92,240,0.10)',
+    accent:   '#FF2D6F',
+    accentBg: 'rgba(255,45,111,0.10)',
     cta:      'Start Studio — 7 days free',
     ctaStyle: 'gradient',
     features: [
@@ -227,8 +227,8 @@ export default function Pricing() {
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
-          background: 'rgba(0,200,255,0.1)',
-          border: '1px solid rgba(0,200,255,0.25)',
+          background: 'var(--accent-dim)',
+          border: '1px solid var(--border-bright)',
           borderRadius: 99,
           padding: '5px 14px',
           fontSize: '0.75rem',
@@ -253,7 +253,7 @@ export default function Pricing() {
         }}>
           Invest in your{' '}
           <span style={{
-            background: 'linear-gradient(135deg, #00C8FF, #7B5CF0)',
+            background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -294,7 +294,7 @@ export default function Pricing() {
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '8px 20px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              background: annual ? 'linear-gradient(135deg, #00C8FF, #7B5CF0)' : 'transparent',
+              background: annual ? 'var(--gradient)' : 'transparent',
               color: annual ? '#fff' : 'var(--text-muted)',
               fontSize: '0.875rem', fontWeight: 600,
               fontFamily: 'var(--font-body)',
@@ -303,7 +303,7 @@ export default function Pricing() {
           >
             Annual
             <span style={{
-              background: annual ? 'rgba(255,255,255,0.2)' : 'rgba(0,200,255,0.15)',
+              background: annual ? 'rgba(255,255,255,0.2)' : 'var(--accent-dim)',
               color: annual ? '#fff' : 'var(--accent)',
               fontSize: '0.65rem', fontWeight: 800, fontFamily: 'var(--font-mono)',
               padding: '2px 7px', borderRadius: 99,
@@ -332,11 +332,11 @@ export default function Pricing() {
               key={plan.id}
               style={{
                 background: isPopular
-                  ? 'linear-gradient(180deg, rgba(0,200,255,0.09) 0%, var(--surface-card) 40%)'
+                  ? 'linear-gradient(180deg, rgba(255,140,0,0.09) 0%, var(--surface-card) 40%)'
                   : 'var(--surface-card)',
                 backdropFilter: 'blur(20px)',
                 border: isPopular
-                  ? '1.5px solid rgba(0,200,255,0.35)'
+                  ? '1.5px solid rgba(255,140,0,0.38)'
                   : '1px solid var(--border)',
                 borderRadius: 24,
                 padding: isPopular ? '32px 28px' : '28px 24px',
@@ -357,8 +357,8 @@ export default function Pricing() {
                   left: '50%',
                   transform: 'translateX(-50%)',
                   background: isPopular
-                    ? 'linear-gradient(135deg, #00C8FF, #7B5CF0)'
-                    : 'linear-gradient(135deg, #7B5CF0, #9B72FF)',
+                    ? 'linear-gradient(135deg, #FF8C00, #FF2D6F)'
+                    : 'linear-gradient(135deg, #FF2D6F, #B36DFF)',
                   color: '#fff',
                   fontSize: '0.68rem',
                   fontWeight: 800,
@@ -434,13 +434,13 @@ export default function Pricing() {
                   marginBottom: 24,
                   transition: 'all 0.2s ease',
                   ...(plan.ctaStyle === 'primary' ? {
-                    background: 'linear-gradient(135deg, #00C8FF, #7B5CF0)',
+                    background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)',
                     color: '#fff',
-                    boxShadow: '0 4px 20px rgba(0,200,255,0.35)',
+                    boxShadow: '0 4px 20px rgba(255,140,0,0.40)',
                   } : plan.ctaStyle === 'gradient' ? {
-                    background: 'linear-gradient(135deg, #7B5CF0, #9B72FF)',
+                    background: 'linear-gradient(135deg, #FF2D6F, #B36DFF)',
                     color: '#fff',
-                    boxShadow: '0 4px 20px rgba(123,92,240,0.3)',
+                    boxShadow: '0 4px 20px rgba(255,45,111,0.32)',
                   } : {
                     background: 'var(--surface2)',
                     color: 'var(--text)',
@@ -469,7 +469,7 @@ export default function Pricing() {
                       width: 18, height: 18,
                       borderRadius: '50%',
                       background: f.ok
-                        ? (isPopular ? 'rgba(0,200,255,0.18)' : 'rgba(107,140,192,0.15)')
+                        ? (isPopular ? 'rgba(255,140,0,0.18)' : 'rgba(107,140,192,0.15)')
                         : 'var(--surface2)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       flexShrink: 0,
@@ -477,7 +477,7 @@ export default function Pricing() {
                     }}>
                       {f.ok ? (
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 5l2.5 2.5L8 3" stroke={isPopular ? '#00C8FF' : '#6B8FC0'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M2 5l2.5 2.5L8 3" stroke={isPopular ? '#FF8C00' : '#A07060'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       ) : (
                         <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -524,7 +524,7 @@ export default function Pricing() {
                 borderRadius: 16,
                 overflow: 'hidden',
                 transition: 'border-color 0.2s',
-                borderColor: openFaq === i ? 'rgba(0,200,255,0.3)' : 'var(--border)',
+                borderColor: openFaq === i ? 'var(--border-bright)' : 'var(--border)',
               }}
             >
               <button
@@ -563,8 +563,8 @@ export default function Pricing() {
       <div style={{
         maxWidth: 600, margin: '0 auto',
         textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(0,200,255,0.08), rgba(123,92,240,0.06))',
-        border: '1px solid rgba(0,200,255,0.2)',
+        background: 'linear-gradient(135deg, rgba(255,140,0,0.08), rgba(255,45,111,0.06))',
+        border: '1px solid var(--border-bright)',
         borderRadius: 28,
         padding: '48px 32px',
       }}>

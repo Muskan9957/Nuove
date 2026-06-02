@@ -306,16 +306,27 @@ export function useSpeechToText(onResult, langOverride, onInterim) {
       return
     }
 
-    // Desktop only: pre-check mic permission via getUserMedia.
-    // On mobile this is skipped — the SpeechRecognition API handles
-    // its own permission prompt and getUserMedia can interfere.
+    // Desktop only: ensure mic permission before starting SpeechRecognition.
+    // Fast path: if permission already granted, skip getUserMedia entirely (no delay).
+    // Slow path: only call getUserMedia when permission hasn't been granted yet.
     if (!isMobile()) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        stream.getTracks().forEach(t => t.stop())
+        const perm = await navigator.permissions.query({ name: 'microphone' })
+        if (perm.state !== 'granted') {
+          // First time / permission revoked — request it now
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          stream.getTracks().forEach(t => t.stop())
+        }
+        // else: already granted — skip getUserMedia, start instantly
       } catch {
-        alert('Microphone access denied. Please allow mic in browser settings.')
-        return
+        // permissions API not supported — fall back to getUserMedia check
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          stream.getTracks().forEach(t => t.stop())
+        } catch {
+          alert('Microphone access denied. Please allow mic in browser settings.')
+          return
+        }
       }
     }
 
