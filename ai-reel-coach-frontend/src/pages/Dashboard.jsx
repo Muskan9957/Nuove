@@ -10,25 +10,14 @@ import { useTheme } from '../context/ThemeContext'
 
 /* ─── Creator palette — Saffron Noir ─────────────────────────────── */
 const C = {
-  cyan:   '#FF8C00',   /* saffron — primary */
-  pink:   '#FF2D6F',   /* hot magenta */
-  lime:   '#C4FF00',   /* electric lime */
-  amber:  '#FF8C00',   /* saffron */
-  coral:  '#FF5F4C',   /* coral */
-  violet: '#B36DFF',   /* violet */
-  teal:   '#00E5A0',   /* emerald */
+  cyan:   '#FF8C00',
+  pink:   '#FF2D6F',
+  lime:   '#C4FF00',
+  amber:  '#FF8C00',
+  coral:  '#FF5F4C',
+  violet: '#B36DFF',
+  teal:   '#00E5A0',
 }
-
-/* ─── Light-mode pastel card backgrounds ────────────────────────── */
-const PASTEL = {
-  sky:    'rgba(255,232,192,0.95)',  /* warm peach */
-  rose:   'rgba(255,214,228,0.95)',  /* soft rose */
-  mint:   'rgba(205,250,220,0.95)',  /* mint */
-  violet: 'rgba(238,224,255,0.95)',  /* lavender */
-  amber:  'rgba(255,245,190,0.95)',  /* warm amber */
-  lime:   'rgba(218,252,228,0.95)',  /* lime */
-}
-const PASTEL_LIST = [PASTEL.sky, PASTEL.rose, PASTEL.mint, PASTEL.violet, PASTEL.amber, PASTEL.lime]
 
 const NICHE_META = {
   comedy:        { emoji: '😂', color: '#FF2D6F' },
@@ -46,13 +35,13 @@ const NICHE_META = {
 }
 
 const BADGE_META = {
-  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script'    },
-  SCRIPTS_10:   { emoji: '📚', label: '10 Scripts'       },
-  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts'       },
-  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook'     },
-  ANALYZER_5:   { emoji: '📊', label: '5 Analyses'       },
-  STREAK_7:     { emoji: '🔥', label: '7-Day Streak'     },
-  STREAK_30:    { emoji: '⚡', label: '30-Day Streak'    },
+  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script'  },
+  SCRIPTS_10:   { emoji: '📚', label: '10 Scripts'     },
+  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts'     },
+  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook'   },
+  ANALYZER_5:   { emoji: '📊', label: '5 Analyses'     },
+  STREAK_7:     { emoji: '🔥', label: '7-Day Streak'   },
+  STREAK_30:    { emoji: '⚡', label: '30-Day Streak'  },
 }
 
 const CATEGORY_COLORS = {
@@ -69,12 +58,26 @@ function getTimeMood() {
   if (h < 12) return { key: 'morning',   emoji: '☀️', label: 'fresh start',         color: C.amber  }
   if (h < 17) return { key: 'afternoon', emoji: '🔆', label: 'in the zone',         color: C.cyan   }
   if (h < 21) return { key: 'evening',   emoji: '✨', label: 'golden hour',         color: C.coral  }
-  return            { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
+  return             { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
 }
 
-/* ─── Today's Brief ──────────────────────────────────────────────── */
 const BRIEF_CACHE_KEY = 'arc_brief_cache'
 
+/* ─── Pulsing LIVE dot ────────────────────────────────────────────── */
+function LiveDot() {
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 10, height: 10 }}>
+      <span style={{
+        position: 'absolute', width: 18, height: 18, borderRadius: '50%',
+        background: '#FF2D6F', opacity: 0,
+        animation: 'livePulse 1.8s ease-out infinite',
+      }} />
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF2D6F', flexShrink: 0 }} />
+    </span>
+  )
+}
+
+/* ─── Today's Brief — editorial redesign ─────────────────────────── */
 function TrendingBrief({ userName, niches = [] }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
@@ -83,10 +86,7 @@ function TrendingBrief({ userName, niches = [] }) {
   const [played, setPlayed] = useState(false)
   const primaryNiche = niches[0] || ''
 
-  // Cache key is unique per niche selection + lang + date
   const cacheKey = `${BRIEF_CACHE_KEY}_${niches.join(',')}_${lang}`
-
-  // Load from localStorage instantly so screen never shows blank
   const [greeting, setGreeting] = useState(() => {
     try {
       const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
@@ -99,16 +99,13 @@ function TrendingBrief({ userName, niches = [] }) {
   useEffect(() => {
     const region = getSavedRegion() || 'India'
     const today  = new Date().toISOString().slice(0, 10)
-
     const greetingPromise = api.getGreeting(region, lang, niches)
-    // If user has a niche, also pull niche-specific trending topics
     const trendingPromise = primaryNiche
       ? api.getTrending(primaryNiche, lang).catch(() => null)
       : Promise.resolve(null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
-        // Merge niche-specific trends over the generic greeting trends
         const merged = {
           ...greetData,
           trends: trendData?.trends?.length ? trendData.trends : greetData?.trends,
@@ -124,174 +121,268 @@ function TrendingBrief({ userName, niches = [] }) {
   const playGreeting = () => {
     if (!greeting) return
     if (speaking) { stopSpeaking(); return }
-    
     let text = `${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`
-    
-    // Dynamically append the top 3 trends if they exist
-    if (greeting.trends && greeting.trends.length > 0) {
-      // Ensure we clean up the trend titles slightly for speech (e.g. removing emojis if necessary, though TTS usually handles them okay or ignores them)
-      const topTrends = greeting.trends.slice(0, 3).map(trend => trend.title).join(', ')
+    if (greeting.trends?.length) {
+      const topTrends = greeting.trends.slice(0, 3).map(t => t.title).join(', ')
       text += ` Today's top trending topics are: ${topTrends}.`
     }
-    
     speak(text)
     setPlayed(true)
   }
 
+  const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+
   return (
-    <div style={{
-      background: isLight
-        ? `linear-gradient(145deg, ${PASTEL.rose} 0%, rgba(255,255,255,0.96) 100%)`
-        : 'linear-gradient(135deg, rgba(0,160,255,0.07) 0%, var(--surface) 50%)',
-      border: isLight ? '1px solid rgba(219,39,119,0.18)' : '1px solid var(--border)',
-      borderTop: isLight ? '2px solid rgba(219,39,119,0.30)' : '2px solid rgba(0,160,255,0.22)',
-      borderRadius: 18,
-      padding: '22px 26px',
-      marginBottom: 24,
-    }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <span style={{
-          fontSize: '0.74rem', fontFamily: 'var(--font-mono)',
-          color: 'var(--text-muted)', letterSpacing: '0.1em',
-          textTransform: 'uppercase', fontWeight: 700,
+    <section style={{ marginBottom: 32 }}>
+      {/* ── Section header ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        marginBottom: 16, flexWrap: 'wrap',
+      }}>
+        {/* LIVE badge */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '4px 10px', borderRadius: 99,
+          background: 'rgba(255,45,111,0.10)',
+          border: '1px solid rgba(255,45,111,0.28)',
         }}>
-          {t('dash_todays_brief')}
-        </span>
+          <LiveDot />
+          <span style={{
+            fontSize: '0.64rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+            color: C.pink, textTransform: 'uppercase', letterSpacing: '0.12em',
+          }}>Live</span>
+        </div>
+
+        <h2 style={{
+          margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
+          fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
+        }}>
+          Trending Now
+        </h2>
+
+        {/* Date chip */}
+        <span style={{
+          fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+          color: 'var(--text-faint)', letterSpacing: '0.06em',
+        }}>{today}</span>
+
         {/* Niche badge */}
         {greeting?.nicheLabel && (
           <span style={{
             fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            padding: '2px 8px', borderRadius: 99, letterSpacing: '0.06em',
-            background: `${C.violet}18`, border: `1px solid ${C.violet}40`, color: C.violet,
+            padding: '3px 9px', borderRadius: 99, letterSpacing: '0.06em',
+            background: `${C.violet}16`, border: `1px solid ${C.violet}38`, color: C.violet,
             textTransform: 'uppercase',
           }}>
             {greeting.nicheLabel}
           </span>
         )}
+
         <div style={{ flex: 1 }} />
+
+        {/* Listen button */}
         <button
           onClick={playGreeting}
           disabled={!greeting}
           style={{
+            display: 'flex', alignItems: 'center', gap: 6,
             padding: '6px 14px', borderRadius: 99,
             border: `1px solid ${speaking ? C.teal : 'var(--border)'}`,
-            background: speaking ? `${C.teal}1A` : 'transparent',
+            background: speaking ? `${C.teal}14` : 'transparent',
             color: speaking ? C.teal : 'var(--text-faint)',
             cursor: greeting ? 'pointer' : 'not-allowed',
-            fontSize: '0.74rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+            fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
             transition: 'all 0.15s',
           }}
         >
+          <span style={{ fontSize: '0.8rem' }}>{speaking ? '⏹' : '▶'}</span>
           {speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen')}
         </button>
       </div>
 
-      {/* No niche set — prompt user to personalise */}
+      {/* ── No niche nudge ── */}
       {!loading && niches.length === 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 12, flexWrap: 'wrap',
-          padding: '14px 16px', borderRadius: 12,
-          background: `${C.amber}0D`, border: `1px solid ${C.amber}30`,
-          marginBottom: greeting ? 14 : 0,
+          padding: '16px 20px', borderRadius: 14,
+          background: isLight ? 'rgba(255,140,0,0.06)' : `${C.amber}0C`,
+          border: `1px solid ${C.amber}28`,
+          marginBottom: 16,
         }}>
           <div>
-            <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 600, color: 'var(--text)' }}>
+            <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>
               📌 Personalise your brief
             </p>
             <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-faint)' }}>
               Set your niche to get content ideas tailored to your audience
             </p>
           </div>
-          <Link
-            to="/profile"
-            style={{
-              textDecoration: 'none', flexShrink: 0,
-              padding: '7px 16px', borderRadius: 99,
-              background: C.amber, color: '#000',
-              fontSize: '0.78rem', fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            Set niche →
-          </Link>
+          <Link to="/profile" style={{
+            textDecoration: 'none', flexShrink: 0,
+            padding: '8px 18px', borderRadius: 99,
+            background: C.amber, color: '#000',
+            fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+          }}>Set niche →</Link>
         </div>
       )}
 
+      {/* ── Context line from AI ── */}
+      {!loading && greeting?.greeting && (
+        <p style={{
+          fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.65,
+          margin: '0 0 20px',
+          paddingLeft: 14,
+          borderLeft: `3px solid ${isLight ? 'rgba(200,80,0,0.25)' : 'rgba(255,140,0,0.28)'}`,
+        }}>
+          {greeting.greeting}
+        </p>
+      )}
+
+      {/* ── Trend cards ── */}
       {loading ? (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>{t('dash_loading_trends')}</span>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 14,
+        }}>
+          {[0,1,2].map(i => (
+            <div key={i} className="shimmer" style={{ height: 140, borderRadius: 16 }} />
+          ))}
         </div>
-      ) : greeting ? (
-        <>
-          <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.6 }}>
-            {greeting.greeting}
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 10,
-          }}>
-            {greeting.trends?.slice(0, 3).map((trend, i) => {
-              const color = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
-              return (
-                <Link
-                  key={i}
-                  to="/generate"
-                  state={{ topic: trend.title, niche: primaryNiche || trend.category?.toLowerCase() }}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <div style={{
-                    height: '100%',
-                    padding: 14,
+      ) : greeting?.trends?.length ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 14,
+        }}>
+          {greeting.trends.slice(0, 3).map((trend, i) => {
+            const color = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
+            const rank  = String(i + 1).padStart(2, '0')
+            return (
+              <Link
+                key={i}
+                to="/generate"
+                state={{ topic: trend.title, niche: primaryNiche || trend.category?.toLowerCase() }}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <div
+                  style={{
+                    position: 'relative',
+                    padding: '20px 22px 18px',
+                    borderRadius: 16,
                     background: isLight
-                      ? `linear-gradient(145deg, ${PASTEL_LIST[i % PASTEL_LIST.length]} 0%, rgba(255,255,255,0.98) 100%)`
+                      ? 'rgba(255,255,255,0.97)'
                       : 'var(--surface-card-deep)',
-                    border: isLight ? `1px solid ${color}30` : '1px solid rgba(100,140,255,0.18)',
-                    borderLeft: `3px solid ${color}`,
-                    borderRadius: 12,
-                    boxShadow: 'var(--card-shadow)',
-                    transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
+                    border: `1px solid ${color}28`,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+                    boxShadow: isLight
+                      ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
+                      : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`,
                   }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 32px rgba(30,50,120,0.15), 0 0 16px ${color}22`; e.currentTarget.style.borderColor = `${color}44`; e.currentTarget.style.borderLeftColor = color }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--card-shadow)'; e.currentTarget.style.borderColor = isLight ? `${color}30` : 'rgba(100,140,255,0.18)'; e.currentTarget.style.borderLeftColor = color }}
-                  >
-                    <div style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 6 }}>
-                      {trend.category}
-                    </div>
-                    <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: 5, color: 'var(--text)', letterSpacing: '-0.01em', lineHeight: 1.3 }}>
-                      {trend.title}
-                    </div>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-faint)', lineHeight: 1.5 }}>
-                      {trend.description}
-                    </div>
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-3px)'
+                    e.currentTarget.style.borderColor = `${color}60`
+                    e.currentTarget.style.boxShadow = isLight
+                      ? `0 12px 32px rgba(0,0,0,0.12), 0 0 0 1px ${color}30`
+                      : `0 14px 48px rgba(0,0,0,0.70), 0 0 28px ${color}20`
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.borderColor = `${color}28`
+                    e.currentTarget.style.boxShadow = isLight
+                      ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
+                      : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
+                  }}
+                >
+                  {/* Rank watermark */}
+                  <span style={{
+                    position: 'absolute', right: 14, top: 10,
+                    fontFamily: 'var(--font-creator)', fontWeight: 900,
+                    fontSize: '4.5rem', lineHeight: 1,
+                    color: `${color}12`,
+                    userSelect: 'none', pointerEvents: 'none',
+                    letterSpacing: '-0.05em',
+                  }}>{rank}</span>
+
+                  {/* Top row: rank label + category chip */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{
+                      fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
+                      color: `${color}88`, letterSpacing: '0.14em',
+                    }}>#{rank}</span>
+                    <span style={{
+                      fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                      padding: '2px 8px', borderRadius: 99, letterSpacing: '0.06em',
+                      background: `${color}16`, border: `1px solid ${color}35`, color,
+                      textTransform: 'uppercase',
+                    }}>{trend.category}</span>
                   </div>
-                </Link>
-              )
-            })}
-          </div>
-        </>
+
+                  {/* Title */}
+                  <div style={{
+                    fontFamily: 'var(--font-creator)', fontWeight: 800,
+                    fontSize: '1rem', lineHeight: 1.35,
+                    letterSpacing: '-0.02em',
+                    color: 'var(--text)',
+                    marginBottom: 8,
+                  }}>
+                    {trend.title}
+                  </div>
+
+                  {/* Description */}
+                  <div style={{
+                    fontSize: '0.78rem', color: 'var(--text-faint)',
+                    lineHeight: 1.55, marginBottom: 14,
+                  }}>
+                    {trend.description}
+                  </div>
+
+                  {/* CTA */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
+                    fontWeight: 700, color, letterSpacing: '0.04em',
+                  }}>
+                    Write this script
+                    <span style={{ fontSize: '0.85rem', transition: 'transform 0.15s' }}>→</span>
+                  </div>
+
+                  {/* Bottom accent line */}
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    height: 2,
+                    background: `linear-gradient(90deg, ${color}80, ${color}18, transparent)`,
+                    borderRadius: '0 0 16px 16px',
+                  }} />
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       ) : (
-        /* API failed / no data — show fallback instead of blank */
-        !niches.length ? null : (
+        niches.length > 0 && (
           <p style={{ fontSize: '0.85rem', color: 'var(--text-faint)', margin: 0 }}>
-            Could not load today's trends. <button onClick={() => window.location.reload()} style={{ background: 'none', border: 'none', color: C.cyan, cursor: 'pointer', fontSize: 'inherit', padding: 0, textDecoration: 'underline' }}>Retry</button>
+            Could not load today's trends.{' '}
+            <button onClick={() => window.location.reload()} style={{
+              background: 'none', border: 'none', color: C.cyan,
+              cursor: 'pointer', fontSize: 'inherit', padding: 0, textDecoration: 'underline',
+            }}>Retry</button>
           </p>
         )
       )}
-    </div>
+    </section>
   )
 }
 
-/* ─── Creator Score (horizontal) ─────────────────────────────────── */
+/* ─── Creator Score ───────────────────────────────────────────────── */
 function CreatorScoreCard({ score }) {
   const { t } = useLang()
   const { theme } = useTheme()
   const isLight = theme === 'light'
   const [copied, setCopied] = useState(false)
-
   if (!score) return null
 
   const { score: val, breakdown = {}, level } = score
@@ -313,43 +404,29 @@ function CreatorScoreCard({ score }) {
   return (
     <div style={{
       background: isLight
-        ? `linear-gradient(145deg, ${PASTEL.violet} 0%, rgba(255,255,255,0.96) 100%)`
+        ? 'rgba(255,255,255,0.97)'
         : `linear-gradient(135deg, ${C.cyan}10 0%, var(--surface) 52%, ${C.pink}07 100%)`,
-      border: isLight ? '1px solid rgba(109,40,217,0.20)' : '1px solid var(--border)',
-      borderTop: isLight ? '2px solid rgba(109,40,217,0.30)' : `2px solid ${C.cyan}44`,
-      borderRadius: 18,
-      padding: '22px 26px',
-      marginBottom: 24,
+      border: isLight ? '1px solid rgba(109,40,217,0.18)' : '1px solid var(--border)',
+      borderRadius: 18, padding: '22px 26px', marginBottom: 24,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
-        {/* Score + Level */}
         <div style={{ flexShrink: 0 }}>
           <div style={{
             fontFamily: 'var(--font-creator)', fontWeight: 800,
             fontSize: '3.4rem', lineHeight: 0.95, letterSpacing: '-0.04em',
             background: `linear-gradient(135deg, ${C.cyan} 0%, ${C.pink} 55%, ${C.amber} 100%)`,
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>
-            {val}
-          </div>
+          }}>{val}</div>
           <div style={{
             fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em',
-            marginTop: 6,
-          }}>
-            {level || 'Rising Creator'}
-          </div>
+            color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 6,
+          }}>{level || 'Rising Creator'}</div>
         </div>
-
-        {/* Breakdown */}
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{
-            fontSize: '0.7rem', color: 'var(--text-faint)',
-            fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-            letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10,
-          }}>
-            {t('dash_score_breakdown')}
-          </div>
+            fontSize: '0.7rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)',
+            textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10,
+          }}>{t('dash_score_breakdown')}</div>
           <div style={{ display: 'flex', height: 8, borderRadius: 99, overflow: 'hidden', gap: 2, marginBottom: 10 }}>
             {segments.map(seg => {
               const v = breakdown[seg.key] || 0
@@ -357,8 +434,7 @@ function CreatorScoreCard({ score }) {
               return (
                 <div key={seg.key} title={`${seg.label}: ${v}`} style={{
                   flex: pct, minWidth: pct > 0 ? 4 : 0, borderRadius: 99,
-                  background: seg.color,
-                  transition: 'flex 0.4s ease',
+                  background: seg.color, transition: 'flex 0.4s ease',
                 }} />
               )
             })}
@@ -374,20 +450,14 @@ function CreatorScoreCard({ score }) {
             ))}
           </div>
         </div>
-
-        {/* Share */}
-        <button
-          onClick={shareScore}
-          style={{
-            padding: '9px 16px', borderRadius: 10,
-            border: `1px solid ${copied ? C.teal : 'var(--border)'}`,
-            background: copied ? `${C.teal}14` : 'transparent',
-            color: copied ? C.teal : 'var(--text-muted)',
-            fontSize: '0.8rem', fontFamily: 'var(--font-body)', fontWeight: 600,
-            cursor: 'pointer', transition: 'all 0.15s',
-            flexShrink: 0,
-          }}
-        >
+        <button onClick={shareScore} style={{
+          padding: '9px 16px', borderRadius: 10,
+          border: `1px solid ${copied ? C.teal : 'var(--border)'}`,
+          background: copied ? `${C.teal}14` : 'transparent',
+          color: copied ? C.teal : 'var(--text-muted)',
+          fontSize: '0.8rem', fontFamily: 'var(--font-body)', fontWeight: 600,
+          cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
+        }}>
           {copied ? t('dash_score_copied') : t('dash_share_score')}
         </button>
       </div>
@@ -395,91 +465,178 @@ function CreatorScoreCard({ score }) {
   )
 }
 
-/* ─── Stat tile ──────────────────────────────────────────────────── */
-function StatTile({ label, value, sub, color, progress }) {
-  const { theme } = useTheme()
-  const isLight = theme === 'light'
+/* ─── Stats strip ─────────────────────────────────────────────────── */
+function StatsStrip({ scripts, logs, badges, streak, isLight }) {
+  const stats = [
+    { value: scripts, label: 'Scripts Written', color: C.cyan,   icon: '✍️' },
+    { value: logs,    label: 'Videos Analysed', color: C.teal,   icon: '📊' },
+    { value: badges,  label: 'Badges Earned',   color: C.violet, icon: '🏅' },
+  ]
+
   return (
     <div style={{
-      background: isLight
-        ? `linear-gradient(145deg, ${color}28 0%, rgba(255,255,255,0.97) 65%)`
-        : `linear-gradient(135deg, ${color}20 0%, var(--surface-card-deep) 58%)`,
-      border: `1px solid ${color}35`,
-      borderLeft: `3px solid ${color}`,
-      borderRadius: 14,
-      padding: '18px 20px',
-      boxShadow: `var(--card-shadow), 0 0 0 0 ${color}00`,
-      transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 10px 36px rgba(30,50,120,0.14), 0 0 24px ${color}28`; e.currentTarget.style.borderColor = `${color}55`; e.currentTarget.style.borderLeftColor = color }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--card-shadow)'; e.currentTarget.style.borderColor = `${color}35`; e.currentTarget.style.borderLeftColor = color }}
-    >
-      <div style={{
-        fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 8,
-      }}>{label}</div>
-      <div style={{
-        fontFamily: 'var(--font-creator)', fontSize: '2.2rem', fontWeight: 800,
-        letterSpacing: '-0.04em', lineHeight: 1, color, marginBottom: 4,
-      }}>
-        {value}
-      </div>
-      {sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>{sub}</div>}
-      {progress != null && (
-        <div style={{ height: 4, background: 'var(--surface3)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      borderRadius: 18,
+      overflow: 'hidden',
+      border: isLight ? '1px solid rgba(160,70,0,0.14)' : '1px solid var(--border)',
+      background: isLight ? 'rgba(255,255,255,0.97)' : 'var(--surface)',
+      marginBottom: 32,
+      boxShadow: isLight
+        ? '0 2px 20px rgba(60,20,0,0.08), 0 1px 0 rgba(255,255,255,0.98) inset'
+        : '0 4px 32px rgba(0,0,0,0.55), 0 1px 0 rgba(255,195,90,0.14) inset',
+    }}>
+      {stats.map((s, i) => (
+        <div
+          key={i}
+          style={{
+            padding: '24px 26px 22px',
+            borderRight: i < 2 ? `1px solid ${isLight ? 'rgba(160,70,0,0.10)' : 'var(--border)'}` : 'none',
+            position: 'relative', overflow: 'hidden',
+          }}
+        >
+          {/* Watermark number behind */}
+          <span style={{
+            position: 'absolute', right: 10, bottom: -6,
+            fontFamily: 'var(--font-creator)', fontWeight: 900,
+            fontSize: '5.5rem', lineHeight: 1, letterSpacing: '-0.06em',
+            color: `${s.color}${isLight ? '0D' : '0F'}`,
+            userSelect: 'none', pointerEvents: 'none',
+          }}>{s.value}</span>
+
+          {/* Label */}
           <div style={{
-            height: '100%', borderRadius: 99,
-            width: `${Math.min(progress, 100)}%`,
-            background: progress > 80
-              ? `linear-gradient(90deg, ${C.coral}, ${C.pink})`
-              : color,
-            transition: 'width 0.6s ease',
+            fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.14em',
+            color: 'var(--text-faint)', marginBottom: 10,
+          }}>{s.label}</div>
+
+          {/* Big number */}
+          <div style={{
+            fontFamily: 'var(--font-creator)', fontWeight: 900,
+            fontSize: '2.8rem', letterSpacing: '-0.05em', lineHeight: 1,
+            color: s.color,
+          }}>{s.value}</div>
+
+          {/* Bottom accent */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+            background: `linear-gradient(90deg, ${s.color}60, transparent)`,
           }} />
         </div>
-      )}
+      ))}
     </div>
   )
 }
 
-/* ─── Quick action card ──────────────────────────────────────────── */
-function ActionCard({ to, icon, label, color }) {
-  const { theme } = useTheme()
-  const isLight = theme === 'light'
+/* ─── Badges shelf ────────────────────────────────────────────────── */
+function BadgesShelf({ badges, isLight }) {
+  const { t } = useLang()
+  if (!badges.length) return null
+
   return (
-    <Link to={to} style={{ textDecoration: 'none' }}>
+    <section style={{ marginBottom: 28 }}>
       <div style={{
-        background: isLight
-          ? `linear-gradient(145deg, ${color}22 0%, rgba(255,255,255,0.97) 65%)`
-          : `linear-gradient(135deg, ${color}0E 0%, var(--surface) 60%)`,
-        border: `1px solid ${color}${isLight ? '35' : '28'}`,
-        borderRadius: 12,
-        padding: '13px 16px',
-        display: 'flex', alignItems: 'center', gap: 11,
-        cursor: 'pointer',
-        transition: 'all 0.18s',
-      }}
-        onMouseEnter={e => {
-          e.currentTarget.style.borderColor = `${color}66`
-          e.currentTarget.style.background = `linear-gradient(135deg, ${color}20 0%, var(--surface) 60%)`
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.borderColor = `${color}28`
-          e.currentTarget.style.background = `linear-gradient(135deg, ${color}0E 0%, var(--surface) 60%)`
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
-      >
+        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+      }}>
         <span style={{
-          width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-          background: `${color}18`, border: `1px solid ${color}33`,
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1rem', color,
-        }}>{icon}</span>
-        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--text)', letterSpacing: '-0.01em' }}>
-          {label}
-        </span>
+          fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-faint)',
+        }}>{t('dash_badges')}</span>
+        <span style={{
+          fontSize: '0.58rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+          padding: '2px 7px', borderRadius: 99,
+          background: `${C.violet}16`, border: `1px solid ${C.violet}30`,
+          color: C.violet,
+        }}>{badges.length}</span>
       </div>
-    </Link>
+
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+        {badges.map((badge, i) => {
+          const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
+          return (
+            <div key={i} title={meta.label} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+              padding: '12px 16px',
+              background: isLight
+                ? 'rgba(255,255,255,0.97)'
+                : `linear-gradient(135deg, ${C.violet}0E 0%, var(--surface) 70%)`,
+              border: isLight
+                ? `1px solid rgba(179,109,255,0.20)`
+                : `1px solid ${C.violet}25`,
+              borderRadius: 14, flexShrink: 0, minWidth: 76,
+              boxShadow: isLight
+                ? '0 2px 12px rgba(100,40,200,0.08)'
+                : '0 4px 20px rgba(0,0,0,0.45)',
+              transition: 'transform 0.18s',
+              cursor: 'default',
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+            >
+              <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{meta.emoji}</span>
+              <span style={{
+                fontSize: '0.58rem', color: 'var(--text-muted)',
+                fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 700,
+              }}>{meta.label}</span>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+/* ─── Streak banner ───────────────────────────────────────────────── */
+function StreakBanner({ streak, isLight }) {
+  const { t } = useLang()
+  if (!streak) return null
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 16, flexWrap: 'wrap',
+      padding: '16px 22px',
+      background: isLight
+        ? 'rgba(255,255,255,0.97)'
+        : `linear-gradient(135deg, ${C.amber}14 0%, var(--surface) 60%)`,
+      border: isLight ? `1px solid rgba(217,119,6,0.20)` : `1px solid ${C.amber}38`,
+      borderRadius: 14, marginBottom: 28,
+      boxShadow: isLight
+        ? '0 2px 16px rgba(180,80,0,0.08)'
+        : `0 4px 28px rgba(0,0,0,0.50), 0 0 30px ${C.amber}0E`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          background: `${C.amber}18`, border: `1px solid ${C.amber}30`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.4rem',
+        }}>🔥</div>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{
+              fontFamily: 'var(--font-creator)', fontWeight: 900,
+              fontSize: '1.8rem', letterSpacing: '-0.04em', color: C.amber,
+            }}>{streak}</span>
+            <span style={{
+              fontSize: '0.85rem', color: 'var(--text)', fontWeight: 700,
+            }}>{t('dash_day_streak')}</span>
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+            Keep it going — create something today
+          </div>
+        </div>
+      </div>
+      <Link to="/generate" style={{
+        textDecoration: 'none',
+        padding: '8px 18px', borderRadius: 99,
+        background: C.amber, color: '#000',
+        fontSize: '0.76rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+        flexShrink: 0,
+      }}>Create now →</Link>
+    </div>
   )
 }
 
@@ -510,8 +667,6 @@ export default function Dashboard() {
         setProfile(prof)
         setCreatorScore(cs)
 
-        // Sync prefs from backend → localStorage for users on a new device
-        // or those who skipped onboarding but later saved prefs via profile
         if (prof?.niches?.length) {
           try {
             const stored = JSON.parse(localStorage.getItem('vs_prefs') || '{}')
@@ -529,184 +684,115 @@ export default function Dashboard() {
   }, [])
 
   const { theme } = useTheme()
-  const isLight = theme === 'light'
-  const limit  = { FREE: 5, STARTER: 50, PRO: '∞' }[user?.plan] || 5
-  const used   = user?.generationsUsed || 0
-  const pct    = limit === '∞' ? 100 : Math.round((used / limit) * 100)
-  const streak = profile?.streak || 0
+  const isLight  = theme === 'light'
+  const limit    = { FREE: 5, STARTER: 50, PRO: '∞' }[user?.plan] || 5
+  const used     = user?.generationsUsed || 0
+  const streak   = profile?.streak || 0
   const firstName = user?.name?.split(' ')[0] || 'Creator'
   const mood = getTimeMood()
 
   return (
     <div className="page-enter" style={{ position: 'relative' }}>
 
-      {/* ─── Greeting ────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 28 }}>
+      {/* ─── Greeting ─────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 32 }}>
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '5px 12px', borderRadius: 99,
-          background: `${mood.color}14`,
-          border: `1px solid ${mood.color}40`,
+          padding: '4px 12px', borderRadius: 99,
+          background: `${mood.color}12`,
+          border: `1px solid ${mood.color}35`,
           marginBottom: 14,
         }}>
-          <span style={{ fontSize: '0.92rem' }}>{mood.emoji}</span>
+          <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
           <span style={{
-            fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            color: mood.color, textTransform: 'uppercase', letterSpacing: '0.08em',
-          }}>
-            {mood.label}
-          </span>
+            fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+            color: mood.color, textTransform: 'uppercase', letterSpacing: '0.1em',
+          }}>{mood.label}</span>
         </div>
 
-        <h1 className="page-title">
+        <h1 className="page-title" style={{ marginBottom: 6 }}>
           {t('dash_greeting_' + mood.key)}, {firstName}
         </h1>
-        <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', maxWidth: 600, lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
           {t('dash_overview')}
         </p>
       </div>
 
-      {/* ─── Active niche chips ──────────────────────────────────── */}
+      {/* ─── Active niche chips ───────────────────────────────────── */}
       {niches.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-          <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em', flexShrink: 0 }}>
-            Active niche
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+          <span style={{
+            fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+            color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0,
+          }}>Niche</span>
           {niches.map(n => {
             const meta = NICHE_META[n] || { emoji: '🎯', color: C.cyan }
             return (
-              <Link key={n} to={`/trending`} style={{ textDecoration: 'none' }}>
+              <Link key={n} to="/trending" style={{ textDecoration: 'none' }}>
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 12px', borderRadius: 99,
-                  background: `${meta.color}14`, border: `1px solid ${meta.color}40`,
-                  color: meta.color, fontSize: '0.75rem', fontWeight: 700,
+                  background: `${meta.color}12`, border: `1px solid ${meta.color}38`,
+                  color: meta.color, fontSize: '0.73rem', fontWeight: 700,
                   fontFamily: 'var(--font-mono)', cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  letterSpacing: '0.03em',
+                  transition: 'all 0.15s', letterSpacing: '0.03em',
                 }}>
                   {meta.emoji} {n.charAt(0).toUpperCase() + n.slice(1)}
                 </span>
               </Link>
             )
           })}
-          <Link to="/profile" style={{ textDecoration: 'none', fontSize: '0.68rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', marginLeft: 2 }}>
-            edit →
-          </Link>
+          <Link to="/profile" style={{
+            textDecoration: 'none', fontSize: '0.65rem',
+            color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', marginLeft: 2,
+          }}>edit →</Link>
         </div>
       )}
 
-      {/* ─── Today's Brief ───────────────────────────────────────── */}
+      {/* ─── Stats strip ──────────────────────────────────────────── */}
+      <StatsStrip
+        scripts={scripts.length}
+        logs={logs.length}
+        badges={badges.length}
+        streak={streak}
+        isLight={isLight}
+      />
+
+      {/* ─── Streak ───────────────────────────────────────────────── */}
+      <StreakBanner streak={streak} isLight={isLight} />
+
+      {/* ─── Trending brief ───────────────────────────────────────── */}
       <TrendingBrief userName={firstName} niches={niches} />
 
-      {/* ─── Stats row ───────────────────────────────────────────── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 12, marginBottom: 24,
-      }}>
-        <StatTile
-          label="Scripts Written"
-          value={scripts.length}
-          sub={scripts.length > 0 ? 'all-time total' : 'Start creating!'}
-          color={C.cyan}
-        />
-        <StatTile
-          label="Videos Analysed"
-          value={logs.length}
-          sub={logs.length > 0 ? 'performance tracked' : 'Analyse a reel'}
-          color={C.lime}
-        />
-        <StatTile
-          label="Badges Earned"
-          value={badges.length}
-          sub={badges.length === 0 ? 'Keep creating to unlock!' : `Latest: ${BADGE_META[badges[badges.length - 1]?.type]?.emoji ?? '🏅'} ${BADGE_META[badges[badges.length - 1]?.type]?.label ?? badges[badges.length - 1]?.type}`}
-          color={C.amber}
-        />
-      </div>
+      {/* ─── Badges shelf ─────────────────────────────────────────── */}
+      <BadgesShelf badges={badges} isLight={isLight} />
 
-
-      {/* ─── Streak chip ─────────────────────────────────────────── */}
-      {streak > 0 && (
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 12,
-          padding: '12px 18px',
-          background: isLight
-            ? `linear-gradient(145deg, ${PASTEL.amber} 0%, rgba(255,255,255,0.97) 100%)`
-            : `linear-gradient(135deg, ${C.amber}18 0%, var(--surface) 60%)`,
-          border: isLight ? `1px solid rgba(217,119,6,0.28)` : `1px solid ${C.amber}45`,
-          borderRadius: 14,
-          marginBottom: 24,
-        }}>
-          <div style={{ fontSize: '1.6rem', lineHeight: 1 }}>🔥</div>
-          <div>
-            <span style={{
-              fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '1.4rem',
-              color: C.amber, letterSpacing: '-0.02em',
-            }}>{streak}</span>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginLeft: 8, fontWeight: 600 }}>
-              {t('dash_day_streak')}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Badges ──────────────────────────────────────────────── */}
-      {badges.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{
-            fontFamily: 'var(--font-head)', fontSize: '0.74rem', fontWeight: 700,
-            color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em',
-            marginBottom: 10,
-          }}>{t('dash_badges')}</h2>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-            {badges.map((badge, i) => {
-              const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
-              return (
-                <div key={i} title={meta.label} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                  padding: '8px 12px',
-                  background: isLight
-                    ? `linear-gradient(145deg, ${PASTEL_LIST[i % PASTEL_LIST.length]} 0%, rgba(255,255,255,0.97) 100%)`
-                    : 'linear-gradient(135deg, rgba(168,85,247,0.10) 0%, var(--surface) 65%)',
-                  border: isLight ? `1px solid rgba(109,40,217,0.20)` : '1px solid rgba(168,85,247,0.22)',
-                  borderRadius: 10, flexShrink: 0, minWidth: 84,
-                }}>
-                  <span style={{ fontSize: '1.3rem' }}>{meta.emoji}</span>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                    {meta.label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-
-      {/* ─── Upgrade banner ──────────────────────────────────────── */}
+      {/* ─── Upgrade banner ───────────────────────────────────────── */}
       {user?.plan === 'FREE' && (
         <div style={{
-          marginTop: 32,
+          marginTop: 8,
+          padding: '22px 26px',
+          borderRadius: 18,
           background: isLight
-            ? `linear-gradient(145deg, ${PASTEL.sky} 0%, ${PASTEL.rose} 100%)`
-            : `linear-gradient(135deg, ${C.cyan}12 0%, var(--surface) 40%, ${C.pink}10 100%)`,
-          border: isLight ? '1px solid rgba(2,132,199,0.22)' : `1px solid ${C.pink}44`,
-          borderRadius: 16,
-          padding: '20px 24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+            ? 'rgba(255,255,255,0.97)'
+            : `linear-gradient(135deg, ${C.cyan}10 0%, var(--surface) 45%, ${C.pink}09 100%)`,
+          border: isLight ? `1px solid rgba(200,80,0,0.16)` : `1px solid ${C.pink}35`,
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+          boxShadow: isLight
+            ? '0 2px 20px rgba(80,30,0,0.09)'
+            : `0 4px 32px rgba(0,0,0,0.55)`,
         }}>
           <div>
             <div style={{
-              fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '1.15rem',
-              letterSpacing: '-0.02em', marginBottom: 4,
+              fontFamily: 'var(--font-creator)', fontWeight: 800,
+              fontSize: '1.1rem', letterSpacing: '-0.02em', marginBottom: 5,
               background: `linear-gradient(135deg, ${C.cyan}, ${C.pink} 60%, ${C.amber})`,
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-            }}>
-              {t('dash_unlock_title')}
-            </div>
-            <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-              <span style={{ color: C.pink, fontWeight: 700 }}>{used}/{limit}</span> {t('generate_usage')} · {t('dash_free_desc')}
+            }}>{t('dash_unlock_title')}</div>
+            <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)' }}>
+              <span style={{ color: C.pink, fontWeight: 700 }}>{used}/{limit}</span>{' '}
+              {t('generate_usage')} · {t('dash_free_desc')}
             </div>
           </div>
           <Link to="/pricing" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
