@@ -61,14 +61,11 @@ function getTimeMood() {
   return             { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
 }
 
-const BRIEF_CACHE_KEY = 'arc_brief_cache'
-const BRIEF_CACHE_TTL_MS = 6 * 60 * 60 * 1000   // 6 h — after this, always re-fetch
-
-/* Virality heat: rank 1 = 95%, 2 = 80%, 3 = 67%, 4 = 56%, 5 = 48%, 6 = 40% */
-const VIRALITY = [95, 80, 67, 56, 48, 40]
+/* Virality heat — 3 cards: rank 1 = 94%, 2 = 78%, 3 = 61% */
+const VIRALITY = [94, 78, 61]
 
 /* "Freshness" badge driven by rank */
-const TREND_BADGE = ['🔥 HOT', '⚡ RISING', '✨ NEW', '📈 TRENDING', '💡 INSIGHT', '🚀 VIRAL']
+const TREND_BADGE = ['🔥 HOT', '⚡ RISING', '✨ NEW']
 
 function timeAgo(ts) {
   if (!ts) return null
@@ -103,38 +100,26 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
   const [refreshing, setRefreshing] = useState(false)
   const primaryNiche = niches[0] || ''
 
-  const cacheKey = `${BRIEF_CACHE_KEY}_${niches.join(',')}_${lang}`
-
-  const readCache = useCallback(() => {
-    try {
-      const c = JSON.parse(localStorage.getItem(cacheKey) || 'null')
-      if (!c) return null
-      // Expire after TTL
-      if (Date.now() - (c.ts || 0) > BRIEF_CACHE_TTL_MS) return null
-      return c
-    } catch { return null }
-  }, [cacheKey])
-
-  const [cached, setCached] = useState(() => readCache())
-  const [greeting, setGreeting] = useState(() => cached?.data || null)
-  const [fetchedAt, setFetchedAt] = useState(() => cached?.ts || null)
-  const [loading, setLoading] = useState(!cached?.data)
+  const [greeting, setGreeting] = useState(null)
+  const [fetchedAt, setFetchedAt] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   const fetchBrief = useCallback((force = false) => {
     if (force) setRefreshing(true)
     else setLoading(true)
+
     const region = getSavedRegion() || 'India'
     const ts = Date.now()
+    // _t param busts any CDN / backend cache so we always get fresh topics
+    const bust = `&_t=${ts}`
 
-    // Fetch both greeting (with niches) AND niche-specific trending in parallel
-    const greetingPromise = api.getGreeting(region, lang, niches)
+    const greetingPromise = api.getGreeting(region, lang, niches, bust)
     const trendingPromise = primaryNiche
-      ? api.getTrending(primaryNiche, lang).catch(() => null)
+      ? api.getTrending(primaryNiche, lang, bust).catch(() => null)
       : Promise.resolve(null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
-        // Prefer niche-specific trends; fall back to greeting trends
         const merged = {
           ...greetData,
           trends: trendData?.trends?.length ? trendData.trends : greetData?.trends,
@@ -144,16 +129,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
         }
         setGreeting(merged)
         setFetchedAt(ts)
-        localStorage.setItem(cacheKey, JSON.stringify({ data: merged, ts }))
       })
       .catch(() => {})
       .finally(() => { setLoading(false); setRefreshing(false) })
-  }, [lang, niches.join(','), cacheKey])
-
-  useEffect(() => {
-    // Re-fetch if cache is empty (or expired)
-    if (!cached?.data) fetchBrief(false)
   }, [lang, niches.join(',')])
+
+  // Always fetch fresh on mount — no localStorage persistence
+  useEffect(() => { fetchBrief(false) }, [lang, niches.join(',')])
 
   const playGreeting = () => {
     if (!greeting) return
@@ -318,13 +300,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
       {/* ── Trend cards ── */}
       {(loading || refreshing) ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {[0,1,2,3,4,5].map(i => (
+          {[0,1,2].map(i => (
             <div key={i} className="shimmer" style={{ height: 160, borderRadius: 16 }} />
           ))}
         </div>
       ) : trends.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {trends.slice(0, 6).map((trend, i) => {
+          {trends.slice(0, 3).map((trend, i) => {
             const color    = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
             const rank     = String(i + 1).padStart(2, '0')
             const virality = VIRALITY[i] || 38

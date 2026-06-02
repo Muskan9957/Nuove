@@ -75,11 +75,11 @@ export const api = {
   updateCalendarEntry: (id, data)  => req('PATCH',  `/calendar/${id}`, data),
   deleteCalendarEntry: (id)        => req('DELETE', `/calendar/${id}`),
 
-  // Trending
-  getTrending:  (niche, language) => req('GET', `/trending?niche=${niche}&language=${language}`),
-  getGreeting:  (region, language, niches = []) => {
+  // Trending — bust accepts an optional "&_t=..." string to bypass backend/CDN caches
+  getTrending:  (niche, language, bust = '') => req('GET', `/trending?niche=${niche}&language=${language}${bust}`),
+  getGreeting:  (region, language, niches = [], bust = '') => {
     const n = niches.length ? `&niches=${encodeURIComponent(niches.join(','))}` : ''
-    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${n}`)
+    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${n}${bust}`)
   },
 
   // Templates
