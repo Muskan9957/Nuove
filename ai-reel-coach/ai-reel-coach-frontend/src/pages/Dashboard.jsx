@@ -8,41 +8,41 @@ import { usePrefs } from '../hooks/usePrefs'
 import { getSavedRegion } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 
-/* ─── Creator palette ────────────────────────────────────────────── */
+/* ─── Creator palette — Saffron Noir ─────────────────────────────── */
 const C = {
-  cyan:   '#00D4FF',
-  pink:   '#FF2D8B',
-  lime:   '#A8FF3C',
-  amber:  '#FFB800',
-  coral:  '#FF5F4C',
-  violet: '#A855F7',
-  teal:   '#00D4B1',
+  cyan:   '#FF8C00',   /* saffron — primary */
+  pink:   '#FF2D6F',   /* hot magenta */
+  lime:   '#C4FF00',   /* electric lime */
+  amber:  '#FF8C00',   /* saffron */
+  coral:  '#FF5F4C',   /* coral */
+  violet: '#B36DFF',   /* violet */
+  teal:   '#00E5A0',   /* emerald */
 }
 
 /* ─── Light-mode pastel card backgrounds ────────────────────────── */
 const PASTEL = {
-  sky:    'rgba(219,234,254,0.95)',
-  rose:   'rgba(252,231,243,0.95)',
-  mint:   'rgba(209,250,229,0.95)',
-  violet: 'rgba(237,233,254,0.95)',
-  amber:  'rgba(254,243,199,0.95)',
-  lime:   'rgba(220,252,231,0.95)',
+  sky:    'rgba(255,232,192,0.95)',  /* warm peach */
+  rose:   'rgba(255,214,228,0.95)',  /* soft rose */
+  mint:   'rgba(205,250,220,0.95)',  /* mint */
+  violet: 'rgba(238,224,255,0.95)',  /* lavender */
+  amber:  'rgba(255,245,190,0.95)',  /* warm amber */
+  lime:   'rgba(218,252,228,0.95)',  /* lime */
 }
 const PASTEL_LIST = [PASTEL.sky, PASTEL.rose, PASTEL.mint, PASTEL.violet, PASTEL.amber, PASTEL.lime]
 
 const NICHE_META = {
-  comedy:        { emoji: '😂', color: '#FF2D8B' },
-  fitness:       { emoji: '💪', color: '#00D4FF' },
-  finance:       { emoji: '💰', color: '#A8FF3C' },
-  food:          { emoji: '🍜', color: '#FFB800' },
-  fashion:       { emoji: '👗', color: '#FF2D8B' },
-  tech:          { emoji: '⚡', color: '#A855F7' },
-  lifestyle:     { emoji: '✨', color: '#00D4B1' },
-  education:     { emoji: '📚', color: '#A855F7' },
-  travel:        { emoji: '🗺️', color: '#00D4FF' },
-  motivation:    { emoji: '🔥', color: '#FFB800' },
-  business:      { emoji: '🚀', color: '#00D4B1' },
-  relationships: { emoji: '❤️', color: '#FF5F4C' },
+  comedy:        { emoji: '😂', color: '#FF2D6F' },
+  fitness:       { emoji: '💪', color: '#FF8C00' },
+  finance:       { emoji: '💰', color: '#C4FF00' },
+  food:          { emoji: '🍜', color: '#FF8C00' },
+  fashion:       { emoji: '👗', color: '#FF2D6F' },
+  tech:          { emoji: '⚡', color: '#B36DFF' },
+  lifestyle:     { emoji: '✨', color: '#00E5A0' },
+  education:     { emoji: '📚', color: '#B36DFF' },
+  travel:        { emoji: '🗺️', color: '#FF8C00' },
+  motivation:    { emoji: '🔥', color: '#FF5F4C' },
+  business:      { emoji: '🚀', color: '#00E5A0' },
+  relationships: { emoji: '❤️', color: '#FF2D6F' },
 }
 
 const BADGE_META = {
@@ -124,7 +124,17 @@ function TrendingBrief({ userName, niches = [] }) {
   const playGreeting = () => {
     if (!greeting) return
     if (speaking) { stopSpeaking(); return }
-    speak(`${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`)
+    
+    let text = `${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`
+    
+    // Dynamically append the top 3 trends if they exist
+    if (greeting.trends && greeting.trends.length > 0) {
+      // Ensure we clean up the trend titles slightly for speech (e.g. removing emojis if necessary, though TTS usually handles them okay or ignores them)
+      const topTrends = greeting.trends.slice(0, 3).map(trend => trend.title).join(', ')
+      text += ` Today's top trending topics are: ${topTrends}.`
+    }
+    
+    speak(text)
     setPlayed(true)
   }
 
