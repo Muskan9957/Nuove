@@ -172,7 +172,7 @@ const FEATURES = [
     number: '01',
     titleKey: 'landing_feat_script_title',
     descKey: 'landing_feat_script_desc',
-    visual: ['🎬 Hook', '📖 Body copy', '📣 Call-to-action'],
+    orbs: ['🎬', '📖', '📣'],
   },
   {
     icon: '📈',
@@ -180,7 +180,7 @@ const FEATURES = [
     number: '02',
     titleKey: 'landing_feat_trends_title',
     descKey: 'landing_feat_trends_desc',
-    visual: ['#MorningRoutine ↑38%', '#FitnessIndia ↑21%', '#AILifestyle ↑57%'],
+    orbs: ['#️⃣', '🔥', '📊'],
   },
   {
     icon: '🎬',
@@ -188,7 +188,7 @@ const FEATURES = [
     number: '03',
     titleKey: 'landing_feat_tele_title',
     descKey: 'landing_feat_tele_desc',
-    visual: ['📱 Auto-scroll', '📷 Front & back cam', '✂️ In-browser edit'],
+    orbs: ['📱', '📷', '✂️'],
   },
   {
     icon: '⇄',
@@ -196,7 +196,7 @@ const FEATURES = [
     number: '04',
     titleKey: 'landing_feat_cross_title',
     descKey: 'landing_feat_cross_desc',
-    visual: ['◈ All Platforms', '▶ One Script', '✓ Auto-adapted'],
+    orbs: ['▶', '📲', '✓'],
   },
   {
     icon: '🏷️',
@@ -204,7 +204,7 @@ const FEATURES = [
     number: '05',
     titleKey: 'landing_feat_captions_title',
     descKey: 'landing_feat_captions_desc',
-    visual: ['📝 Captions', '#️⃣ Hashtags', '✨ SEO-ready'],
+    orbs: ['📝', '#️⃣', '✨'],
   },
   {
     icon: '📂',
@@ -212,9 +212,83 @@ const FEATURES = [
     number: '06',
     titleKey: 'landing_feat_templates_title',
     descKey: 'landing_feat_templates_desc',
-    visual: ['💾 Saved Hooks', '📎 Custom CTAs', '📚 My Library'],
+    orbs: ['💾', '📎', '📚'],
   },
 ]
+
+/* ─── Animated Feature Visual ─────────────────────────────────────── */
+function FeatureVisual({ feature, exiting }) {
+  const orbPositions = [
+    { x: '20%', y: '25%', size: 52, dur: 3.2, delay: 0.1 },
+    { x: '75%', y: '18%', size: 46, dur: 2.8, delay: 0.25 },
+    { x: '15%', y: '70%', size: 44, dur: 3.6, delay: 0 },
+  ]
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 260 }}>
+      {/* Outer glow ring */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 200, height: 200, borderRadius: '50%',
+        background: `radial-gradient(circle, ${feature.color}22 0%, transparent 70%)`,
+        animation: 'pulseRingFC 2.8s ease-in-out infinite',
+        opacity: exiting ? 0 : 1, transition: 'opacity 0.3s',
+      }} />
+      {/* Inner ring */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 110, height: 110, borderRadius: '50%',
+        border: `1.5px dashed ${feature.color}45`,
+        animation: 'spinSlowFC 18s linear infinite',
+        opacity: exiting ? 0 : 1, transition: 'opacity 0.3s',
+      }} />
+
+      {/* Central icon */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: `translate(-50%, -50%) scale(${exiting ? 0.5 : 1})`,
+        fontSize: '3.8rem',
+        filter: `drop-shadow(0 0 28px ${feature.color}90)`,
+        animation: 'floatYFC 3s ease-in-out infinite',
+        opacity: exiting ? 0 : 1,
+        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        zIndex: 2, userSelect: 'none',
+      }}>
+        {feature.icon}
+      </div>
+
+      {/* Orbiting mini icons */}
+      {orbPositions.map((orb, i) => (
+        <div key={i} style={{
+          position: 'absolute', left: orb.x, top: orb.y,
+          transform: `translate(-50%, -50%) scale(${exiting ? 0.3 : 1})`,
+          width: orb.size, height: orb.size,
+          borderRadius: '50%',
+          background: `${feature.color}18`,
+          border: `1px solid ${feature.color}40`,
+          backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: `${orb.size * 0.42}px`,
+          boxShadow: `0 6px 24px ${feature.color}25`,
+          animation: `floatYFC ${orb.dur}s ease-in-out infinite ${orb.delay}s`,
+          opacity: exiting ? 0 : 1,
+          transition: `all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.07}s`,
+          userSelect: 'none',
+        }}>
+          {feature.orbs[i]}
+        </div>
+      ))}
+
+      {/* SVG dashed connecting lines */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: exiting ? 0 : 0.18, transition: 'opacity 0.3s' }} viewBox="0 0 400 280" preserveAspectRatio="xMidYMid meet">
+        <line x1="200" y1="140" x2="80" y2="70" stroke={feature.color} strokeWidth="1.2" strokeDasharray="5 5" />
+        <line x1="200" y1="140" x2="300" y2="50" stroke={feature.color} strokeWidth="1.2" strokeDasharray="5 5" />
+        <line x1="200" y1="140" x2="60" y2="196" stroke={feature.color} strokeWidth="1.2" strokeDasharray="5 5" />
+      </svg>
+    </div>
+  )
+}
 
 function FeatureCarousel() {
   const { t } = useLang()
@@ -229,17 +303,14 @@ function FeatureCarousel() {
     setTimeout(() => {
       setIdx(n)
       setExiting(false)
-      timerRef.current = setInterval(() => goTo((n + 1) % FEATURES.length), 5000)
-    }, 250)
+      timerRef.current = setInterval(() => goTo((n + 1) % FEATURES.length), 5500)
+    }, 320)
   }
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
-      setIdx(i => {
-        const n = (i + 1) % FEATURES.length
-        return n
-      })
-    }, 5000)
+      setIdx(i => (i + 1) % FEATURES.length)
+    }, 5500)
     return () => clearInterval(timerRef.current)
   }, [])
 
@@ -249,54 +320,166 @@ function FeatureCarousel() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', minHeight: 400, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 4px 32px rgba(0,0,0,0.06)' }}>
+      {/* ── CSS keyframe animations ── */}
+      <style>{`
+        @keyframes pulseRingFC {
+          0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 0.55; }
+          50%       { transform: translate(-50%,-50%) scale(1.35); opacity: 0.12; }
+        }
+        @keyframes spinSlowFC {
+          from { transform: translate(-50%,-50%) rotate(0deg); }
+          to   { transform: translate(-50%,-50%) rotate(360deg); }
+        }
+        @keyframes floatYFC {
+          0%, 100% { transform: translate(-50%,-50%) translateY(0px); }
+          50%       { transform: translate(-50%,-50%) translateY(-14px); }
+        }
+        .feat-tab-btn { transition: all 0.25s ease !important; }
+        .feat-tab-btn:hover { opacity: 0.9 !important; background-color: rgba(255,255,255,0.04) !important; }
+      `}</style>
 
-        {/* Left — text */}
-        <div style={{ padding: 'clamp(32px,5vw,56px)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '2.2rem', marginBottom: 20 }}>{f.icon}</div>
-            <h3 style={{ margin: '0 0 14px', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 'clamp(1.3rem,2.5vw,1.9rem)', color: 'var(--text)', letterSpacing: '-0.02em', lineHeight: 1.2, opacity: exiting ? 0 : 1, transform: exiting ? 'translateY(10px)' : 'translateY(0)', transition: 'opacity 0.25s ease, transform 0.25s ease' }}>
+      {/* ── Main Card ── */}
+      <div style={{
+        borderRadius: 28,
+        overflow: 'hidden',
+        border: `1px solid ${f.color}22`,
+        boxShadow: `0 40px 100px rgba(0,0,0,0.18), 0 0 0 1px ${f.color}10, inset 0 1px 0 rgba(255,255,255,0.05)`,
+        transition: 'border-color 0.5s ease, box-shadow 0.5s ease',
+        position: 'relative',
+      }}>
+
+        {/* Full-card watermark number */}
+        <div style={{
+          position: 'absolute', top: -20, right: -10, zIndex: 0,
+          fontFamily: "'Fraunces', serif", fontWeight: 900,
+          fontSize: 'clamp(9rem, 20vw, 18rem)',
+          color: `${f.color}05`,
+          letterSpacing: '-0.05em', userSelect: 'none', lineHeight: 1,
+          opacity: exiting ? 0 : 1,
+          transition: 'opacity 0.3s ease, color 0.5s ease',
+          pointerEvents: 'none',
+        }}>
+          {f.number}
+        </div>
+
+        {/* ── Two-column interior ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', minHeight: 460, position: 'relative', zIndex: 1 }}>
+
+          {/* LEFT — text */}
+          <div style={{
+            padding: 'clamp(40px, 6vw, 68px)',
+            background: `linear-gradient(145deg, ${f.color}0D 0%, var(--surface) 60%)`,
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24,
+            transition: 'background 0.6s ease',
+          }}>
+            {/* Feature badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              width: 'fit-content', padding: '6px 14px', borderRadius: 99,
+              background: `${f.color}15`, border: `1px solid ${f.color}35`,
+              fontSize: '0.72rem', fontWeight: 700, color: f.color,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              fontFamily: "'DM Sans', sans-serif",
+              opacity: exiting ? 0 : 1,
+              transform: exiting ? 'translateY(-10px)' : 'translateY(0)',
+              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}>
+              <span>{f.icon}</span> Feature {f.number}
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              margin: 0, fontFamily: "'Fraunces', Georgia, serif",
+              fontWeight: 800, fontSize: 'clamp(1.9rem, 3.5vw, 2.9rem)',
+              color: 'var(--text)', letterSpacing: '-0.03em', lineHeight: 1.1,
+              opacity: exiting ? 0 : 1,
+              transform: exiting ? 'translateY(22px)' : 'translateY(0)',
+              transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s',
+            }}>
               {t(f.titleKey) || f.titleKey}
             </h3>
-            <p style={{ margin: 0, fontFamily: "'DM Sans', sans-serif", fontSize: '1rem', color: 'var(--text-muted)', lineHeight: 1.75, opacity: exiting ? 0 : 1, transition: 'opacity 0.25s ease 0.04s' }}>
+
+            {/* Description */}
+            <p style={{
+              margin: 0, fontFamily: "'DM Sans', sans-serif",
+              fontSize: '1.05rem', color: 'var(--text-muted)', lineHeight: 1.75, maxWidth: 380,
+              opacity: exiting ? 0 : 1,
+              transform: exiting ? 'translateY(22px)' : 'translateY(0)',
+              transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.1s',
+            }}>
               {t(f.descKey) || f.descKey}
             </p>
+
+            {/* Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+              <button onClick={prev} aria-label="Previous feature" style={{
+                width: 44, height: 44, borderRadius: '50%',
+                border: `1px solid ${f.color}35`, background: `${f.color}10`,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: f.color, transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${f.color}28`; e.currentTarget.style.transform = 'scale(1.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${f.color}10`; e.currentTarget.style.transform = 'scale(1)' }}>
+                <ChevronLeft />
+              </button>
+              <button onClick={next} aria-label="Next feature" style={{
+                width: 44, height: 44, borderRadius: '50%',
+                border: `1px solid ${f.color}35`, background: `${f.color}10`,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: f.color, transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${f.color}28`; e.currentTarget.style.transform = 'scale(1.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${f.color}10`; e.currentTarget.style.transform = 'scale(1)' }}>
+                <ChevronRight />
+              </button>
+            </div>
           </div>
 
-          {/* Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 36 }}>
-            <button onClick={prev} aria-label="Previous feature" style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text)'; e.currentTarget.style.color = 'var(--text)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}>
-              <ChevronLeft />
-            </button>
-            <div style={{ display: 'flex', gap: 5 }}>
-              {FEATURES.map((feat, i) => (
-                <button key={i} onClick={() => goTo(i)} style={{ width: i === idx ? 22 : 6, height: 6, borderRadius: 99, border: 'none', padding: 0, cursor: 'pointer', background: i === idx ? feat.color : 'var(--border)', transition: 'all 0.35s ease', boxShadow: i === idx ? `0 0 8px ${feat.color}80` : 'none' }} />
-              ))}
-            </div>
-            <button onClick={next} aria-label="Next feature" style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text)'; e.currentTarget.style.color = 'var(--text)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}>
-              <ChevronRight />
-            </button>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: "'DM Sans', sans-serif" }}>
-              {f.number} / {String(FEATURES.length).padStart(2, '0')}
-            </span>
+          {/* RIGHT — animated orbital visual showcase */}
+          <div style={{
+            position: 'relative',
+            background: `radial-gradient(ellipse at 55% 40%, ${f.color}18 0%, transparent 65%), var(--surface2)`,
+            borderLeft: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', minHeight: 300,
+            transition: 'background 0.6s ease',
+          }}>
+            {/* Dot grid pattern */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              backgroundImage: `radial-gradient(circle, ${f.color}35 1px, transparent 1px)`,
+              backgroundSize: '28px 28px', opacity: 0.3,
+              transition: 'all 0.5s ease',
+            }} />
+            <FeatureVisual feature={f} exiting={exiting} />
           </div>
         </div>
 
-        {/* Right — visual panel */}
-        <div style={{ background: `linear-gradient(135deg, ${f.color}18 0%, var(--surface2) 100%)`, borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, gap: 12, position: 'relative', overflow: 'hidden', transition: 'background 0.4s ease' }}>
-          {/* Big number watermark */}
-          <div style={{ position: 'absolute', bottom: -20, right: -8, fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: '9rem', color: `${f.color}12`, letterSpacing: '-0.05em', userSelect: 'none', lineHeight: 1 }}>
-            {f.number}
-          </div>
-          {/* Visual data pills */}
-          {f.visual.map((line, i) => (
-            <div key={i} style={{ width: '100%', maxWidth: 220, padding: '12px 16px', background: 'var(--surface)', border: `1px solid ${f.color}30`, borderLeft: `3px solid ${f.color}`, borderRadius: 8, fontFamily: "'DM Sans', monospace", fontSize: '0.82rem', color: 'var(--text)', fontWeight: 500, opacity: exiting ? 0 : 1, transform: exiting ? 'translateX(10px)' : 'translateX(0)', transition: `opacity 0.25s ease ${i * 0.06}s, transform 0.25s ease ${i * 0.06}s` }}>
-              {line}
-            </div>
+        {/* ── Bottom feature tab strip ── */}
+        <div style={{
+          display: 'flex', borderTop: '1px solid var(--border)',
+          background: 'var(--surface)', overflow: 'hidden',
+        }}>
+          {FEATURES.map((feat, i) => (
+            <button key={i} className="feat-tab-btn" onClick={() => goTo(i)} style={{
+              flex: 1, padding: '14px 4px', border: 'none',
+              borderTop: i === idx ? `2.5px solid ${feat.color}` : '2.5px solid transparent',
+              background: i === idx ? `${feat.color}0C` : 'transparent',
+              cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 4,
+              opacity: i === idx ? 1 : 0.38,
+              transition: 'all 0.3s ease',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>{feat.icon}</span>
+              <span style={{
+                fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.06em',
+                textTransform: 'uppercase', fontFamily: "'DM Sans', sans-serif",
+                color: i === idx ? feat.color : 'var(--text-faint)',
+                transition: 'color 0.3s ease',
+              }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+            </button>
           ))}
         </div>
       </div>
