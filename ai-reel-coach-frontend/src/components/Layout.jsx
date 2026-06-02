@@ -189,6 +189,13 @@ export default function Layout({ children }) {
   const userName     = user?.name || user?.email?.split('@')[0] || 'Creator'
   const planColor    = planColors[user?.plan] || planColors.FREE
 
+  // Determine vibrant theme based on section
+  let featureTheme = 'default'
+  const path = location.pathname
+  if (['/generate', '/scripts', '/record', '/coach'].includes(path)) featureTheme = 'studio'
+  else if (['/captions', '/crosspost', '/templates', '/multiply', '/remix'].includes(path)) featureTheme = 'content'
+  else if (['/trending', '/performance', '/calendar', '/dashboard', '/score'].includes(path)) featureTheme = 'insights'
+
   return (
     <div style={styles.root}>
 
@@ -349,7 +356,7 @@ export default function Layout({ children }) {
       )}
 
       {/* ── Main content area ───────────────────────────────────── */}
-      <main style={styles.main}>
+      <main style={styles.main} className={`theme-${featureTheme}`}>
 
         {/* Mobile top header */}
         {isMobile && (

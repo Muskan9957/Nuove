@@ -8,6 +8,15 @@ import { usePrefs } from '../hooks/usePrefs'
 import { getSavedRegion } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 
+/* ─── Inject Syne display font ───────────────────────────────────── */
+if (!document.getElementById('syne-font')) {
+  const _l = document.createElement('link')
+  _l.id = 'syne-font'; _l.rel = 'stylesheet'
+  _l.href = 'https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap'
+  document.head.appendChild(_l)
+}
+
+
 /* ─── Creator palette ────────────────────────────────────────────── */
 const C = {
   cyan:   '#00D4FF',
@@ -396,45 +405,41 @@ function CreatorScoreCard({ score }) {
 }
 
 /* ─── Stat tile ──────────────────────────────────────────────────── */
-function StatTile({ label, value, sub, color, progress }) {
+function StatTile({ label, value, sub, color, progress, icon }) {
   const { theme } = useTheme()
   const isLight = theme === 'light'
   return (
     <div style={{
-      background: isLight
-        ? `linear-gradient(145deg, ${color}28 0%, rgba(255,255,255,0.97) 65%)`
-        : `linear-gradient(135deg, ${color}20 0%, var(--surface-card-deep) 58%)`,
-      border: `1px solid ${color}35`,
-      borderLeft: `3px solid ${color}`,
-      borderRadius: 14,
-      padding: '18px 20px',
-      boxShadow: `var(--card-shadow), 0 0 0 0 ${color}00`,
-      transition: 'transform 0.18s, border-color 0.18s, box-shadow 0.18s',
+      background: isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.025)',
+      border: `1px solid ${isLight ? color + '22' : color + '14'}`,
+      borderRadius: 20,
+      padding: '22px 24px',
+      position: 'relative', overflow: 'hidden',
+      transition: 'transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s',
+      cursor: 'default',
     }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 10px 36px rgba(30,50,120,0.14), 0 0 24px ${color}28`; e.currentTarget.style.borderColor = `${color}55`; e.currentTarget.style.borderLeftColor = color }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--card-shadow)'; e.currentTarget.style.borderColor = `${color}35`; e.currentTarget.style.borderLeftColor = color }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = `0 20px 56px ${color}22` }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
     >
-      <div style={{
-        fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 8,
-      }}>{label}</div>
-      <div style={{
-        fontFamily: 'var(--font-creator)', fontSize: '2.2rem', fontWeight: 800,
-        letterSpacing: '-0.04em', lineHeight: 1, color, marginBottom: 4,
-      }}>
+      {/* Glow blob top-right */}
+      <div style={{ position: 'absolute', top: -28, right: -28, width: 90, height: 90, borderRadius: '50%', background: `radial-gradient(circle, ${color}35 0%, transparent 70%)`, pointerEvents: 'none' }} />
+
+      {/* Label row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ fontSize: '0.63rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-faint)' }}>{label}</span>
+        {icon && <span style={{ fontSize: '1rem', lineHeight: 1, opacity: 0.7 }}>{icon}</span>}
+      </div>
+
+      {/* Big number */}
+      <div style={{ fontFamily: "'Syne', var(--font-creator)", fontSize: '3.2rem', fontWeight: 800, letterSpacing: '-0.05em', lineHeight: 1, color, marginBottom: 8 }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>{sub}</div>}
+
+      {sub && <div style={{ fontSize: '0.71rem', color: 'var(--text-faint)', lineHeight: 1.45 }}>{sub}</div>}
+
       {progress != null && (
-        <div style={{ height: 4, background: 'var(--surface3)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
-          <div style={{
-            height: '100%', borderRadius: 99,
-            width: `${Math.min(progress, 100)}%`,
-            background: progress > 80
-              ? `linear-gradient(90deg, ${C.coral}, ${C.pink})`
-              : color,
-            transition: 'width 0.6s ease',
-          }} />
+        <div style={{ height: 3, background: isLight ? `${color}18` : 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden', marginTop: 16 }}>
+          <div style={{ height: '100%', borderRadius: 99, width: `${Math.min(progress, 100)}%`, background: `linear-gradient(90deg, ${color}, ${color}88)`, transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
         </div>
       )}
     </div>
@@ -442,42 +447,36 @@ function StatTile({ label, value, sub, color, progress }) {
 }
 
 /* ─── Quick action card ──────────────────────────────────────────── */
-function ActionCard({ to, icon, label, color }) {
+function ActionCard({ to, icon, label, sub, color }) {
   const { theme } = useTheme()
   const isLight = theme === 'light'
   return (
     <Link to={to} style={{ textDecoration: 'none' }}>
       <div style={{
         background: isLight
-          ? `linear-gradient(145deg, ${color}22 0%, rgba(255,255,255,0.97) 65%)`
-          : `linear-gradient(135deg, ${color}0E 0%, var(--surface) 60%)`,
-        border: `1px solid ${color}${isLight ? '35' : '28'}`,
-        borderRadius: 12,
-        padding: '13px 16px',
-        display: 'flex', alignItems: 'center', gap: 11,
-        cursor: 'pointer',
-        transition: 'all 0.18s',
+          ? `linear-gradient(140deg, ${color}14 0%, rgba(255,255,255,0.96) 100%)`
+          : `linear-gradient(140deg, ${color}0A 0%, rgba(255,255,255,0.012) 100%)`,
+        border: `1px solid ${isLight ? color + '20' : color + '18'}`,
+        borderRadius: 18,
+        padding: '16px 18px',
+        display: 'flex', alignItems: 'center', gap: 14,
+        cursor: 'pointer', position: 'relative', overflow: 'hidden',
+        transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
       }}
-        onMouseEnter={e => {
-          e.currentTarget.style.borderColor = `${color}66`
-          e.currentTarget.style.background = `linear-gradient(135deg, ${color}20 0%, var(--surface) 60%)`
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.borderColor = `${color}28`
-          e.currentTarget.style.background = `linear-gradient(135deg, ${color}0E 0%, var(--surface) 60%)`
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = `${color}48`; e.currentTarget.style.boxShadow = `0 10px 36px ${color}1A` }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = isLight ? `${color}20` : `${color}18`; e.currentTarget.style.boxShadow = 'none' }}
       >
-        <span style={{
-          width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-          background: `${color}18`, border: `1px solid ${color}33`,
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1rem', color,
-        }}>{icon}</span>
-        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--text)', letterSpacing: '-0.01em' }}>
-          {label}
-        </span>
+        {/* Icon square */}
+        <div style={{ width: 44, height: 44, borderRadius: 13, background: `${color}18`, border: `1px solid ${color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', flexShrink: 0 }}>
+          {icon}
+        </div>
+        {/* Text */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'Syne', var(--font-creator)", fontWeight: 700, fontSize: '0.88rem', color: 'var(--text)', letterSpacing: '-0.015em', marginBottom: 2 }}>{label}</div>
+          {sub && <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)', lineHeight: 1.3 }}>{sub}</div>}
+        </div>
+        {/* Arrow */}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
       </div>
     </Link>
   )
@@ -540,36 +539,47 @@ export default function Dashboard() {
   return (
     <div className="page-enter" style={{ position: 'relative' }}>
 
-      {/* ─── Greeting ────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 28 }}>
+      {/* ─── Greeting ────────────────────────────────────── */}
+      <div style={{ marginBottom: 36 }}>
+        {/* Mood pill */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '5px 12px', borderRadius: 99,
-          background: `${mood.color}14`,
-          border: `1px solid ${mood.color}40`,
-          marginBottom: 14,
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          padding: '5px 14px', borderRadius: 99,
+          background: `${mood.color}10`,
+          border: `1px solid ${mood.color}25`,
+          marginBottom: 18,
         }}>
-          <span style={{ fontSize: '0.92rem' }}>{mood.emoji}</span>
-          <span style={{
-            fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            color: mood.color, textTransform: 'uppercase', letterSpacing: '0.08em',
-          }}>
+          <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
+          <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: mood.color, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             {mood.label}
           </span>
         </div>
 
-        <h1 className="page-title">
-          {t('dash_greeting_' + mood.key)}, {firstName}
+        {/* Big name greeting */}
+        <h1 style={{
+          fontFamily: "'Syne', var(--font-creator)",
+          fontSize: 'clamp(2rem, 5vw, 2.9rem)',
+          fontWeight: 800,
+          letterSpacing: '-0.04em',
+          lineHeight: 1.1,
+          marginBottom: 12,
+          color: 'var(--text)',
+        }}>
+          {t('dash_greeting_' + mood.key)},&nbsp;
+          <span style={{
+            background: `linear-gradient(135deg, ${mood.color} 0%, ${C.pink} 100%)`,
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          }}>{firstName}.</span>
         </h1>
-        <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', maxWidth: 600, lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: 480, lineHeight: 1.65, margin: 0 }}>
           {t('dash_overview')}
         </p>
       </div>
 
-      {/* ─── Active niche chips ──────────────────────────────────── */}
+      {/* ─── Active niche chips ───────────────────────────── */}
       {niches.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-          <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+          <span style={{ fontSize: '0.63rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>
             Active niche
           </span>
           {niches.map(n => {
@@ -596,84 +606,74 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ─── Today's Brief ───────────────────────────────────────── */}
-      <TrendingBrief userName={firstName} niches={niches} />
-
-      {/* ─── Stats row ───────────────────────────────────────────── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 12, marginBottom: 24,
-      }}>
-        <StatTile
-          label="Scripts Written"
-          value={scripts.length}
-          sub={scripts.length > 0 ? 'all-time total' : 'Start creating!'}
-          color={C.cyan}
-        />
-        <StatTile
-          label="Videos Analysed"
-          value={logs.length}
-          sub={logs.length > 0 ? 'performance tracked' : 'Analyse a reel'}
-          color={C.lime}
-        />
-        <StatTile
-          label="Badges Earned"
-          value={badges.length}
-          sub={badges.length === 0 ? 'Keep creating to unlock!' : `Latest: ${BADGE_META[badges[badges.length - 1]?.type]?.emoji ?? '🏅'} ${BADGE_META[badges[badges.length - 1]?.type]?.label ?? badges[badges.length - 1]?.type}`}
-          color={C.amber}
-        />
+      {/* ─── Quick Actions 2x2 grid ─────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 28 }}>
+        <ActionCard to="/generate" icon="✍️" label="Generate Script" sub="AI-powered in seconds" color={C.cyan} />
+        <ActionCard to="/record"   icon="🎥" label="Record"          sub="Teleprompter + camera" color={C.pink} />
+        <ActionCard to="/trending" icon="📈" label="Trending"         sub="What's hot right now" color={C.lime} />
+        <ActionCard to="/captions" icon="🏷️" label="Captions"         sub="Write, hashtag, publish" color={C.amber} />
       </div>
 
+      {/* ─── Today's Brief ───────────────────────────────────── */}
+      <TrendingBrief userName={firstName} niches={niches} />
 
-      {/* ─── Streak chip ─────────────────────────────────────────── */}
+      {/* ─── Stats row ───────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 28 }}>
+        <StatTile label="Scripts Written" value={scripts.length} icon="✍️"
+          sub={scripts.length > 0 ? 'all-time total' : 'Start creating!'} color={C.cyan} />
+        <StatTile label="Videos Analysed" value={logs.length} icon="📊"
+          sub={logs.length > 0 ? 'performance tracked' : 'Analyse a reel'} color={C.lime} />
+        <StatTile label="Badges Earned" value={badges.length} icon="🏅"
+          sub={badges.length === 0 ? 'Keep creating to unlock!' : `Latest: ${BADGE_META[badges[badges.length - 1]?.type]?.emoji ?? '🏅'} ${BADGE_META[badges[badges.length - 1]?.type]?.label ?? badges[badges.length - 1]?.type}`}
+          color={C.amber} />
+      </div>
+
+      {/* ─── Streak chip ───────────────────────────────────────── */}
       {streak > 0 && (
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 12,
-          padding: '12px 18px',
-          background: isLight
-            ? `linear-gradient(145deg, ${PASTEL.amber} 0%, rgba(255,255,255,0.97) 100%)`
-            : `linear-gradient(135deg, ${C.amber}18 0%, var(--surface) 60%)`,
-          border: isLight ? `1px solid rgba(217,119,6,0.28)` : `1px solid ${C.amber}45`,
-          borderRadius: 14,
-          marginBottom: 24,
+          display: 'inline-flex', alignItems: 'center', gap: 14,
+          padding: '14px 22px',
+          background: isLight ? 'rgba(255,255,255,0.85)' : `rgba(255,184,0,0.05)`,
+          border: `1px solid ${C.amber}22`,
+          borderRadius: 18, marginBottom: 28,
+          position: 'relative', overflow: 'hidden',
         }}>
-          <div style={{ fontSize: '1.6rem', lineHeight: 1 }}>🔥</div>
+          <div style={{ position: 'absolute', top: -20, left: -10, width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${C.amber}35 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          <div style={{ fontSize: '2.2rem', lineHeight: 1, position: 'relative' }}>🔥</div>
           <div>
-            <span style={{
-              fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '1.4rem',
-              color: C.amber, letterSpacing: '-0.02em',
-            }}>{streak}</span>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginLeft: 8, fontWeight: 600 }}>
+            <span style={{ fontFamily: "'Syne', var(--font-creator)", fontWeight: 800, fontSize: '1.8rem', color: C.amber, letterSpacing: '-0.04em' }}>{streak}</span>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginLeft: 10, fontWeight: 600 }}>
               {t('dash_day_streak')}
             </span>
           </div>
         </div>
       )}
 
-      {/* ─── Badges ──────────────────────────────────────────────── */}
+      {/* ─── Badges ────────────────────────────────────────────── */}
       {badges.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{
-            fontFamily: 'var(--font-head)', fontSize: '0.74rem', fontWeight: 700,
-            color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em',
-            marginBottom: 10,
-          }}>{t('dash_badges')}</h2>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={{ fontFamily: "'Syne', var(--font-creator)", fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.16em', marginBottom: 14 }}>{t('dash_badges')}</h2>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
             {badges.map((badge, i) => {
               const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
+              const bColor = [C.violet, C.amber, C.cyan, C.pink, C.lime, C.coral][i % 6]
               return (
                 <div key={i} title={meta.label} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                  padding: '8px 12px',
-                  background: isLight
-                    ? `linear-gradient(145deg, ${PASTEL_LIST[i % PASTEL_LIST.length]} 0%, rgba(255,255,255,0.97) 100%)`
-                    : 'linear-gradient(135deg, rgba(168,85,247,0.10) 0%, var(--surface) 65%)',
-                  border: isLight ? `1px solid rgba(109,40,217,0.20)` : '1px solid rgba(168,85,247,0.22)',
-                  borderRadius: 10, flexShrink: 0, minWidth: 84,
-                }}>
-                  <span style={{ fontSize: '1.3rem' }}>{meta.emoji}</span>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                  padding: '14px 16px',
+                  background: isLight ? 'rgba(255,255,255,0.85)' : `${bColor}07`,
+                  border: `1px solid ${bColor}20`,
+                  borderRadius: 16, flexShrink: 0, minWidth: 82,
+                  position: 'relative', overflow: 'hidden',
+                  transition: 'transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s',
+                  cursor: 'default',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 10px 28px ${bColor}20` }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+                >
+                  <div style={{ position: 'absolute', top: -15, right: -15, width: 50, height: 50, borderRadius: '50%', background: `radial-gradient(circle, ${bColor}35 0%, transparent 70%)`, pointerEvents: 'none' }} />
+                  <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{meta.emoji}</span>
+                  <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', fontWeight: 700, textAlign: 'center' }}>
                     {meta.label}
                   </span>
                 </div>
@@ -683,17 +683,16 @@ export default function Dashboard() {
         </div>
       )}
 
-
-      {/* ─── Upgrade banner ──────────────────────────────────────── */}
+      {/* ─── Upgrade banner ───────────────────────────────────── */}
       {user?.plan === 'FREE' && (
         <div style={{
           marginTop: 32,
           background: isLight
-            ? `linear-gradient(145deg, ${PASTEL.sky} 0%, ${PASTEL.rose} 100%)`
-            : `linear-gradient(135deg, ${C.cyan}12 0%, var(--surface) 40%, ${C.pink}10 100%)`,
-          border: isLight ? '1px solid rgba(2,132,199,0.22)' : `1px solid ${C.pink}44`,
-          borderRadius: 16,
-          padding: '20px 24px',
+            ? 'rgba(255,255,255,0.88)'
+            : `linear-gradient(135deg, ${C.cyan}0C 0%, transparent 50%, ${C.pink}08 100%)`,
+          border: isLight ? `1px solid ${C.cyan}28` : `1px solid ${C.pink}30`,
+          borderRadius: 20,
+          padding: '22px 26px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
         }}>
           <div>
