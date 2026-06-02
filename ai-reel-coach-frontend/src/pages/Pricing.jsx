@@ -112,7 +112,7 @@ function loadRazorpayScript() {
 }
 
 export default function Pricing() {
-  const [annual, setAnnual]           = useState(true)
+  const [annual, setAnnual]           = useState(false)
   const [openFaq, setOpenFaq]         = useState(null)
   const [checkingOut, setCheckingOut] = useState(null)
   const { user, refreshUser }         = useAuth()
