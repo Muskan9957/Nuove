@@ -108,6 +108,7 @@ export default function Record() {
   const [trimStart,  setTrimStart]  = useState(0)    // seconds
   const [trimEnd,    setTrimEnd]    = useState(0)    // seconds (0 = full)
   const [trimming,   setTrimming]   = useState(false)
+  const [processing, setProcessing] = useState(false) // true while WebCodecs flushes after stop
 
   // refs
   const videoRef      = useRef(null)   // camera preview (visible)
@@ -349,34 +350,57 @@ export default function Record() {
         };
         requestAnimationFrame(drawFrame);
 
+        // Helper: flush with a timeout so encoder can't hang UI forever
+        const flushWithTimeout = (encoder, ms = 8000) =>
+          Promise.race([
+            encoder.flush(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('flush timeout')), ms))
+          ]);
+
         // Save reference to stop recording
         recorderRef.current = {
           stop: async () => {
             canvasLoopRef.current = false;
-            
-            if (audioReader) {
-              await audioReader.cancel().catch(() => {});
-            }
-
-            await videoEncoder.flush();
-            if (audioEncoder) {
-              await audioEncoder.flush();
-            }
-
-            muxer.finalize();
-
-            const buffer = muxer.target.buffer;
-            const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
-
             const actualElapsed = (performance.now() - recordingStartTime) / 1000;
 
-            setOutputBlob(mp4Blob);
-            setOutputExt('mp4');
-            setTrimStart(0);
-            setTrimEnd(Math.round(actualElapsed));
-            setPhase('done');
-            stopScroll();
-            clearInterval(timerRef.current);
+            try {
+              if (audioReader) {
+                await audioReader.cancel().catch(() => {});
+              }
+
+              await flushWithTimeout(videoEncoder);
+              if (audioEncoder) {
+                await flushWithTimeout(audioEncoder);
+              }
+
+              muxer.finalize();
+
+              const buffer = muxer.target.buffer;
+              const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
+
+              setOutputBlob(mp4Blob);
+              setOutputExt('mp4');
+            } catch (err) {
+              console.error('WebCodecs finalize error, falling back to partial blob:', err);
+              // Still try to finalize whatever we have
+              try {
+                muxer.finalize();
+                const buffer = muxer.target.buffer;
+                if (buffer && buffer.byteLength > 0) {
+                  const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
+                  setOutputBlob(mp4Blob);
+                  setOutputExt('mp4');
+                }
+              } catch (e2) {
+                console.error('Muxer finalize also failed:', e2);
+              }
+            } finally {
+              setTrimStart(0);
+              setTrimEnd(Math.round(actualElapsed));
+              setPhase('done');
+              stopScroll();
+              clearInterval(timerRef.current);
+            }
           }
         };
 
@@ -475,9 +499,18 @@ export default function Record() {
 
   const stopRecording = () => {
     canvasLoopRef.current = false
-    recorderRef.current?.stop()
     clearInterval(timerRef.current)
     stopScroll()
+    setProcessing(true) // show spinner immediately
+    // stop() may be async (WebCodecs path) or sync (MediaRecorder fallback)
+    // We fire-and-forget but errors are caught inside stop() itself
+    Promise.resolve(recorderRef.current?.stop()).catch(err => {
+      console.error('stopRecording error:', err)
+      // Force done state if stop() itself throws unexpectedly
+      setPhase('done')
+    }).finally(() => {
+      setProcessing(false)
+    })
   }
 
   const toggleScrollPause = () => {
@@ -1013,6 +1046,23 @@ export default function Record() {
 
           {/* REC indicator */}
           <div style={S.recDot} />
+
+          {/* Processing overlay — shown while encoders flush after pressing stop */}
+          {processing && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 20,
+              background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16
+            }}>
+              <div style={{
+                width: 48, height: 48, border: '4px solid rgba(255,255,255,0.2)',
+                borderTopColor: '#E1306C', borderRadius: '50%',
+                animation: 'spin 0.9s linear infinite'
+              }} />
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: '1rem' }}>Saving your video...</div>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem' }}>Encoding to MP4, just a moment</div>
+            </div>
+          )}
         </div>
       )}
 
