@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+﻿import { useState, useRef, useCallback, useEffect } from 'react'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { getSavedRegion } from '../utils/detectRegion'
@@ -277,7 +277,7 @@ export default function ReelReady() {
     if (!f) return
     const isVid = f.type.startsWith('video/'), isImg = f.type.startsWith('image/')
     if (!isVid && !isImg) { toast('Please upload an image or video file', 'error'); return }
-    if (f.size > 150 * 1024 * 1024) { toast('File too large — max 150 MB', 'error'); return }
+    if (f.size > 150 * 1024 * 1024) { toast('File too large ,  max 150 MB', 'error'); return }
     setFile(f); setFileType(isVid ? 'video' : 'image')
     setPreview(URL.createObjectURL(f))
     setStep(0); setAnalysis(null); setOutputBlob(null); setError('')
@@ -621,7 +621,7 @@ export default function ReelReady() {
           <button style={S.renderBtn} onClick={download}>⬇ Download (.{outputExt.toUpperCase()})</button>
           {analysis?.hashtags && (
             <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', width: '100%', textAlign: 'left' }}>
-              <div style={{ ...S.microLabel, marginBottom: 6 }}>Hashtags — copy and paste</div>
+              <div style={{ ...S.microLabel, marginBottom: 6 }}>Hashtags ,  copy and paste</div>
               <p style={{ margin: 0, fontSize: '0.79rem', color: 'var(--text)', lineHeight: 1.85, wordBreak: 'break-word' }}>
                 {[...(analysis.hashtags.niche || []), ...(analysis.hashtags.broad || []), ...(analysis.hashtags.trending || [])].join(' ')}
               </p>
@@ -693,7 +693,7 @@ const S = {
   captionBarText: { fontSize: '0.55rem', fontWeight: 700, textAlign: 'center', margin: 0, lineHeight: 1.35, textShadow: '0 1px 3px rgba(0,0,0,0.9)' },
   songBadge: { position: 'absolute', bottom: 6, left: 5, right: 5, background: 'rgba(0,0,0,0.5)', borderRadius: 5, padding: '3px 5px', fontSize: '0.5rem', color: '#fff', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 
-  // edit panel — sits directly under phone, same width
+  // edit panel ,  sits directly under phone, same width
   editPanel: { width: 196, margin: '10px auto 0', display: 'flex', flexDirection: 'column', gap: 10 },
   editGroup: { display: 'flex', flexDirection: 'column', gap: 5 },
   editLabel: { fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-faint)' },
@@ -708,7 +708,7 @@ const S = {
   sectionTitle: { fontWeight: 700, fontSize: '0.93rem', color: 'var(--text)' },
   moreBtn: { fontSize: '0.76rem', fontWeight: 600, padding: '4px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text-faint)', cursor: 'pointer' },
 
-  // caption options — plain, no label badge
+  // caption options ,  plain, no label badge
   captionOption: { fontSize: '0.86rem', color: 'var(--text)', lineHeight: 1.55, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 9, cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' },
   captionOptionOn: { borderColor: 'var(--accent)', background: 'color-mix(in srgb,var(--accent) 8%,transparent)' },
 

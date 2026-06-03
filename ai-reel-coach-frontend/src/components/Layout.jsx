@@ -320,9 +320,8 @@ export default function Layout({ children }) {
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
             >
-              <span style={{ fontSize: '1rem' }}>✦</span>
-              <span>Upgrade to Pro</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.68rem', opacity: 0.85, fontFamily: 'var(--font-mono)' }}>₹799/mo</span>
+              <span>Unlock More Features</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.68rem', opacity: 0.85, fontFamily: 'var(--font-mono)' }}>✦</span>
             </button>
           )}
 

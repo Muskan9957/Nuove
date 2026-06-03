@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
@@ -10,13 +10,13 @@ import { detectAndSaveRegion, getSavedRegion, saveRegion, REGIONS } from '../uti
 
 const REFINE_CHIPS = [
   { label: '🔥 Stronger hook',       instruction: 'Make the hook much more scroll-stopping with higher emotional intensity and specificity.' },
-  { label: '✂️ Make it shorter',     instruction: 'Make the entire script more concise — cut 30% of the words while keeping all the value.' },
-  { label: '😂 Add humour',          instruction: 'Add clever humour and wit throughout — make it more entertaining and fun to watch.' },
+  { label: '✂️ Make it shorter',     instruction: 'Make the entire script more concise ,  cut 30% of the words while keeping all the value.' },
+  { label: '😂 Add humour',          instruction: 'Add clever humour and wit throughout ,  make it more entertaining and fun to watch.' },
   { label: '🎯 More specific',       instruction: 'Replace vague statements with concrete numbers, specific examples, and real details.' },
-  { label: '😱 More FOMO',          instruction: 'Amplify fear of missing out — make the viewer feel they CANNOT afford to skip this.' },
+  { label: '😱 More FOMO',          instruction: 'Amplify fear of missing out ,  make the viewer feel they CANNOT afford to skip this.' },
   { label: '🇮🇳 More Indian feel',   instruction: 'Add more Indian cultural references, examples, and context relevant to Indian audiences.' },
   { label: '💡 Better CTA',         instruction: 'Rewrite the call-to-action to be more compelling, specific, and urgent.' },
-  { label: '📖 More storytelling',  instruction: 'Reframe using personal story structure — make it feel more human and relatable.' },
+  { label: '📖 More storytelling',  instruction: 'Reframe using personal story structure ,  make it feel more human and relatable.' },
 ]
 
 
@@ -53,7 +53,7 @@ export default function Generate() {
     tone:       'motivational',
     duration:   '',
     audience:   getSavedRegion(),     // blank until detected or set by user
-    scriptLang: getSavedScriptLang(), // script language — independent of app UI language
+    scriptLang: getSavedScriptLang(), // script language ,  independent of app UI language
   })
 
   // Auto-detect region on first visit (runs once, only if nothing saved)
@@ -77,7 +77,7 @@ export default function Generate() {
   const [hookSuggestion, setHookSuggestion] = useState(null)
   const [hookAccepting, setHookAccepting]   = useState(false)
 
-  // Load voice profile on mount — shows indicator when active
+  // Load voice profile on mount ,  shows indicator when active
   useEffect(() => {
     api.getVoiceProfile()
       .then(data => { if (data.profile) setVoiceProfile(data.profile) })
@@ -301,7 +301,7 @@ export default function Generate() {
     }
   }
 
-  // Re-roll — fresh script on same topic, FREE, capped at MAX_RETAKES per topic
+  // Re-roll ,  fresh script on same topic, FREE, capped at MAX_RETAKES per topic
   const reroll = async () => {
     if (!form.topic.trim()) return
     if (rerollCount >= MAX_RETAKES) {
@@ -325,7 +325,7 @@ export default function Generate() {
     }
   }
 
-  // Refine — targeted chip tweak, no quota cost
+  // Refine ,  targeted chip tweak, no quota cost
   const refine = async (instruction) => {
     if (!instruction || !result?.script) return
     setRefining(true)
@@ -469,7 +469,7 @@ export default function Generate() {
       <div className="card" style={{ marginBottom: 24 }}>
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {/* Topic — most important field, big and prominent */}
+          {/* Topic ,  most important field, big and prominent */}
           <div className="field">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -499,14 +499,14 @@ export default function Generate() {
               </select>
             </div>
 
-            {/* Textarea + mic side by side — mic stays small, textarea gets full width */}
+            {/* Textarea + mic side by side ,  mic stays small, textarea gets full width */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <textarea
                 className="textarea"
                 placeholder="e.g. How I grew from 0 to 10k followers in 90 days"
                 value={micInterim || form.topic}
                 onChange={e => {
-                  // Typing always clears interim + updates form — never blocked
+                  // Typing always clears interim + updates form ,  never blocked
                   setMicInterim('')
                   setForm(f => ({ ...f, topic: e.target.value }))
                 }}
@@ -529,7 +529,7 @@ export default function Generate() {
             </div>
           </div>
 
-          {/* Row 1 — Niche + Tone + Duration */}
+          {/* Row 1 ,  Niche + Tone + Duration */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <div className="field">
               <label style={{ ...fieldLabelStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -568,7 +568,7 @@ export default function Generate() {
             </div>
           </div>
 
-          {/* Row 2 — Target Region (full width) */}
+          {/* Row 2 ,  Target Region (full width) */}
           <div className="field">
             <label style={{ ...fieldLabelStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
               Target Region
@@ -579,7 +579,7 @@ export default function Generate() {
               )}
             </label>
             <select className="select" value={form.audience} onChange={set('audience')}>
-              <option value="">— Select region —</option>
+              <option value="">,  Select region , </option>
               {REGIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
@@ -607,7 +607,7 @@ export default function Generate() {
             </div>
           )}
 
-          {/* Button area — transforms once a result exists */}
+          {/* Button area ,  transforms once a result exists */}
           {!result ? (
             <button
               type="submit"
@@ -649,7 +649,7 @@ export default function Generate() {
         </form>
       </div>
 
-      {/* Initial loading — waiting for first chunk */}
+      {/* Initial loading ,  waiting for first chunk */}
       {loading && (
         <div className="card" style={{
           textAlign: 'center', padding: '48px 24px',
@@ -695,7 +695,7 @@ export default function Generate() {
         </div>
       )}
 
-      {/* Result — full width, auto-scrolled to */}
+      {/* Result ,  full width, auto-scrolled to */}
       {result && (
         <div ref={resultRef} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
@@ -741,7 +741,7 @@ export default function Generate() {
             <div style={{ marginBottom: 10, padding: '13px 16px', borderRadius: 10, background: 'rgba(0,200,255,0.05)', borderLeft: '3px solid #00C8FF' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C8FF' }}>
-                  🎣 {t('generate_hook')} — {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
+                  🎣 {t('generate_hook')} ,  {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
                 </span>
                 {result.script?.id && (
                   <button
@@ -802,7 +802,7 @@ export default function Generate() {
             {/* Body */}
             <div style={{ marginBottom: 10, padding: '13px 16px', borderRadius: 10, background: 'rgba(0,201,167,0.05)', borderLeft: '3px solid #00C9A7' }}>
               <div style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C9A7', marginBottom: 8 }}>
-                📖 {t('generate_body')} — {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
+                📖 {t('generate_body')} ,  {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
               </div>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
             </div>
@@ -1036,7 +1036,7 @@ export default function Generate() {
                                       )}
                                     </div>
 
-                                    {/* Progress bar — shown only while playing */}
+                                    {/* Progress bar ,  shown only while playing */}
                                     {isPlaying && (
                                       <div style={{ marginBottom: 6, height: 3, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
                                         <div style={{

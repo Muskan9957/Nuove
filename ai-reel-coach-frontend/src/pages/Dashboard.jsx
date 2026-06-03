@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -8,7 +8,7 @@ import { usePrefs } from '../hooks/usePrefs'
 import { getSavedRegion } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 
-/* ─── Creator palette — Saffron Noir ─────────────────────────────── */
+/* ─── Creator palette ,  Saffron Noir ─────────────────────────────── */
 const C = {
   cyan:   '#FF8C00',
   pink:   '#FF2D6F',
@@ -61,7 +61,7 @@ function getTimeMood() {
   return             { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
 }
 
-/* Virality heat — 3 cards: rank 1 = 94%, 2 = 78%, 3 = 61% */
+/* Virality heat ,  3 cards: rank 1 = 94%, 2 = 78%, 3 = 61% */
 const VIRALITY = [94, 78, 61]
 
 /* "Freshness" badge driven by rank */
@@ -90,7 +90,7 @@ function LiveDot() {
   )
 }
 
-/* ─── Today's Brief — editorial redesign ─────────────────────────── */
+/* ─── Today's Brief ,  editorial redesign ─────────────────────────── */
 function TrendingBrief({ userName, niches = [], onEditNiche }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
@@ -208,7 +208,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           color: 'var(--text-faint)', letterSpacing: '0.06em',
         }}>{today}</span>
 
-        {/* Niche badge — shows active niche */}
+        {/* Niche badge ,  shows active niche */}
         {greeting?.nicheLabel && (
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -223,7 +223,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           </span>
         )}
 
-        {/* Source chips — live platforms used */}
+        {/* Source chips ,  live platforms used */}
         {!loading && !refreshing && trends.length > 0 && (
           [...new Set(trends.map(tr => tr.source).filter(Boolean))].map(src => {
             const meta = SOURCE_META[src] || SOURCE_META.ai
@@ -303,7 +303,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
               📌 Personalise your brief
             </p>
             <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-faint)' }}>
-              Pick your niche — your daily brief will be tailored to your content category
+              Pick your niche ,  your daily brief will be tailored to your content category
             </p>
           </div>
           <button
@@ -386,7 +386,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                       : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
                   }}
                 >
-                  {/* Rank watermark — opacity on element so all hues render equally visible */}
+                  {/* Rank watermark ,  opacity on element so all hues render equally visible */}
                   <span style={{
                     position: 'absolute', right: 12, top: 8,
                     fontFamily: 'var(--font-creator)', fontWeight: 900,
@@ -407,7 +407,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                       textTransform: 'uppercase', whiteSpace: 'nowrap',
                     }}>{badge}</span>
 
-                    {/* Source badge — where this trend came from */}
+                    {/* Source badge ,  where this trend came from */}
                     <span style={{
                       fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
                       padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
@@ -608,7 +608,7 @@ function CreatorScoreCard({ score }) {
 
   const shareScore = async () => {
     try {
-      await navigator.clipboard.writeText(`My Nuove Creator Score: ${val} — ${level || 'Rising Creator'} 🚀`)
+      await navigator.clipboard.writeText(`My Nuove Creator Score: ${val} ,  ${level || 'Rising Creator'} 🚀`)
       setCopied(true); setTimeout(() => setCopied(false), 2000)
     } catch {}
   }
@@ -656,7 +656,7 @@ function CreatorScoreCard({ score }) {
               <div key={seg.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {seg.label} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{breakdown[seg.key] ?? '—'}</span>
+                  {seg.label} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{breakdown[seg.key] ?? ', '}</span>
                 </span>
               </div>
             ))}
@@ -837,7 +837,7 @@ function StreakBanner({ streak, isLight }) {
             }}>{t('dash_day_streak')}</span>
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-            Keep it going — create something today
+            Keep it going ,  create something today
           </div>
         </div>
       </div>
@@ -937,7 +937,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* niche chips removed — niche filters briefs silently */}
+      {/* niche chips removed ,  niche filters briefs silently */}
 
       {/* ─── Stats strip ──────────────────────────────────────────── */}
       <StatsStrip

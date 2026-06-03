@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -29,7 +29,7 @@ const PLANS = [
       { text: 'Performance Analytics',             ok: false },
       { text: 'Content Calendar',                  ok: false },
       { text: 'Creator Coach (AI chat)',            ok: false },
-      { text: 'My Voice — Creator DNA',            ok: false },
+      { text: 'My Voice ,  Creator DNA',            ok: false },
     ],
   },
   {
@@ -55,7 +55,7 @@ const PLANS = [
       { text: 'Performance Analytics',             ok: true  },
       { text: 'Content Calendar',                  ok: true  },
       { text: 'Creator Coach (unlimited chat)',    ok: true  },
-      { text: 'My Voice — Creator DNA',            ok: false },
+      { text: 'My Voice ,  Creator DNA',            ok: false },
     ],
   },
   {
@@ -71,7 +71,7 @@ const PLANS = [
     ctaStyle: 'gradient',
     features: [
       { text: 'Everything in Pro',                 ok: true  },
-      { text: 'My Voice — Creator DNA',            ok: true  },
+      { text: 'My Voice ,  Creator DNA',            ok: true  },
       { text: 'Content Remix (all platforms)',     ok: true  },
       { text: 'Priority AI (2× faster)',           ok: true  },
       { text: 'Advanced performance reports',      ok: true  },
@@ -86,20 +86,36 @@ const PLANS = [
 
 const FAQS = [
   {
-    q: 'Can I cancel anytime?',
-    a: 'Yes — cancel from your profile page, no questions asked. You keep access until the end of your current billing period.',
+    q: 'Do I need a credit card to start?',
+    a: 'Nope! The Free plan is genuinely free with no strings attached. Just sign up with your email or Google account and you can start writing scripts right away. Your card details only come into play when you decide you want to upgrade.',
   },
   {
-    q: 'Do you support Hindi / regional language scripts?',
-    a: 'Absolutely. Select Hindi, Hinglish, or your regional language in settings and the AI writes naturally in that language.',
+    q: 'What happens when I hit the free plan limit?',
+    a: 'You get 5 scripts and 5 hook scores every month on the free plan. Once you reach that, the app will let you know and give you the option to upgrade. Nothing gets deleted and your whole script library stays safe. Think of it like a soft pause, not a hard stop.',
   },
   {
-    q: 'What\'s the difference between Pro and Studio?',
-    a: 'Pro (₹99/mo) unlocks everything — unlimited scripts, niche brief, captions, teleprompter, reel ready, analytics, calendar, and coach. Studio (₹499/mo) adds My Voice (Creator DNA), Content Remix, Priority AI, advanced reports, and early feature access.',
+    q: 'Who owns the content I create with Nuove?',
+    a: 'You own it, full stop. Every script, caption, and hook you generate is yours to use however you like. We do not claim any rights over your work and we never use your content for training models or share it with third parties.',
   },
   {
-    q: 'Can I upgrade or downgrade later?',
-    a: 'Yes, any time. Upgrades take effect immediately. Downgrades apply at the start of the next billing cycle.',
+    q: "What's the actual difference between Pro and Studio?",
+    a: 'Pro covers everything a solo creator needs day to day: unlimited scripts, your personalised daily brief, captions, the teleprompter, analytics, content calendar, and the creator coach. Studio goes further for power creators and brand accounts. On top of everything in Pro, you get Creator DNA (which learns your writing style), Content Remix for every platform, faster AI generation, deeper performance reports, and first access to new features before anyone else.',
+  },
+  {
+    q: 'Can I switch plans or cancel anytime?',
+    a: 'Yes, always. You can upgrade, downgrade, or cancel from your Profile page whenever you want. No phone calls, no annoying forms. If you upgrade, it kicks in straight away. If you downgrade or cancel, you keep your current plan until the billing period is up and then it steps down automatically.',
+  },
+  {
+    q: 'Does Nuove support Hindi, Hinglish, and regional languages?',
+    a: 'Absolutely. Just pick your preferred language in Settings before you generate and the AI will write in that language naturally. It is not just a translation of English output either. The AI is trained on real Indian creator content so it actually understands how Hinglish works, the rhythm of it, the way people actually speak.',
+  },
+  {
+    q: 'What payment methods do you accept?',
+    a: 'We use Razorpay for payments so you can pay with pretty much anything: UPI (GPay, PhonePe, Paytm), all major credit and debit cards (Visa, Mastercard, RuPay), net banking, or EMI. Everything goes through Razorpay\'s secure checkout so your payment details are never stored on our end.',
+  },
+  {
+    q: "I'm stuck or something isn't working. How do I get help?",
+    a: 'Hit the feedback button inside the app or drop us an email at support@nuove.in and we will get back to you. Pro users get priority support with a response within 24 hours. If you are on Studio, you get dedicated support and we aim to respond within 4 hours during business hours. We genuinely read every message.',
   },
 ]
 
@@ -136,7 +152,7 @@ export default function Pricing() {
 
       // If not configured yet, show friendly message
       if (!data?.subscriptionId) {
-        toast('Payments launching soon — we\'ll notify you! 🚀', 'success')
+        toast('Payments launching soon ,  we\'ll notify you! 🚀', 'success')
         return
       }
 
@@ -152,7 +168,7 @@ export default function Pricing() {
         key             : data.keyId,
         subscription_id : data.subscriptionId,
         name            : 'Nuove',
-        description     : `${plan.name} Plan — ₹${plan.priceM}/month`,
+        description     : `${plan.name} Plan ,  ₹${plan.priceM}/month`,
         image           : '/logo.png',
         prefill         : {
           email : data.userEmail || user?.email || '',
@@ -182,7 +198,7 @@ export default function Pricing() {
               setTimeout(() => navigate('/dashboard'), 1500)
             }
           } catch {
-            toast('Payment received but verification failed — contact support.', 'error')
+            toast('Payment received but verification failed ,  contact support.', 'error')
           } finally {
             setCheckingOut(null)
           }
@@ -193,7 +209,7 @@ export default function Pricing() {
 
     } catch (err) {
       if (err.message?.includes('not configured')) {
-        toast('Payments are being set up — stay tuned! 🚀', 'success')
+        toast('Payments are being set up ,  stay tuned! 🚀', 'success')
       } else {
         toast(err.message || 'Something went wrong.', 'error')
       }
@@ -584,7 +600,7 @@ export default function Pricing() {
           Ready to go viral?
         </h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: '0.9rem' }}>
-          Start with the free plan. No credit card needed.
+          Take your first step to effortless content creation. Start with the free plan, no credit card needed.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
@@ -594,7 +610,12 @@ export default function Pricing() {
             Start for free →
           </button>
           <button
-            onClick={() => navigate(user ? '/dashboard' : '/auth')}
+            onClick={() => {
+              window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+              });
+            }}
             className="btn btn-ghost btn-lg"
           >
             See Pro features
@@ -607,3 +628,4 @@ export default function Pricing() {
     </div>
   )
 }
+

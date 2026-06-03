@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
@@ -46,7 +46,7 @@ function BigScoreRing({ score }) {
         <text x="80" y="71" textAnchor="middle" fontFamily="var(--font-head)" fontSize="30" fontWeight="800" fill="var(--text)">{score}</text>
         <text x="80" y="85" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="10" fill="var(--text-faint)">out of 100</text>
         <text x="80" y="100" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="12" fill={color}>
-          {grade} — {gradeLabel[grade]}
+          {grade} ,  {gradeLabel[grade]}
         </text>
       </svg>
     </div>
@@ -104,7 +104,7 @@ export default function Score() {
   const useAlternative = (altHook, idx) => {
     setHook(altHook)
     setSelectedAlt(idx)
-    scoreHook(null, altHook, true) // keepAlts = true — don't wipe the list
+    scoreHook(null, altHook, true) // keepAlts = true ,  don't wipe the list
   }
 
   const statusColor = s =>
@@ -249,7 +249,7 @@ export default function Score() {
                 </div>
               </div>
 
-              {/* ── Alternatives — right here, can't miss them ── */}
+              {/* ── Alternatives ,  right here, can't miss them ── */}
               {result.score < 80 && (
                 <div className="card" style={{
                   border: '1px solid rgba(255,160,0,0.25)',
@@ -316,7 +316,7 @@ export default function Score() {
                 </div>
               )}
 
-              {/* Scored hook — now at the bottom, less prominent */}
+              {/* Scored hook ,  now at the bottom, less prominent */}
               <div className="card card-sm">
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
                   {t('score_scored_hook')}

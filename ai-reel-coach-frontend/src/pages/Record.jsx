@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+﻿import { useState, useRef, useEffect, useCallback } from 'react'
 
 /* ─────────────────── constants ─────────────────── */
 const SPEEDS = [
@@ -183,7 +183,7 @@ export default function Record() {
 
   /* ── keep scrolling state in sync with ref ── */
   useEffect(() => {
-    // scrolling ref used inside rAF — handled by re-reading state flag
+    // scrolling ref used inside rAF ,  handled by re-reading state flag
   }, [scrolling])
 
   const download = () => {
@@ -206,11 +206,11 @@ export default function Record() {
       {/* ─── SETUP PHASE ─── */}
       {phase === 'setup' && (
         <div style={S.setupWrap}>
-          {/* Page header — matches all other feature pages */}
+          {/* Page header ,  matches all other feature pages */}
           <div style={{ width: '100%', marginBottom: 8 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-              Script scrolls while you record — no second device needed.
+              Script scrolls while you record ,  no second device needed.
             </p>
           </div>
 

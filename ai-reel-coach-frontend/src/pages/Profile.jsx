@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
@@ -217,7 +217,7 @@ export default function Profile() {
     setCancelling(true)
     try {
       await api.cancelSubscription()
-      toast('Subscription cancelled — you keep access until the end of your billing period.', 'success')
+      toast('Subscription cancelled ,  you keep access until the end of your billing period.', 'success')
       setCancelConfirm(false)
       // Refresh subscription data
       const d = await api.getSubscription()
@@ -243,7 +243,7 @@ export default function Profile() {
   const prefs = (() => { try { return JSON.parse(localStorage.getItem('vs_prefs') || '{}') } catch { return {} } })()
   const planMeta = PLAN_META[user?.plan] || PLAN_META.FREE
   const usagePercent = Math.min(100, Math.round((user?.generationsUsed / planMeta.limit) * 100))
-  const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+  const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : ', '
 
   const handleLogout = () => {
     logout()
@@ -391,12 +391,12 @@ export default function Profile() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '8px 24px', marginBottom: 16 }}>
         <Section title="Account">
           <Row icon="👤" label="Full name"    value={user?.name || 'Not set'} />
-          <Row icon="📧" label="Email"        value={user?.email || '—'} />
+          <Row icon="📧" label="Email"        value={user?.email || ', '} />
           <Row icon="🌐" label="Language" value={user?.language === 'hi' ? 'Hindi' : user?.language === 'en-IN' ? 'Hinglish' : 'English'} />
           <Row
             icon="📍"
             label="Content Region"
-            value={REGIONS.find(r => r.value === region)?.label || '— Not set —'}
+            value={REGIONS.find(r => r.value === region)?.label || ',  Not set , '}
             action={
               <select
                 value={region}
@@ -412,7 +412,7 @@ export default function Profile() {
                   fontFamily: 'var(--font-body)',
                 }}
               >
-                <option value="">— Select —</option>
+                <option value="">,  Select , </option>
                 {REGIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             }
@@ -496,7 +496,7 @@ export default function Profile() {
                   Unlock unlimited scripts
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Go Pro for ₹799/month — unlimited AI scripts, Content Remix, Creator Advisor & more.
+                  Go Pro for ₹799/month ,  unlimited AI scripts, Content Remix, Creator Advisor & more.
                 </div>
               </div>
             </div>
@@ -646,7 +646,7 @@ export default function Profile() {
                 </>
               ) : (
                 <div style={{ padding: '14px 0', fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                  Subscription details unavailable — contact support if this persists.
+                  Subscription details unavailable ,  contact support if this persists.
                 </div>
               )}
             </>

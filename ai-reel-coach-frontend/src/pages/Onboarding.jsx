@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -195,7 +195,7 @@ export default function Onboarding() {
         <h1 className="ob-title" style={styles.title}>{current.title}</h1>
         <p style={styles.sub}>{current.sub}</p>
 
-        {/* Step 1: Niche grid — multi-select */}
+        {/* Step 1: Niche grid ,  multi-select */}
         {step === 1 && (
           <>
             <div className="ob-niche-grid" style={styles.nicheGrid}>
@@ -283,7 +283,7 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 3: Goal — multi-select */}
+        {/* Step 3: Goal ,  multi-select */}
         {step === 3 && (
           <>
             <div style={styles.goalGrid}>

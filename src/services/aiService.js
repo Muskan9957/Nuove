@@ -652,16 +652,17 @@ Be like a friend, not a corporate report. Keep it short.
 const getRegionalGreeting = async (region = 'India', language = 'en') => {
   const langInstruction = getLangInstruction(language)
   const prompt = `You are a sharp, professional content strategist briefing an Indian creator on today's social media landscape.
-${langInstruction ? '\n' + langInstruction + ' Write the greeting sentence and trend descriptions in that language, but keep JSON keys and category names in English.\n' : '\nWrite in clean, concise English. Be warm but not overly casual — think smart friend, not cheerleader.\n'}
-Focus on topics Indian audiences actually engage with — Bollywood, cricket, Indian startups, festivals, food, finance, pop culture, etc.
+${langInstruction ? '\n' + langInstruction + ' Write the greeting sentence and trend descriptions in that language, but keep JSON keys and category names in English.\n' : '\nWrite in clean, concise English. Be warm but not overly casual. Think smart friend, not cheerleader.\n'}
+Focus on topics Indian audiences actually engage with: Bollywood, cricket, Indian startups, festivals, food, finance, pop culture, etc.
+IMPORTANT: Do not use em dashes (the long dash) anywhere in your response. Use commas, colons, or full stops instead.
 
 Return ONLY valid JSON (no markdown, no code blocks):
 {
-  "greeting": "One crisp sentence (max 20 words) about what's happening in India's creator space today — insightful, not generic",
+  "greeting": "One crisp sentence (max 20 words) about what's happening in India's creator space today. Make it insightful, not generic.",
   "trends": [
-    {"title": "Specific trend name", "description": "Why this matters for creators — 1 sentence, actionable", "category": "Entertainment"},
-    {"title": "Specific trend name", "description": "Why this matters for creators — 1 sentence, actionable", "category": "Business"},
-    {"title": "Specific trend name", "description": "Why this matters for creators — 1 sentence, actionable", "category": "Lifestyle"}
+    {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Entertainment"},
+    {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Business"},
+    {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Lifestyle"}
   ]
 }
 
@@ -675,7 +676,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
   } catch {
     const fallbacks = {
       hi: {
-        greeting: `${region} का सोशल मीडिया आज बज़ रहा है — चलो कुछ वायरल बनाते हैं!`,
+        greeting: `${region} का सोशल मीडिया आज बज़ रहा है। चलो कुछ वायरल बनाते हैं!`,
         trends: [
           { title: 'शॉर्ट-फॉर्म वीडियो ट्रेंड', description: 'Reels और Shorts अभी फीड पर छाए हुए हैं।', category: 'Content' },
           { title: 'क्रिएटर इकोनॉमी की वृद्धि', description: 'ब्रांड्स अब माइक्रो-इन्फ्लुएंसर्स में ज़्यादा निवेश कर रहे हैं।', category: 'Business' },
@@ -683,7 +684,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       es: {
-        greeting: `¡Las redes sociales de ${region} están en llamas hoy — creemos algo viral!`,
+        greeting: `¡Las redes sociales de ${region} están en llamas hoy. ¡Creemos algo viral!`,
         trends: [
           { title: 'Tendencias de video corto', description: 'Los Reels y Shorts dominan los feeds ahora mismo.', category: 'Content' },
           { title: 'Economía de creadores', description: 'Las marcas invierten cada vez más en micro-influencers.', category: 'Business' },
@@ -691,7 +692,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       fr: {
-        greeting: `Les réseaux sociaux de ${region} sont en effervescence aujourd'hui — créons quelque chose de viral !`,
+        greeting: `Les réseaux sociaux de ${region} sont en effervescence aujourd'hui. Créons quelque chose de viral !`,
         trends: [
           { title: 'Tendances vidéo courte', description: 'Les Reels et Shorts dominent les fils d\'actualité en ce moment.', category: 'Content' },
           { title: 'Économie des créateurs', description: 'Les marques investissent de plus en plus dans les micro-influenceurs.', category: 'Business' },
@@ -699,7 +700,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       pt: {
-        greeting: `As redes sociais de ${region} estão agitadas hoje — vamos criar algo viral!`,
+        greeting: `As redes sociais de ${region} estão agitadas hoje. Vamos criar algo viral!`,
         trends: [
           { title: 'Tendências de vídeo curto', description: 'Reels e Shorts estão dominando os feeds agora.', category: 'Content' },
           { title: 'Economia de criadores', description: 'As marcas estão investindo cada vez mais em micro-influenciadores.', category: 'Business' },
@@ -707,7 +708,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       de: {
-        greeting: `Die sozialen Medien von ${region} sind heute im Trend — lass uns etwas Virales erstellen!`,
+        greeting: `Die sozialen Medien von ${region} sind heute im Trend. Lass uns etwas Virales erstellen!`,
         trends: [
           { title: 'Kurzvideotrends', description: 'Reels und Shorts dominieren gerade die Feeds.', category: 'Content' },
           { title: 'Creator-Wirtschaft', description: 'Marken investieren mehr denn je in Mikro-Influencer.', category: 'Business' },
@@ -715,7 +716,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       ar: {
-        greeting: `وسائل التواصل الاجتماعي في ${region} تشتعل اليوم — لنصنع شيئاً يتداوله الجميع!`,
+        greeting: `وسائل التواصل الاجتماعي في ${region} تشتعل اليوم. لنصنع شيئاً يتداوله الجميع!`,
         trends: [
           { title: 'اتجاهات الفيديو القصير', description: 'ريلز وشورتس يهيمنان على الخلاصات الآن.', category: 'Content' },
           { title: 'اقتصاد المبدعين', description: 'تستثمر العلامات التجارية أكثر في المؤثرين الصغار.', category: 'Business' },
@@ -723,7 +724,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       id: {
-        greeting: `Media sosial ${region} sedang ramai hari ini — mari buat konten yang viral!`,
+        greeting: `Media sosial ${region} sedang ramai hari ini. Mari buat konten yang viral!`,
         trends: [
           { title: 'Tren video pendek', description: 'Reels dan Shorts mendominasi feed saat ini.', category: 'Content' },
           { title: 'Ekonomi kreator', description: 'Brand semakin banyak berinvestasi ke micro-influencer.', category: 'Business' },
@@ -731,7 +732,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       ja: {
-        greeting: `${region}のソーシャルメディアが今日も盛り上がっています — バイラルなコンテンツを作りましょう！`,
+        greeting: `${region}のソーシャルメディアが今日も盛り上がっています。バイラルなコンテンツを作りましょう！`,
         trends: [
           { title: 'ショート動画トレンド', description: 'リールとショーツが今フィードを席巻しています。', category: 'Content' },
           { title: 'クリエイターエコノミー', description: 'ブランドがマイクロインフルエンサーへの投資を増やしています。', category: 'Business' },
@@ -739,7 +740,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       ko: {
-        greeting: `${region}의 소셜 미디어가 오늘도 뜨겁습니다 — 바이럴 콘텐츠를 만들어봅시다!`,
+        greeting: `${region}의 소셜 미디어가 오늘도 뜨겁습니다. 바이럴 콘텐츠를 만들어봅시다!`,
         trends: [
           { title: '숏폼 비디오 트렌드', description: '릴스와 쇼츠가 지금 피드를 장악하고 있습니다.', category: 'Content' },
           { title: '크리에이터 이코노미', description: '브랜드들이 마이크로 인플루언서에 더 많이 투자하고 있습니다.', category: 'Business' },
@@ -748,7 +749,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
       },
     }
     const fb = fallbacks[language] || {
-      greeting: `Welcome back! ${region}'s social media is buzzing today — let's create something viral!`,
+      greeting: `Welcome back! ${region}'s social media is buzzing today. Let's create something viral!`,
       trends: [
         { title: 'Short-form video trends', description: 'Reels and Shorts are dominating feeds right now.', category: 'Content' },
         { title: 'Creator economy growth', description: 'More brands are investing in micro-influencers.', category: 'Business' },
