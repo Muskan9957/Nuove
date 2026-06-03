@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useLang } from '../i18n.jsx'
@@ -746,7 +746,7 @@ export default function Landing() {
 
       {/* ── Final CTA ────────────────────────────────────────────── */}
       <section style={{ padding: '110px 20px', textAlign: 'center' }}>
-        <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: 'var(--accent)', marginBottom: 24 }}>Script anytime, anywhere.</p>
+        <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: 'var(--accent)', marginBottom: 24 }}>Script anytime, anywhere!</p>
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 16 }}>{t('landing_ready_eyebrow')}</p>
         <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(2rem,5.5vw,3.6rem)', color: 'var(--text)', letterSpacing: '-0.025em', margin: '0 auto 32px', maxWidth: 600, lineHeight: 1.15 }}>
           {t('landing_ready_h2')}
