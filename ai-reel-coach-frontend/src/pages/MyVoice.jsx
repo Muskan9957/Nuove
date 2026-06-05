@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 
 const MAX_SAMPLES = 3
-const MIN_CHARS   = 80   // per sample — too short to be useful
+const MIN_CHARS   = 80   // per sample ,  too short to be useful
 
 const PLACEHOLDER = [
   `e.g. paste a caption you've written, a script you filmed, or just how you naturally talk in your videos...`,
-  `e.g. another past caption or script — the more samples you give, the more accurate your voice profile`,
+  `e.g. another past caption or script ,  the more samples you give, the more accurate your voice profile`,
   `e.g. a third sample (optional but makes the profile stronger)`,
 ]
 
@@ -124,7 +124,7 @@ export default function MyVoice() {
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.6, maxWidth: 560 }}>
           Paste samples of your past captions, scripts, or how you naturally talk.
-          The AI extracts your voice fingerprint — every script it generates will sound like <em>you</em>, not a generic AI.
+          The AI extracts your voice fingerprint ,  every script it generates will sound like <em>you</em>, not a generic AI.
         </p>
       </div>
 
@@ -154,7 +154,7 @@ export default function MyVoice() {
                 Strengthening your DNA
               </div>
               <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.55 }}>
-                Add new samples — your old fingerprint will be re-analysed alongside these.
+                Add new samples ,  your old fingerprint will be re-analysed alongside these.
                 Great for when your style has evolved or you want sharper accuracy.
               </p>
             </div>
@@ -165,7 +165,7 @@ export default function MyVoice() {
               {mode === 'strengthen' ? 'Add New Content Samples' : 'Paste Your Content Samples'}
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20, lineHeight: 1.6 }}>
-              Give 1–3 samples of your real content — past captions, scripts you've filmed, or voice notes transcribed.
+              Give 1–3 samples of your real content ,  past captions, scripts you've filmed, or voice notes transcribed.
               The more authentic, the better the fingerprint.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -215,7 +215,7 @@ export default function MyVoice() {
             </div>
             {[
               'A caption you wrote for a reel you loved',
-              'A script you actually filmed — hook, body, CTA',
+              'A script you actually filmed ,  hook, body, CTA',
               'A voice note transcript of how you naturally explain something',
               'A thread or post you wrote without overthinking it',
             ].map((tip, i) => (
@@ -287,7 +287,7 @@ export default function MyVoice() {
             </p>
           </div>
 
-          {/* How it's being used — the "ongoing value" card */}
+          {/* How it's being used ,  the "ongoing value" card */}
           <div className="card card-sm" style={{
             background: 'rgba(0,201,167,0.04)',
             border: '1px solid rgba(0,201,167,0.2)',
@@ -353,7 +353,7 @@ export default function MyVoice() {
             </p>
           </div>
 
-          {/* Action buttons — available to everyone */}
+          {/* Action buttons ,  available to everyone */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button
               className="btn btn-ghost"

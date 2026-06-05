@@ -28,7 +28,7 @@ const score = async (req, res, next) => {
     });
 
     // Update streak and check for new badges (PERFECT_HOOK badge among others)
-    await updateStreak(req.user.id);
+    const newStreak = await updateStreak(req.user.id);
     const newBadges = await checkAndAwardBadges(req.user.id);
 
     const response = {
@@ -41,6 +41,7 @@ const score = async (req, res, next) => {
         status  : result.status,
         reasons : result.reasons,
       },
+      newStreak,
     };
 
     if (newBadges.length > 0) {

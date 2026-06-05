@@ -66,9 +66,9 @@ const PRESET_AVATARS = [
 ]
 
 const PLAN_META = {
-  FREE:    { label: 'Free',    color: '#6B6B90', bg: 'rgba(107,107,144,0.12)', limit: 10  },
-  STARTER: { label: 'Starter', color: '#00D4B1', bg: 'rgba(0,212,177,0.12)',   limit: 50  },
-  PRO:     { label: 'Pro',     color: '#00C8FF', bg: 'rgba(0,200,255,0.12)',   limit: 999 },
+  FREE:    { label: 'Free',    color: '#FF2D6F', bg: 'rgba(255,45,111,0.12)', limit: 10  },
+  STARTER: { label: 'Starter', color: '#00D4B1', bg: 'rgba(0,212,177,0.12)',  limit: 50  },
+  PRO:     { label: 'Pro',     color: '#B36DFF', bg: 'rgba(179,109,255,0.12)', limit: 999 },
 }
 
 function Avatar({ user, size = 80 }) {
@@ -191,9 +191,24 @@ export default function Profile() {
   const navigate           = useNavigate()
   const toast              = useToast()
   const [liveStreak, setLiveStreak] = useState(null)
+  const [totalScripts, setTotalScripts] = useState(0)
 
   useEffect(() => {
-    api.getUserProfile().then(p => { if (p?.streak != null) setLiveStreak(p.streak) }).catch(() => {})
+    api.getUserProfile().then(p => {
+      const s = p?.user?.streak ?? p?.streak
+      if (s != null) setLiveStreak(s)
+    }).catch(() => {})
+
+    api.getScripts().then(s => {
+      if (s?.scripts) setTotalScripts(s.scripts.length)
+    }).catch(() => {})
+
+    // Listen for real-time streak updates from other pages
+    const onStreakUpdate = (e) => {
+      if (e.detail != null) setLiveStreak(e.detail)
+    }
+    window.addEventListener('streak-updated', onStreakUpdate)
+    return () => window.removeEventListener('streak-updated', onStreakUpdate)
   }, [])
 
   const [showDanger, setShowDanger]         = useState(false)
@@ -217,7 +232,7 @@ export default function Profile() {
     setCancelling(true)
     try {
       await api.cancelSubscription()
-      toast('Subscription cancelled — you keep access until the end of your billing period.', 'success')
+      toast('Subscription cancelled ,  you keep access until the end of your billing period.', 'success')
       setCancelConfirm(false)
       // Refresh subscription data
       const d = await api.getSubscription()
@@ -243,12 +258,12 @@ export default function Profile() {
   const prefs = (() => { try { return JSON.parse(localStorage.getItem('vs_prefs') || '{}') } catch { return {} } })()
   const planMeta = PLAN_META[user?.plan] || PLAN_META.FREE
   const usagePercent = Math.min(100, Math.round((user?.generationsUsed / planMeta.limit) * 100))
-  const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+  const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : ', '
 
   const handleLogout = () => {
     logout()
     navigate('/')
-    toast.success('Logged out successfully')
+    toast('Logged out successfully', 'success')
   }
 
   const handleSaveAvatar = async () => {
@@ -360,9 +375,9 @@ export default function Profile() {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Day Streak',    value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Generate, score or analyse daily' },
-          { label: 'Scripts Made',  value: user?.generationsUsed || 0,   sub: 'Total all time' },
-          { label: 'Member Since',  value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
+          { label: 'Day Streak',       value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Generate, score or analyse daily' },
+          { label: 'Scripts Written',  value: totalScripts,   sub: 'Total all time' },
+          { label: 'Member Since',     value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
         ].map(s => (
           <div key={s.label} style={{
             background: 'var(--surface)',
@@ -391,12 +406,12 @@ export default function Profile() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '8px 24px', marginBottom: 16 }}>
         <Section title="Account">
           <Row icon="👤" label="Full name"    value={user?.name || 'Not set'} />
-          <Row icon="📧" label="Email"        value={user?.email || '—'} />
+          <Row icon="📧" label="Email"        value={user?.email || ', '} />
           <Row icon="🌐" label="Language" value={user?.language === 'hi' ? 'Hindi' : user?.language === 'en-IN' ? 'Hinglish' : 'English'} />
           <Row
             icon="📍"
             label="Content Region"
-            value={REGIONS.find(r => r.value === region)?.label || '— Not set —'}
+            value={REGIONS.find(r => r.value === region)?.label || ',  Not set , '}
             action={
               <select
                 value={region}
@@ -412,7 +427,7 @@ export default function Profile() {
                   fontFamily: 'var(--font-body)',
                 }}
               >
-                <option value="">— Select —</option>
+                <option value="">,  Select , </option>
                 {REGIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             }
@@ -496,7 +511,7 @@ export default function Profile() {
                   Unlock unlimited scripts
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Go Pro for ₹799/month — unlimited AI scripts, Content Remix, Creator Advisor & more.
+                  Go Pro for ₹799/month ,  unlimited AI scripts, Content Remix, Creator Advisor & more.
                 </div>
               </div>
             </div>
@@ -646,7 +661,7 @@ export default function Profile() {
                 </>
               ) : (
                 <div style={{ padding: '14px 0', fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                  Subscription details unavailable — contact support if this persists.
+                  Subscription details unavailable ,  contact support if this persists.
                 </div>
               )}
             </>
@@ -680,9 +695,9 @@ export default function Profile() {
         </Section>
       </div>
 
-      {/* Danger zone */}
+      {/* Account Actions */}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,70,70,0.15)', borderRadius: 20, padding: '8px 24px' }}>
-        <Section title="⚠ Danger Zone">
+        <Section title="⚠ Account Actions">
           {!showDanger ? (
             <button
               onClick={() => setShowDanger(true)}

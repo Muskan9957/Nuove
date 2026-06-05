@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 
 const LIMITS = {
-  FREE  : 5,       // 5 scripts/month
+  FREE  : 10,       // 10 scripts/month
   PRO   : Infinity, // unlimited
   STUDIO: Infinity, // unlimited + priority AI
 };

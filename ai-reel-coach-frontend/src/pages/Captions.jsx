@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { api } from '../api'
 import { MicButton, SpeakButton } from '../components/VoiceAssistant'
 import { useLang } from '../i18n.jsx'
+import { usePersistentState } from '../hooks/usePersistentState'
 
 const STYLE_COLORS = {
   Short:    '#00C8FF',
@@ -32,11 +33,11 @@ function PulsingDots() {
 
 export default function Captions() {
   const { t, lang } = useLang()
-  const [topic, setTopic]     = useState('')
-  const [niche, setNiche]     = useState('General')
-  const [tone, setTone]       = useState('Engaging')
+  const [topic, setTopic]     = usePersistentState('arc_cap_topic', '')
+  const [niche, setNiche]     = usePersistentState('arc_cap_niche', 'General')
+  const [tone, setTone]       = usePersistentState('arc_cap_tone', 'Engaging')
   const [loading, setLoading] = useState(false)
-  const [result, setResult]   = useState(null)
+  const [result, setResult]   = usePersistentState('arc_cap_result', null)
   const [error, setError]     = useState('')
   const [copied, setCopied]   = useState({})
   const [copiedAll, setCopiedAll] = useState(false)
@@ -65,6 +66,11 @@ export default function Captions() {
     }
   }
 
+  const handleReset = () => {
+    setTopic('')
+    setResult(null)
+  }
+
   const copyCaption = async (text, key) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -86,9 +92,16 @@ export default function Captions() {
 
   return (
     <div className="page-enter">
-      <div style={{ marginBottom: 28 }}>
-        <h1 className="page-title">{t('captions_title')}</h1>
-        <p className="page-sub">{t('captions_sub')}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+        <div>
+          <h1 className="page-title" style={{ marginBottom: 4 }}>{t('captions_title')}</h1>
+          <p className="page-sub">{t('captions_sub')}</p>
+        </div>
+        {result && (
+          <button onClick={handleReset} className="btn btn-ghost btn-sm">
+            New Caption
+          </button>
+        )}
       </div>
 
       <form onSubmit={handleGenerate} style={{ maxWidth: 720 }}>

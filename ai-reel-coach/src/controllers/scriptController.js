@@ -28,7 +28,7 @@ const save = async (req, res, next) => {
       data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
     })
 
-    await Promise.all([planService.incrementGenerations(req.user.id), updateStreak(req.user.id)])
+    const [_, newStreak] = await Promise.all([planService.incrementGenerations(req.user.id), updateStreak(req.user.id)])
     const newBadges = await checkAndAwardBadges(req.user.id)
 
     // Score hook in background
@@ -47,6 +47,7 @@ const save = async (req, res, next) => {
       id      : script.id,
       used    : used + 1,
       limit,
+      newStreak,
       newBadges: newBadges.length > 0 ? newBadges : undefined,
     })
   } catch (err) { next(err) }
@@ -95,7 +96,7 @@ const generateStream = async (req, res, next) => {
     })
 
     // 4. Usage + streak in parallel
-    await Promise.all([
+    const [_, newStreak] = await Promise.all([
       planService.incrementGenerations(req.user.id),
       updateStreak(req.user.id),
     ])
@@ -106,6 +107,7 @@ const generateStream = async (req, res, next) => {
       type     : 'script',
       data     : { id: script.id, topic, hook, body, cta, fullScript },
       usage    : { used: used + 1, limit },
+      newStreak,
       newBadges: newBadges.length > 0 ? newBadges : undefined,
     })
 
@@ -164,7 +166,7 @@ const generate = async (req, res, next) => {
     });
 
     // 4. Usage + streak in parallel
-    await Promise.all([
+    const [_, newStreak] = await Promise.all([
       planService.incrementGenerations(req.user.id),
       updateStreak(req.user.id),
     ]);
@@ -175,6 +177,7 @@ const generate = async (req, res, next) => {
       message: 'Script generated successfully!',
       script : { id: script.id, topic, hook, body, cta, fullScript, hookScore: null },
       usage  : { used: used + 1, limit },
+      newStreak,
     };
     if (newBadges.length > 0) response.newBadges = newBadges;
     res.status(201).json(response);

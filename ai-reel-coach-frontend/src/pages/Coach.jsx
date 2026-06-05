@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { api } from '../api'
 import { MicButton } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
@@ -166,7 +166,7 @@ export default function Coach() {
                       I'm set up for your <span style={{ color: 'var(--accent)' }}>{nicheLabel}</span> content
                     </p>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      Ask me anything — scripts, growth tactics, hook ideas, strategy
+                      Ask me anything ,  scripts, growth tactics, hook ideas, strategy
                     </p>
                   </div>
                 ) : (

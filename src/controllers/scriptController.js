@@ -72,7 +72,7 @@ const generate = async (req, res, next) => {
     });
 
     // 6 & 7. Increment usage + update streak in parallel — they don't depend on each other
-    await Promise.all([
+    const [_, newStreak] = await Promise.all([
       planService.incrementGenerations(req.user.id),
       updateStreak(req.user.id),
     ]);
@@ -94,6 +94,7 @@ const generate = async (req, res, next) => {
         music          : visualMusic?.music  || null,
       },
       usage: { used: used + 1, limit },
+      newStreak,
     };
 
     if (newBadges.length > 0) {

@@ -1,11 +1,12 @@
 const router  = require('express').Router()
 const { protect: auth } = require('../middleware/auth')
-const { getProfile, updateLanguage, getBadges } = require('../controllers/userController')
+const { getProfile, updateLanguage, getBadges, pingStreak } = require('../controllers/userController')
 const prisma  = require('../config/prisma')
 
 router.get('/profile',      auth, getProfile)
 router.patch('/language',   auth, updateLanguage)
 router.get('/badges',       auth, getBadges)
+router.post('/streak/ping', auth, pingStreak)
 
 router.patch('/onboarded', auth, async (req, res, next) => {
   try {

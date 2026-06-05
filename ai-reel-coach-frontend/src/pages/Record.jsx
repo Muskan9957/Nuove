@@ -1,4 +1,185 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
+import { api } from '../api'
+import { usePersistentState } from '../hooks/usePersistentState'
+
+/* ─────────────── shared helpers ─────────────── */
+const fmtTime = (s) => {
+  if (!isFinite(s) || isNaN(s)) s = 0
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  const ds = Math.round((s % 1) * 10)
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${ds}`
+}
+
+/* ─────────────── TrimBar ─────────────── */
+function TrimBar({ blob, totalSecs, trimStart, trimEnd, onTrimChange }) {
+  const [thumbs, setThumbs] = useState([])
+  const stripRef = useRef(null)
+  const dragRef  = useRef(null)
+  const N = 14
+
+  // Extract thumbnail frames from blob
+  useEffect(() => {
+    if (!blob || !totalSecs || totalSecs <= 0 || !isFinite(totalSecs)) return
+    let cancelled = false
+    const run = async () => {
+      const vid = document.createElement('video')
+      vid.muted = true
+      vid.preload = 'auto'
+      const url = URL.createObjectURL(blob)
+      vid.src = url
+      await new Promise(r => vid.addEventListener('loadedmetadata', r, { once: true }))
+      if (cancelled) { URL.revokeObjectURL(url); return }
+      const dur = isFinite(vid.duration) ? vid.duration : totalSecs
+      const cvs = document.createElement('canvas')
+      cvs.width = 120; cvs.height = 68
+      const ctx = cvs.getContext('2d')
+      const out = []
+      for (let i = 0; i < N; i++) {
+        if (cancelled) break
+        vid.currentTime = (dur * i) / Math.max(N - 1, 1)
+        await new Promise(r => vid.addEventListener('seeked', r, { once: true }))
+        ctx.drawImage(vid, 0, 0, 120, 68)
+        out.push(cvs.toDataURL('image/jpeg', 0.6))
+      }
+      URL.revokeObjectURL(url)
+      if (!cancelled) setThumbs(out)
+    }
+    run().catch(() => {})
+    return () => { cancelled = true }
+  }, [blob, totalSecs])
+
+  const total = totalSecs > 0 ? totalSecs : 1
+  const pctS  = Math.max(0, Math.min(100, (trimStart / total) * 100))
+  const pctE  = Math.max(0, Math.min(100, (trimEnd   / total) * 100))
+
+  const startDrag = (which, ev) => {
+    ev.preventDefault()
+    dragRef.current = which
+    const onMove = (e) => {
+      const cx   = e.touches ? e.touches[0].clientX : e.clientX
+      const rect = stripRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
+      const secs = Math.round(pct * total * 10) / 10
+      if (dragRef.current === 'start') {
+        onTrimChange('start', Math.min(secs, trimEnd - 0.3))
+      } else {
+        onTrimChange('end',   Math.max(secs, trimStart + 0.3))
+      }
+    }
+    const onUp = () => {
+      dragRef.current = null
+      document.removeEventListener('mousemove',  onMove)
+      document.removeEventListener('mouseup',    onUp)
+      document.removeEventListener('touchmove',  onMove)
+      document.removeEventListener('touchend',   onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup',   onUp)
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend',  onUp)
+  }
+
+  const Handle = ({ side }) => {
+    const isPct = side === 'start' ? pctS : pctE
+    return (
+      <div
+        onMouseDown={e => startDrag(side, e)}
+        onTouchStart={e => startDrag(side, e)}
+        style={{
+          position: 'absolute', left: `${isPct}%`, top: 0, bottom: 0,
+          width: 22, transform: 'translateX(-50%)',
+          background: '#E1306C', cursor: 'ew-resize', zIndex: 6,
+          borderRadius: side === 'start' ? '6px 0 0 6px' : '0 6px 6px 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(225,48,108,0.5)',
+          touchAction: 'none',
+        }}
+      >
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            width: 2, height: 14, borderRadius: 2,
+            background: 'rgba(255,255,255,0.9)',
+            margin: '0 1px',
+          }} />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {/* Strip */}
+      <div ref={stripRef} style={{
+        position: 'relative', height: 76, width: '100%',
+        overflow: 'hidden', borderRadius: 10,
+        background: '#0a0a0a', cursor: 'default',
+        touchAction: 'none'
+      }}>
+        {/* Thumbnail frames */}
+        <div style={{ display: 'flex', height: '100%', gap: 1 }}>
+          {thumbs.length > 0
+            ? thumbs.map((url, i) => (
+                <img key={i} src={url} alt=""
+                  style={{ flex: 1, height: '100%', objectFit: 'cover', minWidth: 0, display: 'block' }}
+                />
+              ))
+            : Array.from({ length: N }).map((_, i) => (
+                <div key={i} style={{
+                  flex: 1, height: '100%',
+                  background: `hsl(0,0%,${10 + (i % 2) * 5}%)`,
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                }} />
+              ))
+          }
+        </div>
+        {/* Left dark region */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0,
+          width: `${pctS}%`, background: 'rgba(0,0,0,0.68)',
+          pointerEvents: 'none',
+        }} />
+        {/* Right dark region */}
+        <div style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0,
+          width: `${100 - pctE}%`, background: 'rgba(0,0,0,0.68)',
+          pointerEvents: 'none',
+        }} />
+        {/* Selection border */}
+        <div style={{
+          position: 'absolute', pointerEvents: 'none',
+          left: `${pctS}%`, width: `${pctE - pctS}%`,
+          top: 0, bottom: 0,
+          border: '3px solid #E1306C',
+          boxSizing: 'border-box',
+        }} />
+        {/* Handles */}
+        <Handle side="start" />
+        <Handle side="end" />
+      </div>
+
+      {/* Time labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Start</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(trimStart)}</div>
+        </div>
+        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          ✂️ {fmtTime(trimEnd - trimStart)} selected
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>End</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(trimEnd)}</div>
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: 2 }}>
+        Drag the pink handles · Total: {fmtTime(totalSecs)}
+      </div>
+    </div>
+  )
+}
 
 /* ─────────────────── constants ─────────────────── */
 const SPEEDS = [
@@ -17,17 +198,82 @@ const FONT_SIZES = [
   { label: 'XL', value: 52 },
 ]
 
+/* ─────────────────── cinematic filters ─────────────────── */
+// Researched from CapCut, TikTok, Instagram Reels, and Prequel
+const FILTERS = [
+  {
+    name: 'None',
+    emoji: '⬜',
+    css: 'none',
+    swatch: 'linear-gradient(135deg, #888, #ccc)',
+    desc: 'Raw camera, no filter',
+  },
+  {
+    name: 'Cinematic',
+    emoji: '🎬',
+    css: 'contrast(112%) brightness(88%) saturate(78%)',
+    swatch: 'linear-gradient(135deg, #1a1a2e, #4a4a6a)',
+    desc: 'Hollywood film look, crushed blacks',
+  },
+  {
+    name: 'Golden Hour',
+    emoji: '🌅',
+    css: 'brightness(108%) saturate(135%) sepia(22%) hue-rotate(-12deg)',
+    swatch: 'linear-gradient(135deg, #f7971e, #ffd200)',
+    desc: 'Warm sunset glow, lifestyle content',
+  },
+  {
+    name: 'Studio',
+    emoji: '💡',
+    css: 'brightness(118%) contrast(105%) saturate(110%)',
+    swatch: 'linear-gradient(135deg, #f8f8ff, #e0e8ff)',
+    desc: 'Clean professional studio lighting',
+  },
+  {
+    name: 'Aura',
+    emoji: '🧘',
+    css: 'brightness(115%) saturate(125%) contrast(95%) hue-rotate(-8deg)',
+    swatch: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)',
+    desc: 'Dreamy elegant glow, skin-enhancing warmth',
+  },
+  {
+    name: 'Vintage',
+    emoji: '📽️',
+    css: 'sepia(35%) contrast(92%) brightness(106%) saturate(88%)',
+    swatch: 'linear-gradient(135deg, #b8860b, #d4a960)',
+    desc: 'Retro film grain feel, nostalgic',
+  },
+  {
+    name: 'Soft Glow',
+    emoji: '✨',
+    css: 'brightness(112%) contrast(92%) saturate(118%)',
+    swatch: 'linear-gradient(135deg, #f8cdda, #1d2b64)',
+    desc: 'Beauty/lifestyle, skin-flattering',
+  },
+  {
+    name: 'B&W Drama',
+    emoji: '🎭',
+    css: 'grayscale(100%) contrast(120%) brightness(90%)',
+    swatch: 'linear-gradient(135deg, #000, #fff)',
+    desc: 'Bold black and white, high contrast',
+  },
+]
+
 /* ─────────────────── component ─────────────────── */
 export default function Record() {
   // script
-  const [script,     setScript]     = useState(() => sessionStorage.getItem('rc_script') || '')
-  const [editing,    setEditing]    = useState(false)
+  const [script,     setScript]     = usePersistentState('rc_script', '')
+  const [editing,    setEditing]    = usePersistentState('rc_editing', false)
 
   // settings
   const [speedIdx,   setSpeedIdx]   = useState(2)   // default speed 3
   const [fontIdx,    setFontIdx]    = useState(1)    // M
   const [mirror,     setMirror]     = useState(true) // front cam default mirrored
   const [facingMode, setFacingMode] = useState('user')
+  const [filterIdx,  setFilterIdx]  = useState(0)   // 0 = None
+  const prevFilter = () => setFilterIdx(i => (i - 1 + FILTERS.length) % FILTERS.length)
+  const nextFilter = () => setFilterIdx(i => (i + 1) % FILTERS.length)
+  const [showGrid,   setShowGrid]   = useState(false)
 
   // steps: 'setup' | 'countdown' | 'recording' | 'done'
   const [phase,      setPhase]      = useState('setup')
@@ -38,10 +284,16 @@ export default function Record() {
 
   // recording
   const [outputBlob, setOutputBlob] = useState(null)
-  const [outputExt,  setOutputExt]  = useState('webm')
+  const [outputUrl,  setOutputUrl]  = useState(null)
+  const [outputExt,  setOutputExt]  = useState('mp4')
+  const [trimStart,  setTrimStart]  = useState(0)    // seconds
+  const [trimEnd,    setTrimEnd]    = useState(0)    // seconds (0 = full)
+  const [downloading, setDownloading] = useState(false)
+  const [processing, setProcessing] = useState(false) // true while WebCodecs flushes after stop
 
   // refs
-  const videoRef      = useRef(null)   // camera preview
+  const videoRef      = useRef(null)   // camera preview (visible)
+  const hiddenVideoRef = useRef(null)   // off-screen video used as canvas draw source
   const streamRef     = useRef(null)
   const recorderRef   = useRef(null)
   const chunksRef     = useRef([])
@@ -50,6 +302,21 @@ export default function Record() {
   const rafRef        = useRef(null)
   const timerRef      = useRef(null)
   const countdownRef  = useRef(null)
+  const canvasLoopRef = useRef(false)
+  const doneVideoRef  = useRef(null)
+  const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
+
+  // Keep preview video in sync with the trim start position
+  useEffect(() => {
+    if (phase === 'done' && doneVideoRef.current) {
+      // Pause to avoid playback while scrubbing
+      doneVideoRef.current.pause()
+      // Clamp to video duration (if known)
+      const dur = doneVideoRef.current.duration || 0
+      const clamped = Math.min(trimStart, dur)
+      doneVideoRef.current.currentTime = clamped
+    }
+  }, [trimStart, phase])
 
   /* ── start camera ── */
   const startCamera = useCallback(async (facing = facingMode) => {
@@ -62,6 +329,8 @@ export default function Record() {
       })
       streamRef.current = stream
       if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}) }
+      // Keep the hidden video in sync too — this is our stable canvas draw source
+      if (hiddenVideoRef.current) { hiddenVideoRef.current.srcObject = stream; hiddenVideoRef.current.play().catch(() => {}) }
     } catch (e) {
       setCameraErr(e.name === 'NotAllowedError'
         ? 'Camera access denied. Please allow camera in your browser settings.'
@@ -76,6 +345,7 @@ export default function Record() {
       cancelAnimationFrame(rafRef.current)
       clearInterval(timerRef.current)
       clearInterval(countdownRef.current)
+      canvasLoopRef.current = false
     }
   }, []) // eslint-disable-line
 
@@ -133,35 +403,125 @@ export default function Record() {
     const stream = streamRef.current
     if (!stream) return
 
-    chunksRef.current = []
-    const MIMES = ['video/mp4;codecs=h264,aac', 'video/webm;codecs=vp9,opus', 'video/webm']
+    // Canvas draws the filtered + mirrored camera output
+    const canvas = document.createElement('canvas')
+    canvas.width = 1280
+    canvas.height = 720
+    const ctx = canvas.getContext('2d')
+
+    // Draw loop — applies CSS filter + mirror to every frame
+    canvasLoopRef.current = true
+    const drawFrame = () => {
+      if (!canvasLoopRef.current) return
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.filter = activeFilter
+      ctx.save()
+      if (mirror) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
+      const src = hiddenVideoRef.current
+      if (src && src.readyState >= 2 && !src.paused) {
+        ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
+      }
+      ctx.restore()
+      requestAnimationFrame(drawFrame)
+    }
+    requestAnimationFrame(drawFrame)
+
+    // Capture the canvas as a stream and mix in the microphone audio
+    const canvasStream = canvas.captureStream(30)
+    const audioTrack   = stream.getAudioTracks()[0]
+    const tracks = [...canvasStream.getVideoTracks()]
+    if (audioTrack) tracks.push(audioTrack)
+    const combinedStream = new MediaStream(tracks)
+
+    // Pick the best available MIME type
+    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
     const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
-    const rec   = new MediaRecorder(stream, { mimeType: mime })
+
+    chunksRef.current = []
+    const rec = new MediaRecorder(combinedStream, { mimeType: mime })
     recorderRef.current = rec
-    rec.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+
+    rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
+
     rec.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mime })
-      const ext  = mime.includes('mp4') ? 'mp4' : 'webm'
-      setOutputBlob(blob)
-      setOutputExt(ext)
-      setPhase('done')
-      stopScroll()
-      clearInterval(timerRef.current)
+      canvasLoopRef.current = false
+
+      const rawBlob = new Blob(chunksRef.current, { type: mime })
+      const capturedElapsed = elapsedRef.current
+
+      // Fix seekability: WebM blobs from MediaRecorder have duration=Infinity
+      // Seeking to a huge time forces the browser to calculate the real duration
+      const tempVid = document.createElement('video')
+      tempVid.muted = true
+      const url = URL.createObjectURL(rawBlob)
+      tempVid.src = url
+
+      const finish = () => {
+        // By keeping the object URL, the browser remembers the duration we forced it to calculate
+        setOutputUrl(url)
+        setOutputBlob(rawBlob)
+        setOutputExt('webm')
+        setTrimStart(0)
+        setTrimEnd(capturedElapsed)
+        setProcessing(false)
+        setPhase('done')
+        stopScroll()
+        clearInterval(timerRef.current)
+        
+        // Ping streak when recording finishes
+        api.pingStreak().catch(console.error)
+      }
+
+      tempVid.addEventListener('loadedmetadata', function onMeta() {
+        tempVid.removeEventListener('loadedmetadata', onMeta)
+        if (tempVid.duration === Infinity || isNaN(tempVid.duration)) {
+          tempVid.currentTime = 1e10
+          tempVid.addEventListener('timeupdate', function onTime() {
+            tempVid.removeEventListener('timeupdate', onTime)
+            tempVid.currentTime = 0
+            finish()
+          }, { once: true })
+        } else {
+          finish()
+        }
+      }, { once: true })
+
+      // Fallback: if metadata never fires (e.g. empty recording), still transition
+      setTimeout(() => {
+        if (!outputBlob) {
+          finish()
+        }
+      }, 4000)
     }
 
-    rec.start(100)
+    rec.start(250) // chunk every 250ms
+    elapsedRef.current = 0
     setPhase('recording')
     setElapsed(0)
     setScrolling(true)
-
-    timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
+    timerRef.current = setInterval(() => {
+      elapsedRef.current += 1
+      setElapsed(e => e + 1)
+    }, 1000)
     startScroll()
   }
 
   const stopRecording = () => {
-    recorderRef.current?.stop()
+    canvasLoopRef.current = false
     clearInterval(timerRef.current)
     stopScroll()
+    setProcessing(true)
+    // Works for both native MediaRecorder and our custom async WebCodecs stop
+    const result = recorderRef.current?.stop()
+    if (result && typeof result.then === 'function') {
+      // WebCodecs async stop — processing spinner shown until done phase is set
+      result.catch(err => {
+        console.error('stopRecording error:', err)
+        setProcessing(false)
+        setPhase('done')
+      })
+    }
+    // For native MediaRecorder, stop() is sync — onstop callback handles phase transition
   }
 
   const toggleScrollPause = () => {
@@ -183,34 +543,183 @@ export default function Record() {
 
   /* ── keep scrolling state in sync with ref ── */
   useEffect(() => {
-    // scrolling ref used inside rAF — handled by re-reading state flag
+    // scrolling ref used inside rAF ,  handled by re-reading state flag
   }, [scrolling])
 
-  const download = () => {
-    if (!outputBlob) return
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(outputBlob)
-    a.download = `nuove-recording.${outputExt}`
-    a.click()
+  const handleDownload = async () => {
+    if (!outputBlob || downloading) return
+    
+    // If no trim is needed, download immediately
+    if (trimStart === 0 && (trimEnd === 0 || trimEnd >= elapsed - 0.5)) {
+      const a = document.createElement('a')
+      a.href = outputUrl
+      a.download = `nuove-recording.${outputExt}`
+      a.click()
+      return
+    }
+
+    setDownloading(true)
+    try {
+      const trimmedBlob = await executeTrim()
+      const url = URL.createObjectURL(trimmedBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nuove-recording.webm`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch (e) {
+      console.error(e)
+    }
+    setDownloading(false)
   }
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  /* ── make blob seekable so slider + duration work in browser & media players ── */
+  const makeSeekable = (blob, videoEl) => new Promise(resolve => {
+    const url = URL.createObjectURL(blob)
+    videoEl.src = url
+    videoEl.addEventListener('loadedmetadata', function onMeta() {
+      videoEl.removeEventListener('loadedmetadata', onMeta)
+      if (videoEl.duration === Infinity || isNaN(videoEl.duration)) {
+        // Seek to a very large number to force the browser to scan to end
+        videoEl.currentTime = 1e10
+        videoEl.addEventListener('timeupdate', function onTime() {
+          videoEl.removeEventListener('timeupdate', onTime)
+          videoEl.currentTime = 0
+          resolve(blob)
+        }, { once: true })
+      } else {
+        resolve(blob)
+      }
+    })
+  })
 
-  const fontSize = FONT_SIZES[fontIdx].value
-  const isLive   = phase === 'recording' || phase === 'countdown'
+  /* ── trim video using canvas re-encode ── */
+  const executeTrim = () => new Promise(async (resolve) => {
+    if (!outputBlob) return resolve(outputBlob)
+
+    const srcUrl = URL.createObjectURL(outputBlob)
+    const tempVideo = document.createElement('video')
+    tempVideo.src = srcUrl
+    // IMPORTANT: do NOT set volume=0 — the AudioContext needs the element to be unmuted
+    // We mute it via the sink instead (the audio goes into the AudioContext, not speakers)
+    tempVideo.muted = false
+    tempVideo.volume = 1
+
+    await new Promise(r => tempVideo.addEventListener('loadedmetadata', r, { once: true }))
+    const duration = isFinite(tempVideo.duration) ? tempVideo.duration : (trimEnd || elapsed)
+    const start = Math.max(0, trimStart)
+    const end   = Math.min(duration, trimEnd > 0 && trimEnd < duration ? trimEnd : duration)
+
+    const canvas = document.createElement('canvas')
+    canvas.width  = 1280
+    canvas.height = 720
+    const ctx = canvas.getContext('2d')
+
+    // ── Audio routing via Web Audio API ──
+    // AudioContext must be resumed (Chrome suspends it until user gesture; the trim button click is that gesture)
+    let audioCtx   = null
+    let audioTrack = null
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      await audioCtx.resume()  // critical — without this audio will be silent
+      const src  = audioCtx.createMediaElementSource(tempVideo)
+      const dest = audioCtx.createMediaStreamDestination()
+      src.connect(dest)
+      audioTrack = dest.stream.getAudioTracks()[0] || null
+    } catch (err) {
+      console.warn('Audio routing failed, trimming video-only:', err)
+    }
+
+    // ── Build combined stream (canvas video + audio) ──
+    const canvasStream = canvas.captureStream(30)
+    const tracks = [...canvasStream.getVideoTracks()]
+    if (audioTrack) tracks.push(audioTrack)
+    const combined = new MediaStream(tracks)
+
+    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
+    const rec   = new MediaRecorder(combined, { mimeType: mime })
+    const chunks = []
+    rec.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data) }
+
+    rec.onstop = () => {
+      URL.revokeObjectURL(srcUrl)
+      if (audioCtx) audioCtx.close().catch(() => {})
+      const raw    = new Blob(chunks, { type: mime })
+      const fixVid = document.createElement('video')
+      fixVid.muted = true
+      const fixUrl = URL.createObjectURL(raw)
+      fixVid.src   = fixUrl
+
+      const finish = () => {
+        URL.revokeObjectURL(fixUrl)
+        resolve(raw)
+      }
+
+      fixVid.addEventListener('loadedmetadata', function onMeta() {
+        fixVid.removeEventListener('loadedmetadata', onMeta)
+        if (fixVid.duration === Infinity || isNaN(fixVid.duration)) {
+          fixVid.currentTime = 1e10
+          fixVid.addEventListener('timeupdate', function onTime() {
+            fixVid.removeEventListener('timeupdate', onTime)
+            fixVid.currentTime = 0
+            finish()
+          }, { once: true })
+        } else {
+          finish()
+        }
+      }, { once: true })
+
+      setTimeout(finish, 5000) // safety fallback
+    }
+
+    // ── Seek to start then play ──
+    tempVideo.currentTime = start
+    await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }))
+
+    rec.start(200) // 200ms timeslices so audio chunks are small and in-sync
+    tempVideo.play()
+
+    // ── Draw loop: stop when we reach the trim end ──
+    const drawLoop = () => {
+      if (tempVideo.currentTime >= end || tempVideo.ended) {
+        // Stop slightly early to avoid off-by-one
+        rec.stop()
+        tempVideo.pause()
+        return
+      }
+      ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height)
+      requestAnimationFrame(drawLoop)
+    }
+    requestAnimationFrame(drawLoop)
+  })
+
+  const fmt = (s) => { if (!isFinite(s) || isNaN(s)) s = 0; return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}` }
+
+  const fontSize    = FONT_SIZES[fontIdx].value
+  const isLive      = phase === 'recording' || phase === 'countdown'
+  const activeFilter = FILTERS[filterIdx].css
 
   /* ─────────────── UI ─────────────── */
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
 
+      {/* Hidden off-screen video — always mounted, never unmounted, used as stable canvas draw source */}
+      <video
+        ref={hiddenVideoRef}
+        muted
+        playsInline
+        style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none', top: -9999, left: -9999 }}
+      />
+
       {/* ─── SETUP PHASE ─── */}
       {phase === 'setup' && (
         <div style={S.setupWrap}>
-          {/* Page header — matches all other feature pages */}
+          {/* Page header ,  matches all other feature pages */}
           <div style={{ width: '100%', marginBottom: 8 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-              Script scrolls while you record — no second device needed.
+              Script scrolls while you record ,  no second device needed.
             </p>
           </div>
 
@@ -261,8 +770,17 @@ export default function Record() {
                   ref={videoRef}
                   muted
                   playsInline
-                  style={{ ...S.cameraVideo, transform: mirror ? 'scaleX(-1)' : 'none' }}
+                  style={{ ...S.cameraVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }}
                 />
+              )}
+              {/* Rule-of-thirds grid overlay */}
+              {showGrid && (
+                <div style={S.gridOverlay}>
+                  <div style={S.gridLine('33.33%', 'h')} />
+                  <div style={S.gridLine('66.66%', 'h')} />
+                  <div style={S.gridLine('33.33%', 'v')} />
+                  <div style={S.gridLine('66.66%', 'v')} />
+                </div>
               )}
               <button style={S.flipBtn} onClick={flipCamera} title="Flip camera">⟳</button>
             </div>
@@ -296,6 +814,42 @@ export default function Record() {
                   <button style={{ ...S.chip, ...(facingMode === 'environment' ? S.chipOn : {}) }} onClick={() => { setFacingMode('environment'); setMirror(false); startCamera('environment') }}>Back</button>
                 </div>
               </div>
+              <div style={S.settingGroup}>
+                <div style={S.settingLabel}>Grid</div>
+                <div style={S.chips}>
+                  <button style={{ ...S.chip, ...(showGrid ? S.chipOn : {}) }} onClick={() => setShowGrid(g => !g)}>
+                    {showGrid ? '▦ On' : '▦ Off'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Filter Picker with arrows ── */}
+            <div>
+              <div style={S.sectionLabel}>🎨 Cinematic Filters</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={prevFilter} style={S.filterArrow}>‹</button>
+                <div style={S.filterCard}>
+                  <div style={{ ...S.filterSwatch, width: '100%', height: 44, marginBottom: 6, background: FILTERS[filterIdx].swatch }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '1.1rem' }}>{FILTERS[filterIdx].emoji}</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text)' }}>{FILTERS[filterIdx].name}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>{FILTERS[filterIdx].desc}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 8, justifyContent: 'center' }}>
+                    {FILTERS.map((_, i) => (
+                      <div key={i} onClick={() => setFilterIdx(i)} style={{
+                        width: i === filterIdx ? 18 : 6, height: 6, borderRadius: 99,
+                        background: i === filterIdx ? 'var(--accent)' : 'var(--border)',
+                        cursor: 'pointer', transition: 'all 0.2s',
+                      }} />
+                    ))}
+                  </div>
+                </div>
+                <button onClick={nextFilter} style={S.filterArrow}>›</button>
+              </div>
             </div>
 
             <button
@@ -312,7 +866,7 @@ export default function Record() {
       {/* ─── COUNTDOWN PHASE ─── */}
       {phase === 'countdown' && (
         <div style={S.fullscreen}>
-          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none' }} />
+          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
           <div style={S.countdownOverlay}>
             <div style={S.countdownNum}>{countdown}</div>
           </div>
@@ -323,7 +877,7 @@ export default function Record() {
       {phase === 'recording' && (
         <div style={S.fullscreen} onClick={toggleScrollPause}>
           {/* Camera in background */}
-          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none' }} />
+          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
 
           {/* Dark gradient top + bottom so text is readable */}
           <div style={S.gradTop} />
@@ -374,13 +928,31 @@ export default function Record() {
 
           {/* REC indicator */}
           <div style={S.recDot} />
+
+          {/* Processing overlay — shown while encoders flush after pressing stop */}
+          {processing && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 20,
+              background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16
+            }}>
+              <div style={{
+                width: 48, height: 48, border: '4px solid rgba(255,255,255,0.2)',
+                borderTopColor: '#E1306C', borderRadius: '50%',
+                animation: 'spin 0.9s linear infinite'
+              }} />
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: '1rem' }}>Saving your video...</div>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem' }}>Encoding to MP4, just a moment</div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ─── DONE PHASE ─── */}
-      {phase === 'done' && outputBlob && (
+      {phase === 'done' && (
         <div style={S.doneWrap}>
-          <div style={S.doneCard}>
+          {outputBlob ? (
+            <div style={S.doneCard}>
             <div style={{ fontSize: '2.5rem' }}>🎬</div>
             <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.3rem', color: 'var(--text)' }}>Recording saved!</h2>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.87rem' }}>
@@ -388,30 +960,91 @@ export default function Record() {
             </p>
 
             <video
-              src={URL.createObjectURL(outputBlob)}
+              ref={doneVideoRef}
+              src={outputUrl || ''}
               controls
-              style={{ width: '100%', maxWidth: 400, borderRadius: 12, background: '#000' }}
+              style={{ width: '100%', maxWidth: 440, borderRadius: 12, background: '#000' }}
             />
 
-            <button style={S.recordBtn} onClick={download}>
-              ⬇ Download (.{outputExt.toUpperCase()})
+            {/* ── Filmstrip Trim ── */}
+            <div style={{
+              width: '100%', background: 'var(--surface2)',
+              border: '1px solid var(--border)', borderRadius: 14,
+              padding: '14px 16px', position: 'relative',
+            }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 12 }}>✂️ Trim Video</div>
+
+              <TrimBar
+                blob={outputBlob}
+                totalSecs={trimEnd || elapsed}
+                trimStart={trimStart}
+                trimEnd={trimEnd || elapsed}
+                onTrimChange={(which, val) => {
+                  if (which === 'start') {
+                    setTrimStart(val)
+                    // Update preview to show the new start frame
+                    if (doneVideoRef.current) {
+                      doneVideoRef.current.pause()
+                      const dur = doneVideoRef.current.duration || 0
+                      doneVideoRef.current.currentTime = Math.min(val, dur)
+                    }
+                  } else {
+                    setTrimEnd(val)
+                  }
+                }}
+              />
+            </div>
+
+            <button
+              style={{ ...S.recordBtn, opacity: downloading ? 0.6 : 1, cursor: downloading ? 'not-allowed' : 'pointer' }}
+              onClick={handleDownload}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                  <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+                  Preparing Download...
+                </span>
+              ) : '⬇ Download (.MP4)'}
             </button>
 
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
               <button
                 style={{ ...S.ghostBtn, flex: 1 }}
-                onClick={() => { setPhase('setup'); setOutputBlob(null); scrollPosRef.current = 0 }}
+                onClick={() => {
+                  if (outputUrl) URL.revokeObjectURL(outputUrl)
+                  setPhase('setup'); setOutputBlob(null); setOutputUrl(null); scrollPosRef.current = 0
+                }}
               >
                 ↺ Record Again
               </button>
               <button
                 style={{ ...S.ghostBtn, flex: 1 }}
-                onClick={() => { setPhase('setup'); setScript(''); setOutputBlob(null); scrollPosRef.current = 0 }}
+                onClick={() => {
+                  if (outputUrl) URL.revokeObjectURL(outputUrl)
+                  setPhase('setup'); setScript(''); setOutputBlob(null); setOutputUrl(null); scrollPosRef.current = 0
+                }}
               >
                 + New Recording
               </button>
             </div>
           </div>
+        ) : (
+          /* Blob is null — encoding failed, show error + retry */
+            <div style={S.doneCard}>
+              <div style={{ fontSize: '2.5rem' }}>⚠️</div>
+              <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>Something went wrong</h2>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+                The video could not be saved. Please try recording again.
+              </p>
+              <button
+                style={{ ...S.recordBtn, marginTop: 8 }}
+                onClick={() => { setPhase('setup'); setOutputBlob(null); setOutputUrl(null); setProcessing(false); scrollPosRef.current = 0 }}
+              >
+                ↺ Try Again
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -468,9 +1101,49 @@ const S = {
   settingsGrid: { display: 'flex', flexDirection: 'column', gap: 10 },
   settingGroup: { display: 'flex', alignItems: 'center', gap: 10 },
   settingLabel: { fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-faint)', width: 84, flexShrink: 0 },
-  chips: { display: 'flex', gap: 6 },
+  chips: { display: 'flex', gap: 6, flexWrap: 'wrap' },
   chip: { padding: '5px 12px', borderRadius: 7, fontSize: '0.78rem', fontWeight: 600, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer', transition: 'all 0.15s' },
   chipOn: { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' },
+
+  // filter picker
+  filterStrip: {
+    display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6,
+    scrollbarWidth: 'none',
+  },
+  filterChip: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+    background: 'var(--surface2)', border: '1px solid var(--border)',
+    borderRadius: 10, padding: '8px 10px', cursor: 'pointer',
+    minWidth: 64, flexShrink: 0, transition: 'all 0.18s',
+  },
+  filterSwatch: {
+    width: 40, height: 28, borderRadius: 6, flexShrink: 0,
+  },
+  filterLabel: { fontSize: '1rem', lineHeight: 1 },
+  filterName: {
+    fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-faint)',
+    textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
+
+  // grid overlay
+  gridOverlay: { position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 },
+  gridLine: (pos, dir) => dir === 'h'
+    ? { position: 'absolute', top: pos, left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.35)' }
+    : { position: 'absolute', left: pos, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.35)' },
+
+  // filter arrow navigation
+  filterArrow: {
+    width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)',
+    background: 'var(--surface2)', color: 'var(--text)', fontSize: '1.3rem',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, transition: 'all 0.15s',
+  },
+  filterCard: {
+    flex: 1, background: 'var(--surface2)', border: '1px solid var(--border)',
+    borderRadius: 12, padding: '10px 12px',
+  },
+
 
   recordBtn: {
     padding: '13px', borderRadius: 12, border: 'none',

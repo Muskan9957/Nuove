@@ -8,7 +8,7 @@ import { usePrefs } from '../hooks/usePrefs'
 import { getSavedRegion } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 
-/* ─── Creator palette — Saffron Noir ─────────────────────────────── */
+/* ─── Creator palette ,  Saffron Noir ─────────────────────────────── */
 const C = {
   cyan:   '#FF8C00',
   pink:   '#FF2D6F',
@@ -35,13 +35,15 @@ const NICHE_META = {
 }
 
 const BADGE_META = {
-  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script'  },
-  SCRIPTS_10:   { emoji: '📚', label: '10 Scripts'     },
-  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts'     },
-  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook'   },
-  ANALYZER_5:   { emoji: '📊', label: '5 Analyses'     },
-  STREAK_7:     { emoji: '🔥', label: '7-Day Streak'   },
-  STREAK_30:    { emoji: '⚡', label: '30-Day Streak'  },
+  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script', desc: 'Generate your first script using the Script Generator' },
+  SCRIPTS_5:    { emoji: '🔥', label: '5 Scripts', desc: 'Generate 5 scripts in total' },
+  SCRIPTS_15:   { emoji: '📚', label: '15 Scripts', desc: 'Generate 15 scripts in total' },
+  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts', desc: 'Generate 50 scripts in total' },
+  STREAK_5:     { emoji: '🏃', label: '5-Day Streak', desc: 'Maintain a 5-day daily active streak' },
+  STREAK_15:    { emoji: '⚡', label: '15-Day Streak', desc: 'Maintain a 15-day daily active streak' },
+  STREAK_30:    { emoji: '👑', label: '30-Day Streak', desc: 'Maintain a 30-day daily active streak' },
+  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook', desc: 'Get a hook score of 90 or higher on any hook' },
+  ANALYZER_5:   { emoji: '📊', label: '5 Analyses', desc: 'Analyze at least 5 video performance logs' },
 }
 
 const CATEGORY_COLORS = {
@@ -61,7 +63,7 @@ function getTimeMood() {
   return             { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
 }
 
-/* Virality heat — 3 cards: rank 1 = 94%, 2 = 78%, 3 = 61% */
+/* Virality heat ,  3 cards: rank 1 = 94%, 2 = 78%, 3 = 61% */
 const VIRALITY = [94, 78, 61]
 
 /* "Freshness" badge driven by rank */
@@ -90,7 +92,7 @@ function LiveDot() {
   )
 }
 
-/* ─── Today's Brief — editorial redesign ─────────────────────────── */
+/* ─── Today's Brief ,  editorial redesign ─────────────────────────── */
 function TrendingBrief({ userName, niches = [], onEditNiche }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
@@ -100,9 +102,18 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
   const [refreshing, setRefreshing] = useState(false)
   const primaryNiche = niches[0] || ''
 
-  const [greeting, setGreeting] = useState(null)
-  const [fetchedAt, setFetchedAt] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [greeting, setGreeting]             = useState(null)
+  const [trends, setTrends]                 = useState([])
+  const [trendFetchedAt, setTrendFetchedAt] = useState(null)
+  const [audioTracks, setAudioTracks]       = useState([])
+  const [audioLoading, setAudioLoading]     = useState(false)
+  const [loading, setLoading]               = useState(true)
+
+  const SOURCE_META = {
+    google:  { label: '🔍 Google Trends', color: '#4285F4' },
+    youtube: { label: '📺 YouTube',        color: '#FF0000' },
+    ai:      { label: '✨ AI Pick',         color: C.violet  },
+  }
 
   const fetchBrief = useCallback((force = false) => {
     if (force) setRefreshing(true)
@@ -111,35 +122,43 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
     const region = getSavedRegion() || 'India'
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
-    // _t + date params bust CDN/backend cache and anchor AI to today's real events
     const bust = `&_t=${ts}&date=${today}`
 
     const greetingPromise = api.getGreeting(region, lang, niches, bust)
-    // Pass ALL niches (not just primary) so backend scores multiple categories
-    const trendingPromise = niches.length
-      ? api.getTrending(niches.join(','), lang, bust).catch(() =>
-          primaryNiche ? api.getTrending(primaryNiche, lang, bust).catch(() => null) : null
-        )
+    const trendingPromise = primaryNiche
+      ? api.getTrending(primaryNiche, lang, region, force).catch(() => null)
       : Promise.resolve(null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
-        const merged = {
+        // trendData.topics is the new structured array from live sources
+        const liveTrends = trendData?.topics?.length
+          ? trendData.topics
+          : (trendData?.trends?.length ? trendData.trends : greetData?.trends)
+
+        setGreeting({
           ...greetData,
-          trends: trendData?.trends?.length ? trendData.trends : greetData?.trends,
           nicheLabel: primaryNiche ? primaryNiche.charAt(0).toUpperCase() + primaryNiche.slice(1) : null,
           nicheEmoji: primaryNiche ? (NICHE_META[primaryNiche]?.emoji || '🎯') : null,
           nicheColor: primaryNiche ? (NICHE_META[primaryNiche]?.color || C.cyan) : null,
-        }
-        setGreeting(merged)
-        setFetchedAt(ts)
+        })
+        setTrends(liveTrends || [])
+        setTrendFetchedAt(trendData?.fetchedAt || Date.now())
       })
       .catch(() => {})
       .finally(() => { setLoading(false); setRefreshing(false) })
   }, [lang, niches.join(',')])
 
-  // Always fetch fresh on mount — no localStorage persistence
-  useEffect(() => { fetchBrief(false) }, [lang, niches.join(',')])
+  const fetchAudio = useCallback(() => {
+    const region = getSavedRegion() || 'India'
+    setAudioLoading(true)
+    api.getTrendingAudio(region)
+      .then(data => setAudioTracks(data?.tracks || []))
+      .catch(() => {})
+      .finally(() => setAudioLoading(false))
+  }, [])
+
+  useEffect(() => { fetchBrief(false); fetchAudio() }, [lang, niches.join(',')])
 
   const playGreeting = () => {
     if (!greeting) return
@@ -154,8 +173,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
   }
 
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-  const ago   = timeAgo(fetchedAt)
-  const trends = greeting?.trends || []
+  const ago   = timeAgo(trendFetchedAt)
 
   return (
     <section style={{ marginBottom: 32 }}>
@@ -192,6 +210,35 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           color: 'var(--text-faint)', letterSpacing: '0.06em',
         }}>{today}</span>
 
+        {/* Niche badge ,  shows active niche */}
+        {greeting?.nicheLabel && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+            padding: '3px 9px', borderRadius: 99, letterSpacing: '0.06em',
+            background: `${greeting.nicheColor || C.violet}18`,
+            border: `1px solid ${greeting.nicheColor || C.violet}40`,
+            color: greeting.nicheColor || C.violet,
+            textTransform: 'uppercase',
+          }}>
+            {greeting.nicheEmoji} {greeting.nicheLabel}
+          </span>
+        )}
+
+        {/* Source chips ,  live platforms used */}
+        {!loading && !refreshing && trends.length > 0 && (
+          [...new Set(trends.map(tr => tr.source).filter(Boolean))].map(src => {
+            const meta = SOURCE_META[src] || SOURCE_META.ai
+            return (
+              <span key={src} style={{
+                fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                padding: '2px 8px', borderRadius: 99, letterSpacing: '0.06em',
+                background: `${meta.color}18`, border: `1px solid ${meta.color}35`,
+                color: meta.color, whiteSpace: 'nowrap',
+              }}>{meta.label}</span>
+            )
+          })
+        )}
         {/* Freshness stamp */}
         {ago && !loading && !refreshing && (
           <span style={{
@@ -258,7 +305,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
               📌 Personalise your brief
             </p>
             <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-faint)' }}>
-              Pick your niche — your daily brief will be tailored to your content category
+              Pick your niche ,  your daily brief will be tailored to your content category
             </p>
           </div>
           <button
@@ -295,11 +342,12 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
         </div>
       ) : trends.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {trends.slice(0, 3).map((trend, i) => {
+          {trends.slice(0, 6).map((trend, i) => {
             const color    = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
             const rank     = String(i + 1).padStart(2, '0')
             const virality = VIRALITY[i] || 38
             const badge    = TREND_BADGE[i] || '📊 TRENDING'
+            const srcMeta  = SOURCE_META[trend.source] || SOURCE_META.ai
             return (
               <Link
                 key={i}
@@ -340,7 +388,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                       : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
                   }}
                 >
-                  {/* Rank watermark — opacity on element so all hues render equally visible */}
+                  {/* Rank watermark ,  opacity on element so all hues render equally visible */}
                   <span style={{
                     position: 'absolute', right: 12, top: 8,
                     fontFamily: 'var(--font-creator)', fontWeight: 900,
@@ -361,15 +409,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                       textTransform: 'uppercase', whiteSpace: 'nowrap',
                     }}>{badge}</span>
 
-                    {trend.category && (
-                      <span style={{
-                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                        padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
-                        background: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.07)',
-                        color: 'var(--text-faint)',
-                        textTransform: 'uppercase', whiteSpace: 'nowrap',
-                      }}>{trend.category}</span>
-                    )}
+                    {/* Source badge ,  where this trend came from */}
+                    <span style={{
+                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                      padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
+                      background: `${srcMeta.color}15`, border: `1px solid ${srcMeta.color}35`,
+                      color: srcMeta.color, whiteSpace: 'nowrap',
+                    }}>{srcMeta.label}</span>
                   </div>
 
                   {/* Title */}
@@ -387,11 +433,27 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
                   {trend.description && (
                     <div style={{
                       fontSize: '0.74rem', color: 'var(--text-faint)',
-                      lineHeight: 1.5, marginBottom: 12,
+                      lineHeight: 1.5, marginBottom: 10,
                       display: '-webkit-box', WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     }}>
                       {trend.description}
+                    </div>
+                  )}
+
+                  {/* Hook preview */}
+                  {trend.hook && (
+                    <div style={{
+                      fontSize: '0.68rem', color: color,
+                      fontFamily: 'var(--font-mono)', fontWeight: 600,
+                      lineHeight: 1.4, marginBottom: 10,
+                      padding: '6px 10px',
+                      background: `${color}0C`,
+                      borderRadius: 8, borderLeft: `2px solid ${color}60`,
+                      display: '-webkit-box', WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    }}>
+                      💡 {trend.hook}
                     </div>
                   )}
 
@@ -455,6 +517,76 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           </p>
         )
       )}
+
+      {/* ── 🎵 Trending Audio Section (Spotify) ── */}
+      {(audioTracks.length > 0 || audioLoading) && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{
+              fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-faint)',
+            }}>🎵 Trending Audio for Reels</span>
+            <span style={{
+              fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+              padding: '2px 8px', borderRadius: 99,
+              background: '#1DB95415', border: '1px solid #1DB95435', color: '#1DB954',
+            }}>Spotify Viral 50</span>
+          </div>
+
+          {audioLoading ? (
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+              {[0,1,2,3,4].map(i => (
+                <div key={i} className="shimmer" style={{ width: 160, height: 64, borderRadius: 12, flexShrink: 0 }} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+              {audioTracks.slice(0, 10).map((track, i) => (
+                <a
+                  key={i}
+                  href={track.spotifyUrl || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none', flexShrink: 0 }}
+                >
+                  <div style={{
+                    width: 168, padding: '12px 14px',
+                    background: isLight ? 'rgba(255,255,255,0.97)' : 'var(--surface)',
+                    border: isLight ? '1px solid rgba(29,185,84,0.18)' : '1px solid rgba(29,185,84,0.22)',
+                    borderRadius: 12, cursor: 'pointer',
+                    transition: 'transform 0.18s, border-color 0.18s',
+                    boxShadow: isLight ? '0 2px 10px rgba(0,0,0,0.06)' : '0 4px 18px rgba(0,0,0,0.45)',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(29,185,84,0.50)' }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = isLight ? 'rgba(29,185,84,0.18)' : 'rgba(29,185,84,0.22)' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                      <span style={{
+                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
+                        padding: '1px 5px', borderRadius: 4,
+                        background: '#1DB95420', color: '#1DB954',
+                      }}>#{i + 1}</span>
+                      <span style={{ fontSize: '0.7rem' }}>🎵</span>
+                    </div>
+                    <div style={{
+                      fontFamily: 'var(--font-creator)', fontWeight: 700,
+                      fontSize: '0.78rem', color: 'var(--text)', lineHeight: 1.3,
+                      marginBottom: 3,
+                      overflow: 'hidden', display: '-webkit-box',
+                      WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                    }}>{track.name}</div>
+                    <div style={{
+                      fontSize: '0.62rem', color: 'var(--text-faint)',
+                      fontFamily: 'var(--font-mono)',
+                      overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                    }}>{track.artist}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }
@@ -478,7 +610,7 @@ function CreatorScoreCard({ score }) {
 
   const shareScore = async () => {
     try {
-      await navigator.clipboard.writeText(`My Nuove Creator Score: ${val} — ${level || 'Rising Creator'} 🚀`)
+      await navigator.clipboard.writeText(`My Nuove Creator Score: ${val} ,  ${level || 'Rising Creator'} 🚀`)
       setCopied(true); setTimeout(() => setCopied(false), 2000)
     } catch {}
   }
@@ -526,7 +658,7 @@ function CreatorScoreCard({ score }) {
               <div key={seg.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {seg.label} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{breakdown[seg.key] ?? '—'}</span>
+                  {seg.label} <span style={{ color: 'var(--text)', fontWeight: 700 }}>{breakdown[seg.key] ?? ', '}</span>
                 </span>
               </div>
             ))}
@@ -612,14 +744,15 @@ function StatsStrip({ scripts, logs, badges, streak, isLight }) {
 }
 
 /* ─── Badges shelf ────────────────────────────────────────────────── */
-function BadgesShelf({ badges, isLight }) {
+function BadgesShelf({ badges, isLight, onOpenModal }) {
   const { t } = useLang()
-  if (!badges.length) return null
 
   return (
     <section style={{ marginBottom: 28 }}>
-      <div style={{
+      <button onClick={onOpenModal} style={{
+        background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+        outline: 'none'
       }}>
         <span style={{
           fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
@@ -631,41 +764,49 @@ function BadgesShelf({ badges, isLight }) {
           background: `${C.violet}16`, border: `1px solid ${C.violet}30`,
           color: C.violet,
         }}>{badges.length}</span>
-      </div>
+        <span style={{ fontSize: '0.6rem', color: C.violet, fontWeight: 'bold' }}>View All ➔</span>
+      </button>
 
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-        {badges.map((badge, i) => {
-          const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
-          return (
-            <div key={i} title={meta.label} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-              padding: '12px 16px',
-              background: isLight
-                ? 'rgba(255,255,255,0.97)'
-                : `linear-gradient(135deg, ${C.violet}0E 0%, var(--surface) 70%)`,
-              border: isLight
-                ? `1px solid rgba(179,109,255,0.20)`
-                : `1px solid ${C.violet}25`,
-              borderRadius: 14, flexShrink: 0, minWidth: 76,
-              boxShadow: isLight
-                ? '0 2px 12px rgba(100,40,200,0.08)'
-                : '0 4px 20px rgba(0,0,0,0.45)',
-              transition: 'transform 0.18s',
-              cursor: 'default',
-            }}
-              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-            >
-              <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{meta.emoji}</span>
-              <span style={{
-                fontSize: '0.58rem', color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-                letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 700,
-              }}>{meta.label}</span>
-            </div>
-          )
-        })}
-      </div>
+      {badges.length > 0 ? (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {badges.map((badge, i) => {
+            const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
+            return (
+              <div key={i} title={meta.label} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                padding: '12px 16px',
+                background: isLight
+                  ? 'rgba(255,255,255,0.97)'
+                  : `linear-gradient(135deg, ${C.violet}0E 0%, var(--surface) 70%)`,
+                border: isLight
+                  ? `1px solid rgba(179,109,255,0.20)`
+                  : `1px solid ${C.violet}25`,
+                borderRadius: 14, flexShrink: 0, minWidth: 76,
+                boxShadow: isLight
+                  ? '0 2px 12px rgba(100,40,200,0.08)'
+                  : '0 4px 20px rgba(0,0,0,0.45)',
+                transition: 'transform 0.18s',
+                cursor: 'pointer',
+              }}
+                onClick={onOpenModal}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{meta.emoji}</span>
+                <span style={{
+                  fontSize: '0.58rem', color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                  letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 700,
+                }}>{meta.label}</span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '12px 16px', background: 'var(--surface2)', borderRadius: 12, border: '1px dashed var(--border)' }}>
+          Create scripts and stay active to earn badges!
+        </div>
+      )}
     </section>
   )
 }
@@ -707,7 +848,7 @@ function StreakBanner({ streak, isLight }) {
             }}>{t('dash_day_streak')}</span>
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-            Keep it going — create something today
+            Keep it going ,  create something today
           </div>
         </div>
       </div>
@@ -734,6 +875,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null)
   const [creatorScore, setCreatorScore] = useState(null)
   const [loading, setLd]  = useState(true)
+  const [showBadgeModal, setShowBadgeModal] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -768,7 +910,7 @@ export default function Dashboard() {
 
   const { theme } = useTheme()
   const isLight  = theme === 'light'
-  const limit    = { FREE: 5, STARTER: 50, PRO: '∞' }[user?.plan] || 5
+  const limit    = { FREE: 10, STARTER: 50, PRO: '∞' }[user?.plan] || 10
 
   // Edit niche: clear onboarded flag → go straight to Step 1 (niche picker)
   const handleEditNiche = () => {
@@ -776,7 +918,7 @@ export default function Dashboard() {
     navigate('/onboarding')
   }
   const used     = user?.generationsUsed || 0
-  const streak   = profile?.streak || 0
+  const streak   = profile?.user?.streak ?? profile?.streak ?? 0
   const firstName = user?.name?.split(' ')[0] || 'Creator'
   const mood = getTimeMood()
 
@@ -790,7 +932,8 @@ export default function Dashboard() {
           padding: '4px 12px', borderRadius: 99,
           background: `${mood.color}12`,
           border: `1px solid ${mood.color}35`,
-          marginBottom: 14,
+          marginRight: 18,
+          verticalAlign: 'middle',
         }}>
           <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
           <span style={{
@@ -799,7 +942,7 @@ export default function Dashboard() {
           }}>{mood.label}</span>
         </div>
 
-        <h1 className="page-title" style={{ marginBottom: 6 }}>
+        <h1 className="page-title" style={{ display: 'inline-block', verticalAlign: 'middle', marginTop: 0, marginBottom: 8 }}>
           {t('dash_greeting_' + mood.key)}, {firstName}
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
@@ -807,7 +950,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* niche chips removed — niche filters briefs silently */}
+      {/* niche chips removed ,  niche filters briefs silently */}
 
       {/* ─── Stats strip ──────────────────────────────────────────── */}
       <StatsStrip
@@ -825,7 +968,60 @@ export default function Dashboard() {
       <TrendingBrief userName={firstName} niches={niches} onEditNiche={handleEditNiche} />
 
       {/* ─── Badges shelf ─────────────────────────────────────────── */}
-      <BadgesShelf badges={badges} isLight={isLight} />
+      <BadgesShelf badges={badges} isLight={isLight} onOpenModal={() => setShowBadgeModal(true)} />
+
+      {/* ─── Badge Progress Modal ─────────────────────────────────── */}
+      {showBadgeModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', padding: 20
+        }} onClick={() => setShowBadgeModal(false)}>
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 24,
+              width: '100%', maxWidth: 500, maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)', overflow: 'hidden'
+            }}
+          >
+            <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Your Badges</h2>
+              <button onClick={() => setShowBadgeModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {Object.entries(BADGE_META).map(([key, meta]) => {
+                const isEarned = badges.some(b => (b.type || b) === key);
+                // Real progress calculation would go here if we passed down total scripts/streaks/logs
+                // but showing locked/unlocked meets the goal of seeing what needs to be achieved!
+                
+                return (
+                  <div key={key} style={{
+                    display: 'flex', alignItems: 'center', gap: 16, padding: 16,
+                    background: isEarned ? `${C.violet}15` : 'var(--surface2)',
+                    border: `1px solid ${isEarned ? C.violet + '40' : 'var(--border)'}`,
+                    borderRadius: 16, opacity: isEarned ? 1 : 0.6
+                  }}>
+                    <div style={{ fontSize: '2.4rem', filter: isEarned ? 'none' : 'grayscale(100%)' }}>{meta.emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: isEarned ? C.violet : 'var(--text)', marginBottom: 4 }}>
+                        {meta.label}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {meta.desc}
+                      </div>
+                    </div>
+                    {isEarned ? (
+                      <div style={{ color: C.violet, fontWeight: 'bold', fontSize: '1.4rem', filter: 'drop-shadow(0 0 8px rgba(179,109,255,0.4))' }}>✓</div>
+                    ) : (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Locked</div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Upgrade banner ───────────────────────────────────────── */}
       {user?.plan === 'FREE' && (

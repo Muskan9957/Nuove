@@ -89,6 +89,8 @@ const getMe = async (req, res, next) => {
         email           : true,
         name            : true,
         plan            : true,
+        streak          : true,
+        lastActiveDate  : true,
         generationsUsed : true,
         generationsReset: true,
         createdAt       : true,

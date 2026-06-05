@@ -19,6 +19,19 @@ const req = async (method, path, body) => {
 
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || data.errors?.[0]?.msg || 'Something went wrong')
+  
+  // Intercept streak updates globally
+  if (data.newStreak !== undefined) {
+    window.dispatchEvent(new CustomEvent('streak-updated', { detail: data.newStreak }))
+  }
+
+  // Intercept badge awards globally
+  if (data.newBadges !== undefined && Array.isArray(data.newBadges)) {
+    data.newBadges.forEach(badgeType => {
+      window.dispatchEvent(new CustomEvent('badge-earned', { detail: badgeType }))
+    })
+  }
+  
   return data
 }
 
@@ -75,8 +88,13 @@ export const api = {
   updateCalendarEntry: (id, data)  => req('PATCH',  `/calendar/${id}`, data),
   deleteCalendarEntry: (id)        => req('DELETE', `/calendar/${id}`),
 
-  // Trending — bust accepts an optional "&_t=..." string to bypass backend/CDN caches
-  getTrending:  (niche, language, bust = '') => req('GET', `/trending?niche=${niche}&language=${language}${bust}`),
+  // Trending — region-aware, force=true bypasses cache for refresh button
+  getTrending:  (niche, language, region = 'India', force = false) => {
+    const params = new URLSearchParams({ niche, language, region })
+    if (force) params.set('force', 'true')
+    return req('GET', `/trending?${params}`)
+  },
+  getTrendingAudio: (region = 'India') => req('GET', `/trending/audio?region=${encodeURIComponent(region)}`),
   getGreeting:  (region, language, niches = [], bust = '') => {
     const n = niches.length ? `&niches=${encodeURIComponent(niches.join(','))}` : ''
     return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${n}${bust}`)
@@ -116,6 +134,7 @@ export const api = {
   savePrefs:       (body)     => req('PATCH', '/user/prefs', body),
   generateAvatar:  (style)    => req('POST',  '/user/generate-avatar', { style }),
   saveAvatar:      (url)      => req('PATCH', '/user/avatar', { url }),
+  pingStreak:      ()         => req('POST',  '/user/streak/ping'),
 
   // Creator Voice (premium personalisation)
   getVoiceProfile:    ()          => req('GET',    '/user/voice'),

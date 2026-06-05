@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useLang } from '../i18n.jsx'
@@ -60,7 +60,7 @@ function LangFlip() {
   )
 }
 
-/* ─── Smooth Video Hero — A/B Buffer ─────────────────────────────── */
+/* ─── Smooth Video Hero ,  A/B Buffer ─────────────────────────────── */
 // Only 2 video elements exist at any time. We alternate between them
 // (like double-buffering in graphics) so the browser only ever needs
 // to handle 2 videos, not all 4 simultaneously.
@@ -102,7 +102,7 @@ function HeroVideo() {
     const slotA = slotRef.current[0]
     const slotB = slotRef.current[1]
 
-    // Slot A — visible first
+    // Slot A ,  visible first
     if (slotA) {
       slotA.src = VIDEOS[0]
       slotA.load()
@@ -113,7 +113,7 @@ function HeroVideo() {
       })
     }
 
-    // Slot B — preload clip 1 silently
+    // Slot B ,  preload clip 1 silently
     if (slotB) {
       slotB.src = VIDEOS[1]
       slotB.load()
@@ -224,7 +224,7 @@ function FeatureVisual({ feature, exiting }) {
     { x: '15%', y: '70%', size: 44, dur: 3.6, delay: 0 },
   ]
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 260 }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 220 }}>
       {/* Outer glow ring */}
       <div style={{
         position: 'absolute', top: '50%', left: '50%',
@@ -336,14 +336,27 @@ function FeatureCarousel() {
         }
         .feat-tab-btn { transition: all 0.25s ease !important; }
         .feat-tab-btn:hover { opacity: 0.9 !important; background-color: rgba(255,255,255,0.04) !important; }
+        
+        .feature-grid-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          position: relative;
+          z-index: 1;
+        }
+        @media (min-width: 641px) {
+          .feature-grid-container {
+            height: 380px;
+          }
+        }
       `}</style>
 
       {/* ── Main Card ── */}
       <div style={{
-        borderRadius: 28,
+        borderRadius: 24,
         overflow: 'hidden',
-        border: `1px solid ${f.color}22`,
-        boxShadow: `0 40px 100px rgba(0,0,0,0.18), 0 0 0 1px ${f.color}10, inset 0 1px 0 rgba(255,255,255,0.05)`,
+        background: 'var(--surface)',
+        border: `1px solid ${f.color}35`,
+        boxShadow: `0 24px 60px rgba(0,0,0,0.25), 0 0 0 1px ${f.color}15, inset 0 1px 0 rgba(255,255,255,0.08)`,
         transition: 'border-color 0.5s ease, box-shadow 0.5s ease',
         position: 'relative',
       }}>
@@ -363,16 +376,20 @@ function FeatureCarousel() {
         </div>
 
         {/* ── Two-column interior ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', minHeight: 460, position: 'relative', zIndex: 1 }}>
+        <div className="feature-grid-container">
 
-          {/* LEFT — text */}
+          {/* LEFT ,  text */}
           <div style={{
-            padding: 'clamp(40px, 6vw, 68px)',
-            background: `linear-gradient(145deg, ${f.color}0D 0%, var(--surface) 60%)`,
-            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 24,
+            padding: 'clamp(28px, 4vw, 40px)',
+            background: `linear-gradient(145deg, ${f.color}15 0%, rgba(255,255,255,0.02) 100%)`,
+            backdropFilter: 'blur(20px)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
             transition: 'background 0.6s ease',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
           }}>
-            {/* Feature badge */}
+            {/* Flex wrapper to group text at top and push controls to bottom */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Feature badge */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               width: 'fit-content', padding: '6px 14px', borderRadius: 99,
@@ -409,6 +426,7 @@ function FeatureCarousel() {
             }}>
               {t(f.descKey) || f.descKey}
             </p>
+            </div>
 
             {/* Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
@@ -435,13 +453,12 @@ function FeatureCarousel() {
             </div>
           </div>
 
-          {/* RIGHT — animated orbital visual showcase */}
+          {/* RIGHT ,  animated orbital visual showcase */}
           <div style={{
             position: 'relative',
             background: `radial-gradient(ellipse at 55% 40%, ${f.color}18 0%, transparent 65%), var(--surface2)`,
-            borderLeft: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden', minHeight: 300,
+            overflow: 'hidden', minHeight: 280,
             transition: 'background 0.6s ease',
           }}>
             {/* Dot grid pattern */}
@@ -617,7 +634,7 @@ export default function Landing() {
           Sits ABOVE the video frame (in the page margin area)
       ─────────────────────────────────────────────────────────── */}
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 10, flexWrap: 'wrap' }}>
-        {/* Logo — always in original vibrant colour */}
+        {/* Logo ,  always in original vibrant colour */}
         <Logo size={30} showWordmark />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -638,7 +655,7 @@ export default function Landing() {
         </div>
       </nav>
 
-      {/* ── Hero Video — framed with margin ────────────────────────
+      {/* ── Hero Video ,  framed with margin ────────────────────────
           The 20px padding on all sides creates the "border/frame" 
           effect the user requested.
       ─────────────────────────────────────────────────────────── */}
@@ -729,7 +746,7 @@ export default function Landing() {
 
       {/* ── Final CTA ────────────────────────────────────────────── */}
       <section style={{ padding: '110px 20px', textAlign: 'center' }}>
-        <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: 'var(--accent)', marginBottom: 24 }}>Script anytime, anywhere.</p>
+        <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: 'var(--accent)', marginBottom: 24 }}>Script anytime, anywhere!</p>
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 16 }}>{t('landing_ready_eyebrow')}</p>
         <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(2rem,5.5vw,3.6rem)', color: 'var(--text)', letterSpacing: '-0.025em', margin: '0 auto 32px', maxWidth: 600, lineHeight: 1.15 }}>
           {t('landing_ready_h2')}
@@ -778,7 +795,7 @@ export default function Landing() {
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Mobile — stack About grid */
+        /* Mobile ,  stack About grid */
         @media (max-width: 720px) {
           section > div[style*="grid-template-columns: 1fr 1fr"] {
             grid-template-columns: 1fr !important;
@@ -786,7 +803,7 @@ export default function Landing() {
           }
         }
 
-        /* Mobile — stack feature carousel */
+        /* Mobile ,  stack feature carousel */
         @media (max-width: 640px) {
           div[style*="grid-template-columns: 1fr 1fr"]:has(h3) {
             grid-template-columns: 1fr !important;

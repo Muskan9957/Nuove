@@ -1,5 +1,6 @@
 const prisma    = require('../config/prisma');
 const aiService = require('../services/aiService');
+const { updateStreak, checkAndAwardBadges } = require('../services/badgeService');
 
 // ─── POST /api/coach/chat ─────────────────────────────────────────
 const chat = async (req, res, next) => {
@@ -70,7 +71,16 @@ const chat = async (req, res, next) => {
       data: { userId, role: 'assistant', content: reply },
     });
 
-    return res.json({ reply });
+    // Update streak for interacting with the coach and check for badges
+    const [newStreak, newBadges] = await Promise.all([
+      updateStreak(userId).catch(() => 0),
+      checkAndAwardBadges(userId).catch(() => []),
+    ]);
+
+    const response = { reply, newStreak };
+    if (newBadges.length > 0) response.newBadges = newBadges;
+
+    return res.json(response);
   } catch (err) {
     next(err);
   }

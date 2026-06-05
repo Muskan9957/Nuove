@@ -1,5 +1,6 @@
 const prisma    = require('../config/prisma');
 const aiService = require('../services/aiService');
+const { updateStreak } = require('../services/badgeService');
 
 // ─── POST /api/remix/generate ─────────────────────────────────────
 const generate = async (req, res, next) => {
@@ -26,13 +27,16 @@ const generate = async (req, res, next) => {
       }
     }
 
-    const result = await aiService.remixContent({
-      hook    : hook.trim(),
-      body    : body.trim(),
-      cta     : cta.trim(),
-      topic   : topic ? topic.trim() : hook.trim(),
-      language: language || 'en',
-    });
+    const [result, newStreak] = await Promise.all([
+      aiService.remixContent({
+        hook    : hook.trim(),
+        body    : body.trim(),
+        cta     : cta.trim(),
+        topic   : topic ? topic.trim() : hook.trim(),
+        language: language || 'en',
+      }),
+      updateStreak(req.user.id)
+    ]);
 
     return res.json({
       message : 'Content remixed successfully!',
@@ -40,6 +44,7 @@ const generate = async (req, res, next) => {
       linkedin: result.linkedin,
       youtube : result.youtube,
       caption : result.caption,
+      newStreak,
     });
   } catch (err) {
     next(err);

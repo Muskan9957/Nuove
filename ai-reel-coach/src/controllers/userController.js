@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma')
+const { updateStreak } = require('../services/badgeService');
 
 const VALID_LANGUAGES = ['en', 'hi', 'es', 'fr', 'pt']
 
@@ -71,4 +72,14 @@ const getBadges = async (req, res, next) => {
   }
 }
 
-module.exports = { getProfile, updateLanguage, getBadges }
+// ─── POST /api/user/streak/ping ─────────────────────────────────────
+const pingStreak = async (req, res, next) => {
+  try {
+    const newStreak = await updateStreak(req.user.id);
+    return res.json({ newStreak });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getProfile, updateLanguage, getBadges, pingStreak }
