@@ -19,6 +19,19 @@ const req = async (method, path, body) => {
 
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || data.errors?.[0]?.msg || 'Something went wrong')
+  
+  // Intercept streak updates globally
+  if (data.newStreak !== undefined) {
+    window.dispatchEvent(new CustomEvent('streak-updated', { detail: data.newStreak }))
+  }
+
+  // Intercept badge awards globally
+  if (data.newBadges !== undefined && Array.isArray(data.newBadges)) {
+    data.newBadges.forEach(badgeType => {
+      window.dispatchEvent(new CustomEvent('badge-earned', { detail: badgeType }))
+    })
+  }
+  
   return data
 }
 
@@ -121,6 +134,7 @@ export const api = {
   savePrefs:       (body)     => req('PATCH', '/user/prefs', body),
   generateAvatar:  (style)    => req('POST',  '/user/generate-avatar', { style }),
   saveAvatar:      (url)      => req('PATCH', '/user/avatar', { url }),
+  pingStreak:      ()         => req('POST',  '/user/streak/ping'),
 
   // Creator Voice (premium personalisation)
   getVoiceProfile:    ()          => req('GET',    '/user/voice'),

@@ -1,13 +1,14 @@
 const router     = require('express').Router()
 const axios      = require('axios')
 const { protect: auth } = require('../middleware/auth')
-const { getProfile, updateLanguage, getBadges } = require('../controllers/userController')
+const { getProfile, updateLanguage, getBadges, pingStreak } = require('../controllers/userController')
 const prisma     = require('../config/prisma')
 const aiService  = require('../services/aiService')
 
 router.get('/profile',      auth, getProfile)
 router.patch('/language',   auth, updateLanguage)
 router.get('/badges',       auth, getBadges)
+router.post('/streak/ping', auth, pingStreak)
 
 // ─── Creator Voice (premium personalisation) ──────────────────────
 

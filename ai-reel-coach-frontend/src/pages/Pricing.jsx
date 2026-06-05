@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -18,8 +18,8 @@ const PLANS = [
     cta:      'Get started free',
     ctaStyle: 'ghost',
     features: [
-      { text: '5 AI scripts / month',              ok: true  },
-      { text: '5 hook scores / month',             ok: true  },
+      { text: '10 AI scripts / month',             ok: true  },
+      { text: '10 hook scores / month',            ok: true  },
       { text: 'Scripts library',                   ok: true  },
       { text: 'Hook Library (browse)',             ok: true  },
       { text: 'General daily brief',               ok: true  },
@@ -84,40 +84,6 @@ const PLANS = [
   },
 ]
 
-const FAQS = [
-  {
-    q: 'Do I need a credit card to start?',
-    a: 'Nope! The Free plan is genuinely free with no strings attached. Just sign up with your email or Google account and you can start writing scripts right away. Your card details only come into play when you decide you want to upgrade.',
-  },
-  {
-    q: 'What happens when I hit the free plan limit?',
-    a: 'You get 5 scripts and 5 hook scores every month on the free plan. Once you reach that, the app will let you know and give you the option to upgrade. Nothing gets deleted and your whole script library stays safe. Think of it like a soft pause, not a hard stop.',
-  },
-  {
-    q: 'Who owns the content I create with Nuove?',
-    a: 'You own it, full stop. Every script, caption, and hook you generate is yours to use however you like. We do not claim any rights over your work and we never use your content for training models or share it with third parties.',
-  },
-  {
-    q: "What's the actual difference between Pro and Studio?",
-    a: 'Pro covers everything a solo creator needs day to day: unlimited scripts, your personalised daily brief, captions, the teleprompter, analytics, content calendar, and the creator coach. Studio goes further for power creators and brand accounts. On top of everything in Pro, you get Creator DNA (which learns your writing style), Content Remix for every platform, faster AI generation, deeper performance reports, and first access to new features before anyone else.',
-  },
-  {
-    q: 'Can I switch plans or cancel anytime?',
-    a: 'Yes, always. You can upgrade, downgrade, or cancel from your Profile page whenever you want. No phone calls, no annoying forms. If you upgrade, it kicks in straight away. If you downgrade or cancel, you keep your current plan until the billing period is up and then it steps down automatically.',
-  },
-  {
-    q: 'Does Nuove support Hindi, Hinglish, and regional languages?',
-    a: 'Absolutely. Just pick your preferred language in Settings before you generate and the AI will write in that language naturally. It is not just a translation of English output either. The AI is trained on real Indian creator content so it actually understands how Hinglish works, the rhythm of it, the way people actually speak.',
-  },
-  {
-    q: 'What payment methods do you accept?',
-    a: 'We use Razorpay for payments so you can pay with pretty much anything: UPI (GPay, PhonePe, Paytm), all major credit and debit cards (Visa, Mastercard, RuPay), net banking, or EMI. Everything goes through Razorpay\'s secure checkout so your payment details are never stored on our end.',
-  },
-  {
-    q: "I'm stuck or something isn't working. How do I get help?",
-    a: 'Hit the feedback button inside the app or drop us an email at support@nuove.in and we will get back to you. Pro users get priority support with a response within 24 hours. If you are on Studio, you get dedicated support and we aim to respond within 4 hours during business hours. We genuinely read every message.',
-  },
-]
 
 // ─── Load Razorpay script dynamically ─────────────────────────────
 function loadRazorpayScript() {
@@ -133,7 +99,6 @@ function loadRazorpayScript() {
 
 export default function Pricing() {
   const [annual, setAnnual]           = useState(false)
-  const [openFaq, setOpenFaq]         = useState(null)
   const [checkingOut, setCheckingOut] = useState(null)
   const { user, refreshUser }         = useAuth()
   const navigate                      = useNavigate()
@@ -521,63 +486,6 @@ export default function Pricing() {
       </div>
 
 
-      {/* FAQ */}
-      <div style={{ maxWidth: 640, margin: '0 auto 72px' }}>
-        <h2 style={{
-          fontFamily: 'var(--font-head)',
-          fontSize: '1.8rem',
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
-          color: 'var(--text)',
-          textAlign: 'center',
-          marginBottom: 32,
-        }}>
-          Questions? Answered.
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {FAQS.map((f, i) => (
-            <div
-              key={i}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                overflow: 'hidden',
-                transition: 'border-color 0.2s',
-                borderColor: openFaq === i ? 'var(--border-bright)' : 'var(--border)',
-              }}
-            >
-              <button
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                style={{
-                  width: '100%', padding: '18px 20px',
-                  background: 'transparent', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  cursor: 'pointer', fontFamily: 'var(--font-body)',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.9rem' }}>{f.q}</span>
-                <span style={{
-                  color: openFaq === i ? 'var(--accent)' : 'var(--text-faint)',
-                  fontSize: '1.2rem',
-                  transform: openFaq === i ? 'rotate(45deg)' : 'none',
-                  transition: 'transform 0.2s ease, color 0.2s ease',
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}>
-                  +
-                </span>
-              </button>
-              {openFaq === i && (
-                <div style={{ padding: '0 20px 18px' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.7 }}>{f.a}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Bottom CTA */}
       <div style={{

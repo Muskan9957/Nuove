@@ -27,6 +27,7 @@ import Scripts from './pages/Scripts'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import Terms from './pages/Terms'
 import Record from './pages/Record'
+import Support from './pages/Support'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -93,6 +94,7 @@ export default function App() {
                 <Route path="/coach"        element={<Protected><Coach /></Protected>} />
                 <Route path="/profile"      element={<Protected><Profile /></Protected>} />
                 <Route path="/record"       element={<Protected><Record /></Protected>} />
+                <Route path="/support"      element={<Protected><Support /></Protected>} />
                 <Route path="/reel-ready"   element={<Navigate to="/dashboard" replace />} />
                 <Route path="/creator-dna"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="/my-voice"     element={<Navigate to="/dashboard" replace />} />

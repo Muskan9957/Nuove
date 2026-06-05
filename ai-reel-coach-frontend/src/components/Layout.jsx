@@ -127,6 +127,14 @@ const IconLogout = ({ size = 16 }) => (
   </svg>
 )
 
+const SupportIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+)
+
 const ReelLogoIcon = () => (
   <svg width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     {/* V / Wings */}
@@ -162,6 +170,7 @@ const NAV_CONFIG = [
   { to: '/trending',    icon: TrendIcon,       labelKey: 'nav_trending'    },
   { to: '/performance', icon: IconPerformance, labelKey: 'nav_performance' },
   { to: '/calendar',    icon: CalendarIcon,    labelKey: 'nav_calendar'    },
+  { to: '/support',     icon: SupportIcon,     labelKey: 'nav_support'     },
 ]
 
 // Bottom nav: top 4 core items + Coach (most important for retention)
@@ -174,6 +183,18 @@ const MOBILE_NAV_CONFIG = [
 
 const planColors = { FREE: '#4A5C8A', STARTER: '#00C9A7', PRO: '#00C8FF' }
 
+const BADGE_META = {
+  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script', desc: 'Generate your first script using the Script Generator' },
+  SCRIPTS_5:    { emoji: '🔥', label: '5 Scripts', desc: 'Generate 5 scripts in total' },
+  SCRIPTS_15:   { emoji: '📚', label: '15 Scripts', desc: 'Generate 15 scripts in total' },
+  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts', desc: 'Generate 50 scripts in total' },
+  STREAK_5:     { emoji: '🏃', label: '5-Day Streak', desc: 'Maintain a 5-day daily active streak' },
+  STREAK_15:    { emoji: '⚡', label: '15-Day Streak', desc: 'Maintain a 15-day daily active streak' },
+  STREAK_30:    { emoji: '👑', label: '30-Day Streak', desc: 'Maintain a 30-day daily active streak' },
+  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook', desc: 'Get a hook score of 90 or higher on any hook' },
+  ANALYZER_5:   { emoji: '📊', label: '5 Analyses', desc: 'Analyze at least 5 video performance logs' },
+}
+
 /* ─── Layout Component ───────────────────────────────────────────── */
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
@@ -181,6 +202,30 @@ export default function Layout({ children }) {
   const navigate         = useNavigate()
   const isMobile         = useIsMobile()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [streakHype, setStreakHype] = useState(null)
+  const [badgeHype, setBadgeHype] = useState(null)
+
+  useEffect(() => {
+    const handleStreak = (e) => {
+      const newStreak = e.detail;
+      if (newStreak > 0 && newStreak % 5 === 0) {
+        setStreakHype(newStreak);
+      }
+    }
+    const handleBadge = (e) => {
+      const type = e.detail;
+      const meta = BADGE_META[type];
+      if (meta) {
+        setBadgeHype({ type, ...meta });
+      }
+    }
+    window.addEventListener('streak-updated', handleStreak);
+    window.addEventListener('badge-earned', handleBadge);
+    return () => {
+      window.removeEventListener('streak-updated', handleStreak);
+      window.removeEventListener('badge-earned', handleBadge);
+    }
+  }, []);
 
   const handleLogout = () => { logout(); navigate('/') }
   const location     = useLocation()
@@ -198,6 +243,93 @@ export default function Layout({ children }) {
 
   return (
     <div style={styles.root}>
+      {streakHype && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)'
+        }} onClick={() => setStreakHype(null)}>
+          <style>{`
+            @keyframes streakPop {
+              0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+              100% { transform: scale(1) translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, var(--surface), var(--surface2))', padding: '40px', borderRadius: '24px',
+              textAlign: 'center', border: '1px solid var(--border)', boxShadow: '0 0 40px rgba(225,48,108,0.3)',
+              animation: 'streakPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>🔥</div>
+            <h2 style={{ margin: '0 0 10px 0', fontSize: '2.5rem', fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg, #FCAF45, #E1306C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              {streakHype} Day Streak!
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', margin: '0 0 24px 0' }}>
+              You're on fire! Keep generating to maintain your streak.
+            </p>
+            <button 
+              onClick={() => setStreakHype(null)}
+              style={{ background: 'linear-gradient(135deg, #FCAF45, #E1306C)', border: 'none', padding: '14px 36px', borderRadius: '12px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 4px 15px rgba(225,48,108,0.4)', transition: 'transform 0.15s ease' }}
+              onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              Awesome!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {badgeHype && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)'
+        }} onClick={() => setBadgeHype(null)}>
+          <style>{`
+            @keyframes badgePop {
+              0% { transform: scale(0.8) translateY(30px); opacity: 0; }
+              100% { transform: scale(1) translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, var(--surface), var(--surface2))', padding: '40px 32px', borderRadius: '24px',
+              textAlign: 'center', border: '2px solid var(--accent)', boxShadow: '0 0 50px rgba(255,140,0,0.35)',
+              animation: 'badgePop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              maxWidth: 420, width: '90%', position: 'relative', overflow: 'hidden'
+            }}>
+            {/* Background glow */}
+            <div style={{ position: 'absolute', top: -50, left: -50, right: -50, bottom: -50, background: 'radial-gradient(circle, rgba(255,140,0,0.15) 0%, transparent 60%)', zIndex: 0, pointerEvents: 'none' }} />
+            
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: '5rem', marginBottom: '16px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}>{badgeHype.emoji}</div>
+              <h2 style={{ margin: '0 0 8px 0', fontSize: '2rem', fontWeight: 900, color: '#fff', background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                Badge Unlocked!
+              </h2>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)' }}>
+                {badgeHype.label}
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: '0 0 28px 0', lineHeight: 1.5 }}>
+                {badgeHype.desc}
+              </p>
+              <button 
+                onClick={() => setBadgeHype(null)}
+                style={{ 
+                  background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)', border: 'none', 
+                  padding: '12px 36px', borderRadius: '12px', color: '#fff', fontWeight: 800, 
+                  cursor: 'pointer', fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(255,45,111,0.4)', 
+                  transition: 'transform 0.15s ease' 
+                }}
+                onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Awesome, Let's Go!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       {!isMobile && (

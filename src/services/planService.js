@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 
 const LIMITS = {
-  FREE   : 5,
+  FREE   : 10,
   STARTER: 50,
   PRO    : Infinity,
 };

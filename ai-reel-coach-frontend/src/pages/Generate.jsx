@@ -1,10 +1,11 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { useLang } from '../i18n.jsx'
 import { MicButton, SpeakButton } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
+import { usePersistentState } from '../hooks/usePersistentState'
 
 import { detectAndSaveRegion, getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 
@@ -47,7 +48,7 @@ export default function Generate() {
   const resultRef  = useRef(null)
   const { primaryNiche } = usePrefs()
 
-  const [form, setForm] = useState({
+  const [form, setForm] = usePersistentState('arc_gen_form', {
     topic:      '',
     niche:      primaryNiche,
     tone:       'motivational',
@@ -67,7 +68,7 @@ export default function Generate() {
   const [loading, setLd]            = useState(false)
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
-  const [result, setResult]         = useState(null)
+  const [result, setResult]         = usePersistentState('arc_gen_result', null)
   const [copied, setCopied]         = useState(false)
   const [micInterim, setMicInterim] = useState('')
   const [voiceProfile, setVoiceProfile] = useState(null)
@@ -125,11 +126,11 @@ export default function Generate() {
   }
 
   // Refinement / re-roll state
-  const [versions, setVersions]       = useState([])
-  const [activeVer, setActiveVer]     = useState(0)
+  const [versions, setVersions]       = usePersistentState('arc_gen_versions', [])
+  const [activeVer, setActiveVer]     = usePersistentState('arc_gen_activeVer', 0)
   const [refining, setRefining]       = useState(false)
   const [rerolling, setRerolling]     = useState(false)
-  const [rerollCount, setRerollCount] = useState(0)   // free retakes used (max 5 per topic)
+  const [rerollCount, setRerollCount] = usePersistentState('arc_gen_rerolls', 0)   // free retakes used (max 5 per topic)
   const MAX_RETAKES = 5
   const refineRef   = useRef(null)
   const prevLangRef = useRef(lang)
@@ -183,11 +184,17 @@ export default function Generate() {
         tone:       location.state?.tone       || f.tone,
         scriptLang: location.state?.language   || f.scriptLang,
       }))
+      setResult(null)
+      setVersions([])
+      setActiveVer(0)
       window.history.replaceState({}, document.title)
     } else {
       const stored = localStorage.getItem('arc_prefill_topic')
       if (stored) {
         setForm(f => ({ ...f, topic: stored }))
+        setResult(null)
+        setVersions([])
+        setActiveVer(0)
         localStorage.removeItem('arc_prefill_topic')
       }
     }
@@ -273,6 +280,9 @@ export default function Generate() {
             } else if (event.type === 'script') {
               setStreaming(false)
               setResult({ script: event.data, usage: event.usage, newBadges: event.newBadges })
+              if (event.newStreak !== undefined) {
+                window.dispatchEvent(new CustomEvent('streak-updated', { detail: event.newStreak }))
+              }
               setVersions([{ ...event.data, label: 'v1 · Original' }])
               setActiveVer(0)
             } else if (event.type === 'extras') {
@@ -633,7 +643,7 @@ export default function Generate() {
                   ? <><span className="spinner" /> Generating…</>
                   : rerollCount >= MAX_RETAKES
                     ? '↺ No retakes left'
-                    : <>↺ Try another take <span style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.65 }}>({MAX_RETAKES - rerollCount} left)</span></>}
+                    : <>↺ Try another take</>}
               </button>
               {/* Secondary: clear and start a new topic */}
               <button

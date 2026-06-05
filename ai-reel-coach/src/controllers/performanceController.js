@@ -40,7 +40,7 @@ const analyze = async (req, res, next) => {
     });
 
     // Update streak and check for new badges
-    await updateStreak(req.user.id);
+    const newStreak = await updateStreak(req.user.id);
     const newBadges = await checkAndAwardBadges(req.user.id);
 
     const response = {
@@ -51,6 +51,7 @@ const analyze = async (req, res, next) => {
         feedback,
         loggedAt: log.createdAt,
       },
+      newStreak,
     };
 
     if (newBadges.length > 0) {

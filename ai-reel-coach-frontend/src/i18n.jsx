@@ -1,4 +1,4 @@
-﻿export const translations = {
+export const translations = {
   en: {
     nav_dashboard: 'Dashboard',
     nav_generate: 'Generate',
@@ -14,6 +14,7 @@
     nav_my_voice: 'Creator DNA',
     nav_record: 'Record',
     nav_hooks: 'Hook Library',
+    nav_support: 'Support',
 
     // ── Landing page ────────────────────────────────────────────
     landing_signin: 'Sign In',
@@ -25,7 +26,7 @@
     landing_cta_primary: 'Start for Free →',
     landing_cta_secondary: 'See how it works ↓',
     landing_hero_h1: "Create content\nthat moves people.",
-    landing_hero_sub: "Nuove gives every creator the AI tools to write viral scripts, analyze hooks, and stay ahead of trends effortlessly.",
+    landing_hero_sub: "Create the kind of content that earns attention, builds audiences, and grows careers.",
     landing_hero_btn: "Start for free →",
     landing_hero_signin: "Sign In",
     landing_feat_eyebrow: "What Nuove does",
@@ -382,6 +383,7 @@
     nav_coach: 'Creator Advisor',
     nav_my_voice: 'Creator DNA',
     nav_record: 'रिकॉर्ड',
+    nav_support: 'सहायता',
 
     // ── Landing page ────────────────────────────────────────────
     landing_signin: 'साइन इन',
@@ -393,7 +395,7 @@
     landing_cta_primary: 'मुफ़्त शुरू करें →',
     landing_cta_secondary: 'कैसे काम करता है ↓',
     landing_hero_h1: "ऐसा कंटेंट बनाएं\nजो लोगों को जोड़ दे।",
-    landing_hero_sub: "Nuove हर क्रिएटर को AI टूल्स देता है ताकि वे वायरल स्क्रिप्ट्स लिख सकें, हुक्स को एनालाइज़ कर सकें, और ट्रेंड्स में आगे रह सकें, बिना किसी मेहनत के।",
+    landing_hero_sub: "ऐसा कंटेंट बनाएं जो ध्यान खींचे, दर्शक बनाए, और करियर को आगे बढ़ाए।",
     landing_hero_btn: "मुफ़्त में शुरू करें →",
     landing_hero_signin: "साइन इन",
     landing_feat_eyebrow: "Nuove क्या करता है",

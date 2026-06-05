@@ -1,5 +1,185 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
+import { api } from '../api'
+import { usePersistentState } from '../hooks/usePersistentState'
+
+/* ─────────────── shared helpers ─────────────── */
+const fmtTime = (s) => {
+  if (!isFinite(s) || isNaN(s)) s = 0
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  const ds = Math.round((s % 1) * 10)
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${ds}`
+}
+
+/* ─────────────── TrimBar ─────────────── */
+function TrimBar({ blob, totalSecs, trimStart, trimEnd, onTrimChange }) {
+  const [thumbs, setThumbs] = useState([])
+  const stripRef = useRef(null)
+  const dragRef  = useRef(null)
+  const N = 14
+
+  // Extract thumbnail frames from blob
+  useEffect(() => {
+    if (!blob || !totalSecs || totalSecs <= 0 || !isFinite(totalSecs)) return
+    let cancelled = false
+    const run = async () => {
+      const vid = document.createElement('video')
+      vid.muted = true
+      vid.preload = 'auto'
+      const url = URL.createObjectURL(blob)
+      vid.src = url
+      await new Promise(r => vid.addEventListener('loadedmetadata', r, { once: true }))
+      if (cancelled) { URL.revokeObjectURL(url); return }
+      const dur = isFinite(vid.duration) ? vid.duration : totalSecs
+      const cvs = document.createElement('canvas')
+      cvs.width = 120; cvs.height = 68
+      const ctx = cvs.getContext('2d')
+      const out = []
+      for (let i = 0; i < N; i++) {
+        if (cancelled) break
+        vid.currentTime = (dur * i) / Math.max(N - 1, 1)
+        await new Promise(r => vid.addEventListener('seeked', r, { once: true }))
+        ctx.drawImage(vid, 0, 0, 120, 68)
+        out.push(cvs.toDataURL('image/jpeg', 0.6))
+      }
+      URL.revokeObjectURL(url)
+      if (!cancelled) setThumbs(out)
+    }
+    run().catch(() => {})
+    return () => { cancelled = true }
+  }, [blob, totalSecs])
+
+  const total = totalSecs > 0 ? totalSecs : 1
+  const pctS  = Math.max(0, Math.min(100, (trimStart / total) * 100))
+  const pctE  = Math.max(0, Math.min(100, (trimEnd   / total) * 100))
+
+  const startDrag = (which, ev) => {
+    ev.preventDefault()
+    dragRef.current = which
+    const onMove = (e) => {
+      const cx   = e.touches ? e.touches[0].clientX : e.clientX
+      const rect = stripRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
+      const secs = Math.round(pct * total * 10) / 10
+      if (dragRef.current === 'start') {
+        onTrimChange('start', Math.min(secs, trimEnd - 0.3))
+      } else {
+        onTrimChange('end',   Math.max(secs, trimStart + 0.3))
+      }
+    }
+    const onUp = () => {
+      dragRef.current = null
+      document.removeEventListener('mousemove',  onMove)
+      document.removeEventListener('mouseup',    onUp)
+      document.removeEventListener('touchmove',  onMove)
+      document.removeEventListener('touchend',   onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup',   onUp)
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend',  onUp)
+  }
+
+  const Handle = ({ side }) => {
+    const isPct = side === 'start' ? pctS : pctE
+    return (
+      <div
+        onMouseDown={e => startDrag(side, e)}
+        onTouchStart={e => startDrag(side, e)}
+        style={{
+          position: 'absolute', left: `${isPct}%`, top: 0, bottom: 0,
+          width: 22, transform: 'translateX(-50%)',
+          background: '#E1306C', cursor: 'ew-resize', zIndex: 6,
+          borderRadius: side === 'start' ? '6px 0 0 6px' : '0 6px 6px 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(225,48,108,0.5)',
+          touchAction: 'none',
+        }}
+      >
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            width: 2, height: 14, borderRadius: 2,
+            background: 'rgba(255,255,255,0.9)',
+            margin: '0 1px',
+          }} />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      {/* Strip */}
+      <div ref={stripRef} style={{
+        position: 'relative', height: 76, width: '100%',
+        overflow: 'hidden', borderRadius: 10,
+        background: '#0a0a0a', cursor: 'default',
+        touchAction: 'none'
+      }}>
+        {/* Thumbnail frames */}
+        <div style={{ display: 'flex', height: '100%', gap: 1 }}>
+          {thumbs.length > 0
+            ? thumbs.map((url, i) => (
+                <img key={i} src={url} alt=""
+                  style={{ flex: 1, height: '100%', objectFit: 'cover', minWidth: 0, display: 'block' }}
+                />
+              ))
+            : Array.from({ length: N }).map((_, i) => (
+                <div key={i} style={{
+                  flex: 1, height: '100%',
+                  background: `hsl(0,0%,${10 + (i % 2) * 5}%)`,
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                }} />
+              ))
+          }
+        </div>
+        {/* Left dark region */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0,
+          width: `${pctS}%`, background: 'rgba(0,0,0,0.68)',
+          pointerEvents: 'none',
+        }} />
+        {/* Right dark region */}
+        <div style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0,
+          width: `${100 - pctE}%`, background: 'rgba(0,0,0,0.68)',
+          pointerEvents: 'none',
+        }} />
+        {/* Selection border */}
+        <div style={{
+          position: 'absolute', pointerEvents: 'none',
+          left: `${pctS}%`, width: `${pctE - pctS}%`,
+          top: 0, bottom: 0,
+          border: '3px solid #E1306C',
+          boxSizing: 'border-box',
+        }} />
+        {/* Handles */}
+        <Handle side="start" />
+        <Handle side="end" />
+      </div>
+
+      {/* Time labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Start</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(trimStart)}</div>
+        </div>
+        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          ✂️ {fmtTime(trimEnd - trimStart)} selected
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>End</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(trimEnd)}</div>
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: 2 }}>
+        Drag the pink handles · Total: {fmtTime(totalSecs)}
+      </div>
+    </div>
+  )
+}
 
 /* ─────────────────── constants ─────────────────── */
 const SPEEDS = [
@@ -82,8 +262,8 @@ const FILTERS = [
 /* ─────────────────── component ─────────────────── */
 export default function Record() {
   // script
-  const [script,     setScript]     = useState(() => sessionStorage.getItem('rc_script') || '')
-  const [editing,    setEditing]    = useState(false)
+  const [script,     setScript]     = usePersistentState('rc_script', '')
+  const [editing,    setEditing]    = usePersistentState('rc_editing', false)
 
   // settings
   const [speedIdx,   setSpeedIdx]   = useState(2)   // default speed 3
@@ -104,10 +284,11 @@ export default function Record() {
 
   // recording
   const [outputBlob, setOutputBlob] = useState(null)
+  const [outputUrl,  setOutputUrl]  = useState(null)
   const [outputExt,  setOutputExt]  = useState('mp4')
   const [trimStart,  setTrimStart]  = useState(0)    // seconds
   const [trimEnd,    setTrimEnd]    = useState(0)    // seconds (0 = full)
-  const [trimming,   setTrimming]   = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [processing, setProcessing] = useState(false) // true while WebCodecs flushes after stop
 
   // refs
@@ -122,6 +303,20 @@ export default function Record() {
   const timerRef      = useRef(null)
   const countdownRef  = useRef(null)
   const canvasLoopRef = useRef(false)
+  const doneVideoRef  = useRef(null)
+  const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
+
+  // Keep preview video in sync with the trim start position
+  useEffect(() => {
+    if (phase === 'done' && doneVideoRef.current) {
+      // Pause to avoid playback while scrubbing
+      doneVideoRef.current.pause()
+      // Clamp to video duration (if known)
+      const dur = doneVideoRef.current.duration || 0
+      const clamped = Math.min(trimStart, dur)
+      doneVideoRef.current.currentTime = clamped
+    }
+  }, [trimStart, phase])
 
   /* ── start camera ── */
   const startCamera = useCallback(async (facing = facingMode) => {
@@ -208,309 +403,125 @@ export default function Record() {
     const stream = streamRef.current
     if (!stream) return
 
-    // Create canvas to process frames & apply CSS filters + mirror state directly to the output video
+    // Canvas draws the filtered + mirrored camera output
     const canvas = document.createElement('canvas')
     canvas.width = 1280
     canvas.height = 720
     const ctx = canvas.getContext('2d')
 
-    const hasWebCodecs = typeof VideoEncoder !== 'undefined' && 
-                         typeof AudioEncoder !== 'undefined' && 
-                         typeof MediaStreamTrackProcessor !== 'undefined';
-
-    const recordingStartTime = performance.now();
-
-    if (hasWebCodecs) {
-      try {
-        const audioTrack = stream.getAudioTracks()[0];
-        
-        // 1. Initialize Muxer
-        const muxerOptions = {
-          target: new ArrayBufferTarget(),
-          video: {
-            codec: 'avc',
-            width: 1280,
-            height: 720
-          },
-          fastStart: 'in-memory'
-        };
-        if (audioTrack) {
-          muxerOptions.audio = {
-            codec: 'aac',
-            numberOfChannels: 1,
-            sampleRate: 44100
-          };
-        }
-        const muxer = new Muxer(muxerOptions);
-
-        // 2. Configure Encoders
-        const videoEncoder = new VideoEncoder({
-          output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-          error: (e) => console.error("VideoEncoder error:", e)
-        });
-        videoEncoder.configure({
-          codec: 'avc1.42E01E', // Baseline profile
-          width: 1280,
-          height: 720,
-          bitrate: 2_500_000,
-          framerate: 30
-        });
-
-        let audioEncoder = null;
-        let audioReader = null;
-        let firstAudioTimestamp = null;
-
-        if (audioTrack) {
-          audioEncoder = new AudioEncoder({
-            output: (chunk, meta) => {
-              if (firstAudioTimestamp === null) return;
-              const relativeTimestamp = chunk.timestamp - firstAudioTimestamp;
-              const buffer = new ArrayBuffer(chunk.byteLength);
-              chunk.copyTo(buffer);
-              const newChunk = new EncodedAudioChunk({
-                type: chunk.type,
-                data: buffer,
-                timestamp: Math.max(0, relativeTimestamp),
-                duration: chunk.duration
-              });
-              muxer.addAudioChunk(newChunk, meta);
-            },
-            error: (e) => console.error("AudioEncoder error:", e)
-          });
-          audioEncoder.configure({
-            codec: 'mp4a.40.2', // AAC-LC
-            numberOfChannels: 1,
-            sampleRate: 44100,
-            bitrate: 128000
-          });
-
-          // Process microphone audio track
-          const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
-          audioReader = audioProcessor.readable.getReader();
-          const processAudio = async () => {
-            try {
-              while (canvasLoopRef.current) {
-                const { done, value: audioData } = await audioReader.read();
-                if (done) break;
-                if (!canvasLoopRef.current) {
-                  audioData.close();
-                  break;
-                }
-                if (firstAudioTimestamp === null) {
-                  firstAudioTimestamp = audioData.timestamp;
-                }
-                if (audioEncoder && audioEncoder.state === 'configured') {
-                  audioEncoder.encode(audioData);
-                }
-                audioData.close();
-              }
-            } catch (err) {
-              console.error("Audio reader error:", err);
-            }
-          };
-          processAudio();
-        }
-
-        // 3. Canvas capture loop
-        let lastFrameTime = 0;
-        let framesSent = 0;
-
-        canvasLoopRef.current = true;
-        const drawFrame = () => {
-          if (!canvasLoopRef.current) return;
-
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.filter = activeFilter;
-
-          ctx.save();
-          if (mirror) {
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-          }
-
-          const src = hiddenVideoRef.current;
-          if (src && src.readyState >= 2 && !src.paused) {
-            ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
-          }
-          ctx.restore();
-
-          const now = performance.now();
-          if (now - lastFrameTime >= 32.5) {
-            lastFrameTime = now;
-            const timestamp = (now - recordingStartTime) * 1000;
-            const frame = new VideoFrame(canvas, { timestamp });
-            if (videoEncoder.state === 'configured') {
-              videoEncoder.encode(frame, { keyFrame: framesSent % 60 === 0 });
-            }
-            frame.close();
-            framesSent++;
-          }
-
-          requestAnimationFrame(drawFrame);
-        };
-        requestAnimationFrame(drawFrame);
-
-        // Helper: flush with a timeout so encoder can't hang UI forever
-        const flushWithTimeout = (encoder, ms = 8000) =>
-          Promise.race([
-            encoder.flush(),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('flush timeout')), ms))
-          ]);
-
-        // Save reference to stop recording
-        recorderRef.current = {
-          stop: async () => {
-            canvasLoopRef.current = false;
-            const actualElapsed = (performance.now() - recordingStartTime) / 1000;
-
-            try {
-              if (audioReader) {
-                await audioReader.cancel().catch(() => {});
-              }
-
-              await flushWithTimeout(videoEncoder);
-              if (audioEncoder) {
-                await flushWithTimeout(audioEncoder);
-              }
-
-              muxer.finalize();
-
-              const buffer = muxer.target.buffer;
-              const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
-
-              setOutputBlob(mp4Blob);
-              setOutputExt('mp4');
-            } catch (err) {
-              console.error('WebCodecs finalize error, falling back to partial blob:', err);
-              // Still try to finalize whatever we have
-              try {
-                muxer.finalize();
-                const buffer = muxer.target.buffer;
-                if (buffer && buffer.byteLength > 0) {
-                  const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
-                  setOutputBlob(mp4Blob);
-                  setOutputExt('mp4');
-                }
-              } catch (e2) {
-                console.error('Muxer finalize also failed:', e2);
-              }
-            } finally {
-              setTrimStart(0);
-              setTrimEnd(Math.round(actualElapsed));
-              setPhase('done');
-              stopScroll();
-              clearInterval(timerRef.current);
-            }
-          }
-        };
-
-        setPhase('recording');
-        setElapsed(0);
-        setScrolling(true);
-        timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
-        startScroll();
-        return; // Success! WebCodecs path configured.
-
-      } catch (err) {
-        console.warn("WebCodecs config failed, falling back to MediaRecorder:", err);
+    // Draw loop — applies CSS filter + mirror to every frame
+    canvasLoopRef.current = true
+    const drawFrame = () => {
+      if (!canvasLoopRef.current) return
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.filter = activeFilter
+      ctx.save()
+      if (mirror) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
+      const src = hiddenVideoRef.current
+      if (src && src.readyState >= 2 && !src.paused) {
+        ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
       }
+      ctx.restore()
+      requestAnimationFrame(drawFrame)
+    }
+    requestAnimationFrame(drawFrame)
+
+    // Capture the canvas as a stream and mix in the microphone audio
+    const canvasStream = canvas.captureStream(30)
+    const audioTrack   = stream.getAudioTracks()[0]
+    const tracks = [...canvasStream.getVideoTracks()]
+    if (audioTrack) tracks.push(audioTrack)
+    const combinedStream = new MediaStream(tracks)
+
+    // Pick the best available MIME type
+    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
+
+    chunksRef.current = []
+    const rec = new MediaRecorder(combinedStream, { mimeType: mime })
+    recorderRef.current = rec
+
+    rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
+
+    rec.onstop = () => {
+      canvasLoopRef.current = false
+
+      const rawBlob = new Blob(chunksRef.current, { type: mime })
+      const capturedElapsed = elapsedRef.current
+
+      // Fix seekability: WebM blobs from MediaRecorder have duration=Infinity
+      // Seeking to a huge time forces the browser to calculate the real duration
+      const tempVid = document.createElement('video')
+      tempVid.muted = true
+      const url = URL.createObjectURL(rawBlob)
+      tempVid.src = url
+
+      const finish = () => {
+        // By keeping the object URL, the browser remembers the duration we forced it to calculate
+        setOutputUrl(url)
+        setOutputBlob(rawBlob)
+        setOutputExt('webm')
+        setTrimStart(0)
+        setTrimEnd(capturedElapsed)
+        setProcessing(false)
+        setPhase('done')
+        stopScroll()
+        clearInterval(timerRef.current)
+        
+        // Ping streak when recording finishes
+        api.pingStreak().catch(console.error)
+      }
+
+      tempVid.addEventListener('loadedmetadata', function onMeta() {
+        tempVid.removeEventListener('loadedmetadata', onMeta)
+        if (tempVid.duration === Infinity || isNaN(tempVid.duration)) {
+          tempVid.currentTime = 1e10
+          tempVid.addEventListener('timeupdate', function onTime() {
+            tempVid.removeEventListener('timeupdate', onTime)
+            tempVid.currentTime = 0
+            finish()
+          }, { once: true })
+        } else {
+          finish()
+        }
+      }, { once: true })
+
+      // Fallback: if metadata never fires (e.g. empty recording), still transition
+      setTimeout(() => {
+        if (!outputBlob) {
+          finish()
+        }
+      }, 4000)
     }
 
-    // Fallback using MediaRecorder
-    const canvasStream = canvas.captureStream(30);
-    const videoTrack = canvasStream.getVideoTracks()[0];
-    const audioTrack = stream.getAudioTracks()[0];
-
-    const combinedTracks = [videoTrack];
-    if (audioTrack) combinedTracks.push(audioTrack);
-    const combinedStream = new MediaStream(combinedTracks);
-
-    canvasLoopRef.current = true;
-    const drawFrameFallback = () => {
-      if (!canvasLoopRef.current) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.filter = activeFilter;
-
-      ctx.save();
-      if (mirror) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
-
-      const src = hiddenVideoRef.current;
-      if (src && src.readyState >= 2 && !src.paused) {
-        ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
-      }
-      ctx.restore();
-
-      requestAnimationFrame(drawFrameFallback);
-    };
-    requestAnimationFrame(drawFrameFallback);
-
-    chunksRef.current = [];
-    const MIMES = ['video/mp4;codecs=h264,aac', 'video/webm;codecs=vp9,opus', 'video/webm'];
-    const mime = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-    const rec = new MediaRecorder(combinedStream, { mimeType: mime });
-    
-    recorderRef.current = rec;
-    rec.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) };
-    rec.onstop = () => {
-      canvasLoopRef.current = false;
-      const blob = new Blob(chunksRef.current, { type: mime });
-      // Fix seekability
-      const tempVid = document.createElement('video');
-      tempVid.muted = true;
-      const url = URL.createObjectURL(blob);
-      tempVid.src = url;
-      tempVid.addEventListener('loadedmetadata', function onMeta() {
-        tempVid.removeEventListener('loadedmetadata', onMeta);
-        const fix = () => {
-          URL.revokeObjectURL(url);
-          const actualElapsed = (performance.now() - recordingStartTime) / 1000;
-          setOutputBlob(blob);
-          setOutputExt(mime.includes('mp4') ? 'mp4' : 'webm');
-          setTrimStart(0);
-          setTrimEnd(Math.round(actualElapsed));
-          setPhase('done');
-          stopScroll();
-          clearInterval(timerRef.current);
-        };
-        if (tempVid.duration === Infinity || isNaN(tempVid.duration)) {
-          tempVid.currentTime = 1e10;
-          tempVid.addEventListener('timeupdate', function onTime() {
-            tempVid.removeEventListener('timeupdate', onTime);
-            tempVid.currentTime = 0;
-            fix();
-          }, { once: true });
-        } else {
-          fix();
-        }
-      });
-    };
-
-    rec.start(100);
-    setPhase('recording');
-    setElapsed(0);
-    setScrolling(true);
-    timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
-    startScroll();
+    rec.start(250) // chunk every 250ms
+    elapsedRef.current = 0
+    setPhase('recording')
+    setElapsed(0)
+    setScrolling(true)
+    timerRef.current = setInterval(() => {
+      elapsedRef.current += 1
+      setElapsed(e => e + 1)
+    }, 1000)
+    startScroll()
   }
 
   const stopRecording = () => {
     canvasLoopRef.current = false
     clearInterval(timerRef.current)
     stopScroll()
-    setProcessing(true) // show spinner immediately
-    // stop() may be async (WebCodecs path) or sync (MediaRecorder fallback)
-    // We fire-and-forget but errors are caught inside stop() itself
-    Promise.resolve(recorderRef.current?.stop()).catch(err => {
-      console.error('stopRecording error:', err)
-      // Force done state if stop() itself throws unexpectedly
-      setPhase('done')
-    }).finally(() => {
-      setProcessing(false)
-    })
+    setProcessing(true)
+    // Works for both native MediaRecorder and our custom async WebCodecs stop
+    const result = recorderRef.current?.stop()
+    if (result && typeof result.then === 'function') {
+      // WebCodecs async stop — processing spinner shown until done phase is set
+      result.catch(err => {
+        console.error('stopRecording error:', err)
+        setProcessing(false)
+        setPhase('done')
+      })
+    }
+    // For native MediaRecorder, stop() is sync — onstop callback handles phase transition
   }
 
   const toggleScrollPause = () => {
@@ -535,12 +546,31 @@ export default function Record() {
     // scrolling ref used inside rAF ,  handled by re-reading state flag
   }, [scrolling])
 
-  const download = () => {
-    if (!outputBlob) return
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(outputBlob)
-    a.download = `nuove-recording.${outputExt}`
-    a.click()
+  const handleDownload = async () => {
+    if (!outputBlob || downloading) return
+    
+    // If no trim is needed, download immediately
+    if (trimStart === 0 && (trimEnd === 0 || trimEnd >= elapsed - 0.5)) {
+      const a = document.createElement('a')
+      a.href = outputUrl
+      a.download = `nuove-recording.${outputExt}`
+      a.click()
+      return
+    }
+
+    setDownloading(true)
+    try {
+      const trimmedBlob = await executeTrim()
+      const url = URL.createObjectURL(trimmedBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nuove-recording.webm`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch (e) {
+      console.error(e)
+    }
+    setDownloading(false)
   }
 
   /* ── make blob seekable so slider + duration work in browser & media players ── */
@@ -563,256 +593,108 @@ export default function Record() {
     })
   })
 
-  /* ── trim video using canvas frame extraction ── */
-  const handleTrim = async () => {
-    if (!outputBlob || trimming) return
-    setTrimming(true)
+  /* ── trim video using canvas re-encode ── */
+  const executeTrim = () => new Promise(async (resolve) => {
+    if (!outputBlob) return resolve(outputBlob)
 
+    const srcUrl = URL.createObjectURL(outputBlob)
     const tempVideo = document.createElement('video')
-    // Set volume to 0 (mute output, but MediaElementAudioSourceNode still captures it)
-    tempVideo.volume = 0
-    tempVideo.src = URL.createObjectURL(outputBlob)
+    tempVideo.src = srcUrl
+    // IMPORTANT: do NOT set volume=0 — the AudioContext needs the element to be unmuted
+    // We mute it via the sink instead (the audio goes into the AudioContext, not speakers)
+    tempVideo.muted = false
+    tempVideo.volume = 1
 
     await new Promise(r => tempVideo.addEventListener('loadedmetadata', r, { once: true }))
-
-    const duration = tempVideo.duration
-    const start = trimStart
-    const end   = trimEnd > 0 && trimEnd < duration ? trimEnd : duration
+    const duration = isFinite(tempVideo.duration) ? tempVideo.duration : (trimEnd || elapsed)
+    const start = Math.max(0, trimStart)
+    const end   = Math.min(duration, trimEnd > 0 && trimEnd < duration ? trimEnd : duration)
 
     const canvas = document.createElement('canvas')
     canvas.width  = 1280
     canvas.height = 720
     const ctx = canvas.getContext('2d')
 
-    const hasWebCodecs = typeof VideoEncoder !== 'undefined' && 
-                         typeof AudioEncoder !== 'undefined' && 
-                         typeof MediaStreamTrackProcessor !== 'undefined';
-
-    if (hasWebCodecs) {
-      let audioCtx = null;
-      let audioTrack = null;
-      let audioSource = null;
-      let audioDest = null;
-      
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        audioSource = audioCtx.createMediaElementSource(tempVideo);
-        audioDest = audioCtx.createMediaStreamDestination();
-        audioSource.connect(audioDest);
-        audioTrack = audioDest.stream.getAudioTracks()[0];
-      } catch (err) {
-        console.warn("Could not capture audio for trim, writing video only:", err);
-      }
-
-      // 1. Setup Muxer
-      const muxerOptions = {
-        target: new ArrayBufferTarget(),
-        video: {
-          codec: 'avc',
-          width: 1280,
-          height: 720
-        },
-        fastStart: 'in-memory'
-      };
-      if (audioTrack) {
-        muxerOptions.audio = {
-          codec: 'aac',
-          numberOfChannels: 1,
-          sampleRate: 44100
-        };
-      }
-      const muxer = new Muxer(muxerOptions);
-
-      // 2. Setup Encoders
-      const videoEncoder = new VideoEncoder({
-        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-        error: (e) => console.error("Trim VideoEncoder error:", e)
-      });
-      videoEncoder.configure({
-        codec: 'avc1.42E01E',
-        width: 1280,
-        height: 720,
-        bitrate: 2_500_000,
-        framerate: 30
-      });
-
-      let audioEncoder = null;
-      let audioReader = null;
-      let firstAudioTimestamp = null;
-
-      if (audioTrack) {
-        audioEncoder = new AudioEncoder({
-          output: (chunk, meta) => {
-            if (firstAudioTimestamp === null) return;
-            const relativeTimestamp = chunk.timestamp - firstAudioTimestamp;
-            const buffer = new ArrayBuffer(chunk.byteLength);
-            chunk.copyTo(buffer);
-            const newChunk = new EncodedAudioChunk({
-              type: chunk.type,
-              data: buffer,
-              timestamp: Math.max(0, relativeTimestamp),
-              duration: chunk.duration
-            });
-            muxer.addAudioChunk(newChunk, meta);
-          },
-          error: (e) => console.error("Trim AudioEncoder error:", e)
-        });
-        audioEncoder.configure({
-          codec: 'mp4a.40.2',
-          numberOfChannels: 1,
-          sampleRate: 44100,
-          bitrate: 128000
-        });
-
-        const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
-        audioReader = audioProcessor.readable.getReader();
-      }
-
-      // 3. Run loop
-      let lastFrameTime = 0;
-      let framesSent = 0;
-      let trimLoopRunning = true;
-      let recordStartTime = null;
-
-      tempVideo.currentTime = start;
-      await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }));
-      tempVideo.play();
-
-      if (audioReader) {
-        const processAudioTrim = async () => {
-          try {
-            while (trimLoopRunning) {
-              const { done, value: audioData } = await audioReader.read();
-              if (done) break;
-              if (!trimLoopRunning) {
-                audioData.close();
-                break;
-              }
-              if (firstAudioTimestamp === null) {
-                firstAudioTimestamp = audioData.timestamp;
-              }
-              if (audioEncoder && audioEncoder.state === 'configured') {
-                audioEncoder.encode(audioData);
-              }
-              audioData.close();
-            }
-          } catch (err) {
-            console.error("Audio trim reader error:", err);
-          }
-        };
-        processAudioTrim();
-      }
-
-      const drawLoop = async () => {
-        if (tempVideo.currentTime >= end || tempVideo.paused || tempVideo.ended) {
-          trimLoopRunning = false;
-          
-          if (audioReader) {
-            await audioReader.cancel().catch(() => {});
-          }
-
-          await videoEncoder.flush();
-          if (audioEncoder) {
-            await audioEncoder.flush();
-          }
-
-          muxer.finalize();
-          
-          const buffer = muxer.target.buffer;
-          const trimmedBlob = new Blob([buffer], { type: 'video/mp4' });
-          
-          setOutputBlob(trimmedBlob);
-          setOutputExt('mp4');
-          setTrimming(false);
-          
-          if (audioCtx) {
-            audioCtx.close().catch(() => {});
-          }
-          return;
-        }
-
-        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-
-        const now = performance.now();
-        if (recordStartTime === null) {
-          recordStartTime = now;
-        }
-
-        if (now - lastFrameTime >= 32.5) {
-          lastFrameTime = now;
-          const timestamp = (now - recordStartTime) * 1000;
-          const frame = new VideoFrame(canvas, { timestamp });
-          if (videoEncoder.state === 'configured') {
-            videoEncoder.encode(frame, { keyFrame: framesSent % 60 === 0 });
-          }
-          frame.close();
-          framesSent++;
-        }
-
-        requestAnimationFrame(drawLoop);
-      };
-      requestAnimationFrame(drawLoop);
-
-    } else {
-      // Fallback MediaRecorder trim
-      let audioCtx = null;
-      let audioTrack = null;
-      let audioSource = null;
-      let audioDest = null;
-      
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        audioSource = audioCtx.createMediaElementSource(tempVideo);
-        audioDest = audioCtx.createMediaStreamDestination();
-        audioSource.connect(audioDest);
-        audioTrack = audioDest.stream.getAudioTracks()[0];
-      } catch (err) {
-        console.warn("Could not capture audio for fallback trim:", err);
-      }
-
-      const canvasStream = canvas.captureStream(30);
-      const videoTrackNode = canvasStream.getVideoTracks()[0];
-      const tracks = [videoTrackNode];
-      if (audioTrack) {
-        tracks.push(audioTrack);
-      }
-      
-      const combinedStream = new MediaStream(tracks);
-
-      const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm'];
-      const mime = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-      const rec = new MediaRecorder(combinedStream, { mimeType: mime });
-      const chunks = [];
-      rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) };
-
-      rec.onstop = () => {
-        const trimmed = new Blob(chunks, { type: mime });
-        setOutputBlob(trimmed);
-        setOutputExt(mime.includes('mp4') ? 'mp4' : 'webm');
-        setTrimming(false);
-        if (audioCtx) audioCtx.close().catch(() => {});
-      };
-
-      rec.start();
-      tempVideo.currentTime = start;
-
-      await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }));
-      tempVideo.play();
-
-      const drawLoop = () => {
-        if (tempVideo.currentTime >= end) {
-          rec.stop();
-          tempVideo.pause();
-          return;
-        }
-        ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(drawLoop);
-      };
-      requestAnimationFrame(drawLoop);
+    // ── Audio routing via Web Audio API ──
+    // AudioContext must be resumed (Chrome suspends it until user gesture; the trim button click is that gesture)
+    let audioCtx   = null
+    let audioTrack = null
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      await audioCtx.resume()  // critical — without this audio will be silent
+      const src  = audioCtx.createMediaElementSource(tempVideo)
+      const dest = audioCtx.createMediaStreamDestination()
+      src.connect(dest)
+      audioTrack = dest.stream.getAudioTracks()[0] || null
+    } catch (err) {
+      console.warn('Audio routing failed, trimming video-only:', err)
     }
-  }
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+    // ── Build combined stream (canvas video + audio) ──
+    const canvasStream = canvas.captureStream(30)
+    const tracks = [...canvasStream.getVideoTracks()]
+    if (audioTrack) tracks.push(audioTrack)
+    const combined = new MediaStream(tracks)
+
+    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
+    const rec   = new MediaRecorder(combined, { mimeType: mime })
+    const chunks = []
+    rec.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data) }
+
+    rec.onstop = () => {
+      URL.revokeObjectURL(srcUrl)
+      if (audioCtx) audioCtx.close().catch(() => {})
+      const raw    = new Blob(chunks, { type: mime })
+      const fixVid = document.createElement('video')
+      fixVid.muted = true
+      const fixUrl = URL.createObjectURL(raw)
+      fixVid.src   = fixUrl
+
+      const finish = () => {
+        URL.revokeObjectURL(fixUrl)
+        resolve(raw)
+      }
+
+      fixVid.addEventListener('loadedmetadata', function onMeta() {
+        fixVid.removeEventListener('loadedmetadata', onMeta)
+        if (fixVid.duration === Infinity || isNaN(fixVid.duration)) {
+          fixVid.currentTime = 1e10
+          fixVid.addEventListener('timeupdate', function onTime() {
+            fixVid.removeEventListener('timeupdate', onTime)
+            fixVid.currentTime = 0
+            finish()
+          }, { once: true })
+        } else {
+          finish()
+        }
+      }, { once: true })
+
+      setTimeout(finish, 5000) // safety fallback
+    }
+
+    // ── Seek to start then play ──
+    tempVideo.currentTime = start
+    await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }))
+
+    rec.start(200) // 200ms timeslices so audio chunks are small and in-sync
+    tempVideo.play()
+
+    // ── Draw loop: stop when we reach the trim end ──
+    const drawLoop = () => {
+      if (tempVideo.currentTime >= end || tempVideo.ended) {
+        // Stop slightly early to avoid off-by-one
+        rec.stop()
+        tempVideo.pause()
+        return
+      }
+      ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height)
+      requestAnimationFrame(drawLoop)
+    }
+    requestAnimationFrame(drawLoop)
+  })
+
+  const fmt = (s) => { if (!isFinite(s) || isNaN(s)) s = 0; return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}` }
 
   const fontSize    = FONT_SIZES[fontIdx].value
   const isLive      = phase === 'recording' || phase === 'countdown'
@@ -1067,9 +949,10 @@ export default function Record() {
       )}
 
       {/* ─── DONE PHASE ─── */}
-      {phase === 'done' && outputBlob && (
+      {phase === 'done' && (
         <div style={S.doneWrap}>
-          <div style={S.doneCard}>
+          {outputBlob ? (
+            <div style={S.doneCard}>
             <div style={{ fontSize: '2.5rem' }}>🎬</div>
             <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.3rem', color: 'var(--text)' }}>Recording saved!</h2>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.87rem' }}>
@@ -1077,64 +960,91 @@ export default function Record() {
             </p>
 
             <video
-              src={URL.createObjectURL(outputBlob)}
+              ref={doneVideoRef}
+              src={outputUrl || ''}
               controls
               style={{ width: '100%', maxWidth: 440, borderRadius: 12, background: '#000' }}
             />
 
-            {/* ── Trim controls ── */}
-            <div style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 10 }}>✂️ Trim Video</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: 50 }}>Start</span>
-                  <input
-                    type="range" min={0} max={elapsed} step={0.5}
-                    value={trimStart}
-                    onChange={e => setTrimStart(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: 'var(--accent)' }}
-                  />
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: 32, textAlign: 'right' }}>{fmt(trimStart)}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: 50 }}>End</span>
-                  <input
-                    type="range" min={0} max={elapsed} step={0.5}
-                    value={trimEnd || elapsed}
-                    onChange={e => setTrimEnd(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: 'var(--accent)' }}
-                  />
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: 32, textAlign: 'right' }}>{fmt(trimEnd || elapsed)}</span>
-                </div>
-              </div>
-              <button
-                style={{ ...S.ghostBtn, marginTop: 10, width: '100%', opacity: trimming ? 0.55 : 1 }}
-                onClick={handleTrim}
-                disabled={trimming}
-              >
-                {trimming ? '⏳ Trimming...' : '✂️ Apply Trim'}
-              </button>
+            {/* ── Filmstrip Trim ── */}
+            <div style={{
+              width: '100%', background: 'var(--surface2)',
+              border: '1px solid var(--border)', borderRadius: 14,
+              padding: '14px 16px', position: 'relative',
+            }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 12 }}>✂️ Trim Video</div>
+
+              <TrimBar
+                blob={outputBlob}
+                totalSecs={trimEnd || elapsed}
+                trimStart={trimStart}
+                trimEnd={trimEnd || elapsed}
+                onTrimChange={(which, val) => {
+                  if (which === 'start') {
+                    setTrimStart(val)
+                    // Update preview to show the new start frame
+                    if (doneVideoRef.current) {
+                      doneVideoRef.current.pause()
+                      const dur = doneVideoRef.current.duration || 0
+                      doneVideoRef.current.currentTime = Math.min(val, dur)
+                    }
+                  } else {
+                    setTrimEnd(val)
+                  }
+                }}
+              />
             </div>
 
-            <button style={S.recordBtn} onClick={download}>
-              ⬇ Download (.MP4)
+            <button
+              style={{ ...S.recordBtn, opacity: downloading ? 0.6 : 1, cursor: downloading ? 'not-allowed' : 'pointer' }}
+              onClick={handleDownload}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                  <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+                  Preparing Download...
+                </span>
+              ) : '⬇ Download (.MP4)'}
             </button>
 
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
               <button
                 style={{ ...S.ghostBtn, flex: 1 }}
-                onClick={() => { setPhase('setup'); setOutputBlob(null); scrollPosRef.current = 0 }}
+                onClick={() => {
+                  if (outputUrl) URL.revokeObjectURL(outputUrl)
+                  setPhase('setup'); setOutputBlob(null); setOutputUrl(null); scrollPosRef.current = 0
+                }}
               >
                 ↺ Record Again
               </button>
               <button
                 style={{ ...S.ghostBtn, flex: 1 }}
-                onClick={() => { setPhase('setup'); setScript(''); setOutputBlob(null); scrollPosRef.current = 0 }}
+                onClick={() => {
+                  if (outputUrl) URL.revokeObjectURL(outputUrl)
+                  setPhase('setup'); setScript(''); setOutputBlob(null); setOutputUrl(null); scrollPosRef.current = 0
+                }}
               >
                 + New Recording
               </button>
             </div>
           </div>
+        ) : (
+          /* Blob is null — encoding failed, show error + retry */
+            <div style={S.doneCard}>
+              <div style={{ fontSize: '2.5rem' }}>⚠️</div>
+              <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>Something went wrong</h2>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+                The video could not be saved. Please try recording again.
+              </p>
+              <button
+                style={{ ...S.recordBtn, marginTop: 8 }}
+                onClick={() => { setPhase('setup'); setOutputBlob(null); setOutputUrl(null); setProcessing(false); scrollPosRef.current = 0 }}
+              >
+                ↺ Try Again
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -35,13 +35,15 @@ const NICHE_META = {
 }
 
 const BADGE_META = {
-  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script'  },
-  SCRIPTS_10:   { emoji: '📚', label: '10 Scripts'     },
-  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts'     },
-  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook'   },
-  ANALYZER_5:   { emoji: '📊', label: '5 Analyses'     },
-  STREAK_7:     { emoji: '🔥', label: '7-Day Streak'   },
-  STREAK_30:    { emoji: '⚡', label: '30-Day Streak'  },
+  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script', desc: 'Generate your first script using the Script Generator' },
+  SCRIPTS_5:    { emoji: '🔥', label: '5 Scripts', desc: 'Generate 5 scripts in total' },
+  SCRIPTS_15:   { emoji: '📚', label: '15 Scripts', desc: 'Generate 15 scripts in total' },
+  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts', desc: 'Generate 50 scripts in total' },
+  STREAK_5:     { emoji: '🏃', label: '5-Day Streak', desc: 'Maintain a 5-day daily active streak' },
+  STREAK_15:    { emoji: '⚡', label: '15-Day Streak', desc: 'Maintain a 15-day daily active streak' },
+  STREAK_30:    { emoji: '👑', label: '30-Day Streak', desc: 'Maintain a 30-day daily active streak' },
+  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook', desc: 'Get a hook score of 90 or higher on any hook' },
+  ANALYZER_5:   { emoji: '📊', label: '5 Analyses', desc: 'Analyze at least 5 video performance logs' },
 }
 
 const CATEGORY_COLORS = {
@@ -742,14 +744,15 @@ function StatsStrip({ scripts, logs, badges, streak, isLight }) {
 }
 
 /* ─── Badges shelf ────────────────────────────────────────────────── */
-function BadgesShelf({ badges, isLight }) {
+function BadgesShelf({ badges, isLight, onOpenModal }) {
   const { t } = useLang()
-  if (!badges.length) return null
 
   return (
     <section style={{ marginBottom: 28 }}>
-      <div style={{
+      <button onClick={onOpenModal} style={{
+        background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+        outline: 'none'
       }}>
         <span style={{
           fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
@@ -761,41 +764,49 @@ function BadgesShelf({ badges, isLight }) {
           background: `${C.violet}16`, border: `1px solid ${C.violet}30`,
           color: C.violet,
         }}>{badges.length}</span>
-      </div>
+        <span style={{ fontSize: '0.6rem', color: C.violet, fontWeight: 'bold' }}>View All ➔</span>
+      </button>
 
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-        {badges.map((badge, i) => {
-          const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
-          return (
-            <div key={i} title={meta.label} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-              padding: '12px 16px',
-              background: isLight
-                ? 'rgba(255,255,255,0.97)'
-                : `linear-gradient(135deg, ${C.violet}0E 0%, var(--surface) 70%)`,
-              border: isLight
-                ? `1px solid rgba(179,109,255,0.20)`
-                : `1px solid ${C.violet}25`,
-              borderRadius: 14, flexShrink: 0, minWidth: 76,
-              boxShadow: isLight
-                ? '0 2px 12px rgba(100,40,200,0.08)'
-                : '0 4px 20px rgba(0,0,0,0.45)',
-              transition: 'transform 0.18s',
-              cursor: 'default',
-            }}
-              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-            >
-              <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{meta.emoji}</span>
-              <span style={{
-                fontSize: '0.58rem', color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-                letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 700,
-              }}>{meta.label}</span>
-            </div>
-          )
-        })}
-      </div>
+      {badges.length > 0 ? (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {badges.map((badge, i) => {
+            const meta = BADGE_META[badge.type || badge] || { emoji: '⭐', label: badge.type || badge }
+            return (
+              <div key={i} title={meta.label} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                padding: '12px 16px',
+                background: isLight
+                  ? 'rgba(255,255,255,0.97)'
+                  : `linear-gradient(135deg, ${C.violet}0E 0%, var(--surface) 70%)`,
+                border: isLight
+                  ? `1px solid rgba(179,109,255,0.20)`
+                  : `1px solid ${C.violet}25`,
+                borderRadius: 14, flexShrink: 0, minWidth: 76,
+                boxShadow: isLight
+                  ? '0 2px 12px rgba(100,40,200,0.08)'
+                  : '0 4px 20px rgba(0,0,0,0.45)',
+                transition: 'transform 0.18s',
+                cursor: 'pointer',
+              }}
+                onClick={onOpenModal}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px) scale(1.04)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{meta.emoji}</span>
+                <span style={{
+                  fontSize: '0.58rem', color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+                  letterSpacing: '0.04em', whiteSpace: 'nowrap', fontWeight: 700,
+                }}>{meta.label}</span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '12px 16px', background: 'var(--surface2)', borderRadius: 12, border: '1px dashed var(--border)' }}>
+          Create scripts and stay active to earn badges!
+        </div>
+      )}
     </section>
   )
 }
@@ -864,6 +875,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null)
   const [creatorScore, setCreatorScore] = useState(null)
   const [loading, setLd]  = useState(true)
+  const [showBadgeModal, setShowBadgeModal] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -898,7 +910,7 @@ export default function Dashboard() {
 
   const { theme } = useTheme()
   const isLight  = theme === 'light'
-  const limit    = { FREE: 5, STARTER: 50, PRO: '∞' }[user?.plan] || 5
+  const limit    = { FREE: 10, STARTER: 50, PRO: '∞' }[user?.plan] || 10
 
   // Edit niche: clear onboarded flag → go straight to Step 1 (niche picker)
   const handleEditNiche = () => {
@@ -906,7 +918,7 @@ export default function Dashboard() {
     navigate('/onboarding')
   }
   const used     = user?.generationsUsed || 0
-  const streak   = profile?.streak || 0
+  const streak   = profile?.user?.streak ?? profile?.streak ?? 0
   const firstName = user?.name?.split(' ')[0] || 'Creator'
   const mood = getTimeMood()
 
@@ -920,7 +932,8 @@ export default function Dashboard() {
           padding: '4px 12px', borderRadius: 99,
           background: `${mood.color}12`,
           border: `1px solid ${mood.color}35`,
-          marginBottom: 14,
+          marginRight: 18,
+          verticalAlign: 'middle',
         }}>
           <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
           <span style={{
@@ -929,7 +942,7 @@ export default function Dashboard() {
           }}>{mood.label}</span>
         </div>
 
-        <h1 className="page-title" style={{ marginBottom: 6 }}>
+        <h1 className="page-title" style={{ display: 'inline-block', verticalAlign: 'middle', marginTop: 0, marginBottom: 8 }}>
           {t('dash_greeting_' + mood.key)}, {firstName}
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
@@ -955,7 +968,60 @@ export default function Dashboard() {
       <TrendingBrief userName={firstName} niches={niches} onEditNiche={handleEditNiche} />
 
       {/* ─── Badges shelf ─────────────────────────────────────────── */}
-      <BadgesShelf badges={badges} isLight={isLight} />
+      <BadgesShelf badges={badges} isLight={isLight} onOpenModal={() => setShowBadgeModal(true)} />
+
+      {/* ─── Badge Progress Modal ─────────────────────────────────── */}
+      {showBadgeModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', padding: 20
+        }} onClick={() => setShowBadgeModal(false)}>
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 24,
+              width: '100%', maxWidth: 500, maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)', overflow: 'hidden'
+            }}
+          >
+            <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Your Badges</h2>
+              <button onClick={() => setShowBadgeModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {Object.entries(BADGE_META).map(([key, meta]) => {
+                const isEarned = badges.some(b => (b.type || b) === key);
+                // Real progress calculation would go here if we passed down total scripts/streaks/logs
+                // but showing locked/unlocked meets the goal of seeing what needs to be achieved!
+                
+                return (
+                  <div key={key} style={{
+                    display: 'flex', alignItems: 'center', gap: 16, padding: 16,
+                    background: isEarned ? `${C.violet}15` : 'var(--surface2)',
+                    border: `1px solid ${isEarned ? C.violet + '40' : 'var(--border)'}`,
+                    borderRadius: 16, opacity: isEarned ? 1 : 0.6
+                  }}>
+                    <div style={{ fontSize: '2.4rem', filter: isEarned ? 'none' : 'grayscale(100%)' }}>{meta.emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: isEarned ? C.violet : 'var(--text)', marginBottom: 4 }}>
+                        {meta.label}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {meta.desc}
+                      </div>
+                    </div>
+                    {isEarned ? (
+                      <div style={{ color: C.violet, fontWeight: 'bold', fontSize: '1.4rem', filter: 'drop-shadow(0 0 8px rgba(179,109,255,0.4))' }}>✓</div>
+                    ) : (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Locked</div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Upgrade banner ───────────────────────────────────────── */}
       {user?.plan === 'FREE' && (

@@ -1,5 +1,6 @@
 const prisma    = require('../config/prisma');
 const aiService = require('../services/aiService');
+const { updateStreak } = require('../services/badgeService');
 
 // ─── POST /api/coach/chat ─────────────────────────────────────────
 const chat = async (req, res, next) => {
@@ -57,20 +58,23 @@ const chat = async (req, res, next) => {
     // Trim history to last 10 messages
     const trimmedHistory = Array.isArray(history) ? history.slice(-10) : [];
 
-    // Get AI reply
-    const { reply } = await aiService.coachChat({
-      message    : message.trim(),
-      history    : trimmedHistory,
-      userContext,
-      language   : language || 'en',
-    });
+    // Get AI reply and update streak
+    const [ { reply }, newStreak ] = await Promise.all([
+      aiService.coachChat({
+        message    : message.trim(),
+        history    : trimmedHistory,
+        userContext,
+        language   : language || 'en',
+      }),
+      updateStreak(userId)
+    ]);
 
     // Save assistant message to DB
     await prisma.chatMessage.create({
       data: { userId, role: 'assistant', content: reply },
     });
 
-    return res.json({ reply });
+    return res.json({ reply, newStreak });
   } catch (err) {
     next(err);
   }

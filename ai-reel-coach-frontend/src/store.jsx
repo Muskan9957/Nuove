@@ -34,6 +34,17 @@ export const AuthProvider = ({ children }) => {
       })
       .catch(() => localStorage.removeItem('arc_token'))
       .finally(() => setLoading(false))
+
+    // Global listener to refresh user stats (streak, usage, badges) when events fire
+    const handleRefresh = () => refreshUser()
+    window.addEventListener('streak-updated', handleRefresh)
+    window.addEventListener('usage-updated', handleRefresh)
+    window.addEventListener('badge-earned', handleRefresh)
+    return () => {
+      window.removeEventListener('streak-updated', handleRefresh)
+      window.removeEventListener('usage-updated', handleRefresh)
+      window.removeEventListener('badge-earned', handleRefresh)
+    }
   }, [])
 
   const login = async (email, password) => {

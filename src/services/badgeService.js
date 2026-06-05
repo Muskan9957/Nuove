@@ -5,9 +5,13 @@ const BADGE_RULES = {
     const count = await prisma.script.count({ where: { userId } })
     return count >= 1
   },
-  SCRIPTS_10: async (userId) => {
+  SCRIPTS_5: async (userId) => {
     const count = await prisma.script.count({ where: { userId } })
-    return count >= 10
+    return count >= 5
+  },
+  SCRIPTS_15: async (userId) => {
+    const count = await prisma.script.count({ where: { userId } })
+    return count >= 15
   },
   SCRIPTS_50: async (userId) => {
     const count = await prisma.script.count({ where: { userId } })
@@ -21,13 +25,17 @@ const BADGE_RULES = {
     const count = await prisma.performanceLog.count({ where: { userId } })
     return count >= 5
   },
-  STREAK_7: async (userId) => {
+  STREAK_5: async (userId) => {
     const user = await prisma.user.findUnique({ where: { id: userId } })
-    return user.streak >= 7
+    return (user?.streak ?? 0) >= 5
+  },
+  STREAK_15: async (userId) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    return (user?.streak ?? 0) >= 15
   },
   STREAK_30: async (userId) => {
     const user = await prisma.user.findUnique({ where: { id: userId } })
-    return user.streak >= 30
+    return (user?.streak ?? 0) >= 30
   },
 }
 
@@ -54,6 +62,7 @@ const checkAndAwardBadges = async (userId) => {
 const updateStreak = async (userId) => {
   const today = new Date().toISOString().slice(0, 10)
   const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) return 0 // user not found, skip
 
   if (user.lastActiveDate === today) return user.streak // already counted today
 

@@ -1,4 +1,5 @@
 const aiService = require('../services/aiService');
+const { updateStreak, checkAndAwardBadges } = require('../services/badgeService');
 
 // ─── POST /api/captions/generate ──────────────────────────────────
 const generate = async (req, res, next) => {
@@ -16,12 +17,22 @@ const generate = async (req, res, next) => {
       language: language || 'en',
     });
 
-    return res.json({
+    // Update user streak on successful generation and check badges
+    const [newStreak, newBadges] = await Promise.all([
+      updateStreak(req.user.id).catch(() => 0),
+      checkAndAwardBadges(req.user.id).catch(() => []),
+    ]);
+
+    const response = {
       message : 'Captions generated successfully!',
       topic,
       captions: result.captions,
       hashtags: result.hashtags,
-    });
+      newStreak,
+    };
+    if (newBadges.length > 0) response.newBadges = newBadges;
+
+    return res.json(response);
   } catch (err) {
     next(err);
   }

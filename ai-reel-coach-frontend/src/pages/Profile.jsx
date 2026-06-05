@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
@@ -66,9 +66,9 @@ const PRESET_AVATARS = [
 ]
 
 const PLAN_META = {
-  FREE:    { label: 'Free',    color: '#6B6B90', bg: 'rgba(107,107,144,0.12)', limit: 10  },
-  STARTER: { label: 'Starter', color: '#00D4B1', bg: 'rgba(0,212,177,0.12)',   limit: 50  },
-  PRO:     { label: 'Pro',     color: '#00C8FF', bg: 'rgba(0,200,255,0.12)',   limit: 999 },
+  FREE:    { label: 'Free',    color: '#FF2D6F', bg: 'rgba(255,45,111,0.12)', limit: 10  },
+  STARTER: { label: 'Starter', color: '#00D4B1', bg: 'rgba(0,212,177,0.12)',  limit: 50  },
+  PRO:     { label: 'Pro',     color: '#B36DFF', bg: 'rgba(179,109,255,0.12)', limit: 999 },
 }
 
 function Avatar({ user, size = 80 }) {
@@ -191,9 +191,24 @@ export default function Profile() {
   const navigate           = useNavigate()
   const toast              = useToast()
   const [liveStreak, setLiveStreak] = useState(null)
+  const [totalScripts, setTotalScripts] = useState(0)
 
   useEffect(() => {
-    api.getUserProfile().then(p => { if (p?.streak != null) setLiveStreak(p.streak) }).catch(() => {})
+    api.getUserProfile().then(p => {
+      const s = p?.user?.streak ?? p?.streak
+      if (s != null) setLiveStreak(s)
+    }).catch(() => {})
+
+    api.getScripts().then(s => {
+      if (s?.scripts) setTotalScripts(s.scripts.length)
+    }).catch(() => {})
+
+    // Listen for real-time streak updates from other pages
+    const onStreakUpdate = (e) => {
+      if (e.detail != null) setLiveStreak(e.detail)
+    }
+    window.addEventListener('streak-updated', onStreakUpdate)
+    return () => window.removeEventListener('streak-updated', onStreakUpdate)
   }, [])
 
   const [showDanger, setShowDanger]         = useState(false)
@@ -248,7 +263,7 @@ export default function Profile() {
   const handleLogout = () => {
     logout()
     navigate('/')
-    toast.success('Logged out successfully')
+    toast('Logged out successfully', 'success')
   }
 
   const handleSaveAvatar = async () => {
@@ -360,9 +375,9 @@ export default function Profile() {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Day Streak',    value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Generate, score or analyse daily' },
-          { label: 'Scripts Made',  value: user?.generationsUsed || 0,   sub: 'Total all time' },
-          { label: 'Member Since',  value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
+          { label: 'Day Streak',       value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Generate, score or analyse daily' },
+          { label: 'Scripts Written',  value: totalScripts,   sub: 'Total all time' },
+          { label: 'Member Since',     value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
         ].map(s => (
           <div key={s.label} style={{
             background: 'var(--surface)',
@@ -680,9 +695,9 @@ export default function Profile() {
         </Section>
       </div>
 
-      {/* Danger zone */}
+      {/* Account Actions */}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,70,70,0.15)', borderRadius: 20, padding: '8px 24px' }}>
-        <Section title="⚠ Danger Zone">
+        <Section title="⚠ Account Actions">
           {!showDanger ? (
             <button
               onClick={() => setShowDanger(true)}
