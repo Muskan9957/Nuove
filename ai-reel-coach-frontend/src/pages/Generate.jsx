@@ -22,7 +22,6 @@ const REFINE_CHIPS = [
 
 
 const TONES  = ['motivational', 'educational', 'funny', 'storytelling', 'controversial', 'conversational']
-const NICHES = ['fitness', 'finance', 'food', 'travel', 'tech', 'fashion', 'lifestyle', 'education', 'comedy', 'business']
 
 const SCRIPT_LANGS = [
   { value: 'en', label: 'English' },
@@ -46,11 +45,9 @@ export default function Generate() {
   const { t, lang } = useLang()
   const location   = useLocation()
   const resultRef  = useRef(null)
-  const { primaryNiche } = usePrefs()
 
   const [form, setForm] = usePersistentState('arc_gen_form', {
     topic:      '',
-    niche:      primaryNiche,
     tone:       'motivational',
     duration:   '',
     audience:   getSavedRegion(),     // blank until detected or set by user
@@ -180,7 +177,6 @@ export default function Generate() {
       setForm(f => ({
         ...f,
         topic:      stateTopic,
-        niche:      location.state?.niche      || f.niche,
         tone:       location.state?.tone       || f.tone,
         scriptLang: location.state?.language   || f.scriptLang,
       }))
@@ -380,7 +376,6 @@ export default function Generate() {
         body    : s.body,
         cta     : s.cta,
         topic   : form.topic,
-        niche   : form.niche,
         tone    : form.tone,
         genre   : s.music?.genre,
         mood    : s.music?.mood,
@@ -539,22 +534,8 @@ export default function Generate() {
             </div>
           </div>
 
-          {/* Row 1 ,  Niche + Tone + Duration */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            <div className="field">
-              <label style={{ ...fieldLabelStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
-                Niche
-                {primaryNiche && form.niche === primaryNiche && (
-                  <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#00C9A7', fontFamily: 'var(--font-mono)', background: 'rgba(0,201,167,0.12)', border: '1px solid rgba(0,201,167,0.3)', padding: '1px 6px', borderRadius: 99, letterSpacing: '0.04em' }}>
-                    ✓ your niche
-                  </span>
-                )}
-              </label>
-              <select className="select" value={form.niche} onChange={set('niche')}>
-                <option value="">General</option>
-                {NICHES.map(n => <option key={n} value={n}>{n.charAt(0).toUpperCase() + n.slice(1)}</option>)}
-              </select>
-            </div>
+          {/* Row 1 ,  Tone + Duration */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div className="field">
               <label style={fieldLabelStyle}>Tone</label>
               <select className="select" value={form.tone} onChange={set('tone')}>
@@ -648,7 +629,7 @@ export default function Generate() {
               {/* Secondary: clear and start a new topic */}
               <button
                 type="button"
-                onClick={() => { setResult(null); setVersions([]); setActiveVer(0); setRerollCount(0); setForm({ topic: '', niche: primaryNiche, tone: 'motivational', audience: getSavedRegion(), scriptLang: getSavedScriptLang() }); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                onClick={() => { setResult(null); setVersions([]); setActiveVer(0); setRerollCount(0); setForm({ topic: '', tone: 'motivational', audience: getSavedRegion(), scriptLang: getSavedScriptLang() }); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                 className="btn btn-ghost"
                 style={{ height: 52, paddingInline: 20, fontSize: '0.9rem', whiteSpace: 'nowrap' }}
               >

@@ -13,6 +13,16 @@ const signToken = (user) =>
     { expiresIn: '7d' }
   );
 
+const getCurrentStreak = (user) => {
+  if (!user || !user.lastActiveDate || !user.streak) return 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (user.lastActiveDate === today || user.lastActiveDate === yesterday) {
+    return user.streak;
+  }
+  return 0;
+};
+
 // ─── REGISTER ────────────────────────────────────────────────────
 const register = async (req, res, next) => {
   try {
@@ -41,7 +51,7 @@ const register = async (req, res, next) => {
     return res.status(201).json({
       message: 'Account created successfully!',
       token,
-      user: { id: user.id, email: user.email, name: user.name, plan: user.plan },
+      user: { id: user.id, email: user.email, name: user.name, plan: user.plan, avatar: user.avatar, streak: 0 },
     });
   } catch (err) {
     next(err);
@@ -72,7 +82,7 @@ const login = async (req, res, next) => {
     return res.json({
       message: 'Logged in successfully!',
       token,
-      user: { id: user.id, email: user.email, name: user.name, plan: user.plan },
+      user: { id: user.id, email: user.email, name: user.name, plan: user.plan, avatar: user.avatar, streak: getCurrentStreak(user) },
     });
   } catch (err) {
     next(err);
@@ -88,6 +98,7 @@ const getMe = async (req, res, next) => {
         id              : true,
         email           : true,
         name            : true,
+        avatar          : true,
         plan            : true,
         streak          : true,
         lastActiveDate  : true,
@@ -98,6 +109,7 @@ const getMe = async (req, res, next) => {
       },
     });
     if (!user) return res.status(404).json({ error: 'User not found.' });
+    user.streak = getCurrentStreak(user);
     return res.json({ user });
   } catch (err) {
     next(err);
@@ -172,7 +184,7 @@ const resetPassword = async (req, res, next) => {
     return res.json({
       message: 'Password reset successfully!',
       token  : authToken,
-      user   : { id: user.id, email: user.email, name: user.name, plan: user.plan },
+      user   : { id: user.id, email: user.email, name: user.name, plan: user.plan, avatar: user.avatar, streak: getCurrentStreak(user) },
     });
   } catch (err) {
     next(err);

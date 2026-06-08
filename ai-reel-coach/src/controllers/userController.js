@@ -3,6 +3,16 @@ const { updateStreak } = require('../services/badgeService');
 
 const VALID_LANGUAGES = ['en', 'hi', 'es', 'fr', 'pt']
 
+const getCurrentStreak = (user) => {
+  if (!user || !user.lastActiveDate || !user.streak) return 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (user.lastActiveDate === today || user.lastActiveDate === yesterday) {
+    return user.streak;
+  }
+  return 0;
+};
+
 // ─── GET /api/user/profile ────────────────────────────────────────
 const getProfile = async (req, res, next) => {
   try {
@@ -28,6 +38,8 @@ const getProfile = async (req, res, next) => {
     })
 
     if (!user) return res.status(404).json({ error: 'User not found.' })
+
+    user.streak = getCurrentStreak(user);
 
     return res.json({ user })
   } catch (err) {
