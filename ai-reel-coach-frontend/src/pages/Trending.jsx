@@ -3,18 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLang } from '../i18n.jsx'
 import { useToast } from '../components/Toast'
-import { usePrefs } from '../hooks/usePrefs'
 
 // ─── Frontend topic cache ──────────────────────────────────────────
-// Keyed by "niche:lang". Stored in localStorage with a 30-min TTL.
+// Keyed by "lang". Stored in localStorage with a 30-min TTL.
 // Returns topics instantly on repeat visits; refreshes silently in bg.
 const CACHE_TTL_MS = 30 * 60 * 1000  // 30 minutes
 
-function cacheKey(niche, lang)   { return `vc_trending_${niche}_${lang}` }
+function cacheKey(lang)   { return `vc_trending_${lang}` }
 
-function readCache(niche, lang) {
+function readCache(lang) {
   try {
-    const raw = localStorage.getItem(cacheKey(niche, lang))
+    const raw = localStorage.getItem(cacheKey(lang))
     if (!raw) return null
     const { topics, ts } = JSON.parse(raw)
     if (Date.now() - ts > CACHE_TTL_MS) return null
@@ -22,22 +21,11 @@ function readCache(niche, lang) {
   } catch { return null }
 }
 
-function writeCache(niche, lang, topics) {
+function writeCache(lang, topics) {
   try {
-    localStorage.setItem(cacheKey(niche, lang), JSON.stringify({ topics, ts: Date.now() }))
+    localStorage.setItem(cacheKey(lang), JSON.stringify({ topics, ts: Date.now() }))
   } catch {}
 }
-
-const NICHES = [
-  { value: 'general',   label: 'General'   },
-  { value: 'fitness',   label: 'Fitness'   },
-  { value: 'food',      label: 'Food'      },
-  { value: 'travel',    label: 'Travel'    },
-  { value: 'tech',      label: 'Tech'      },
-  { value: 'fashion',   label: 'Fashion'   },
-  { value: 'finance',   label: 'Finance'   },
-  { value: 'lifestyle', label: 'Lifestyle' },
-]
 
 // Skeleton card
 function SkeletonCard() {
@@ -65,22 +53,16 @@ export default function Trending() {
   const { lang, t }  = useLang()
   const navigate     = useNavigate()
   const toast        = useToast()
-  const { primaryNiche } = usePrefs()
 
-  // Default to their onboarding niche if it matches a known option, else 'general'
-  const VALID_NICHES = ['general','fitness','food','travel','tech','fashion','finance','lifestyle']
-  const defaultNiche = VALID_NICHES.includes(primaryNiche) ? primaryNiche : 'general'
-
-  const [niche,      setNiche]      = useState(defaultNiche)
-  const [topics,     setTopics]     = useState(() => readCache(defaultNiche, lang) || [])
-  const [loading,    setLoading]    = useState(() => !readCache(defaultNiche, lang))
+  const [topics,     setTopics]     = useState(() => readCache(lang) || [])
+  const [loading,    setLoading]    = useState(() => !readCache(lang))
   const [refreshing, setRefreshing] = useState(false)
   const [saved,      setSaved]      = useState(new Set())
   const [saving,     setSaving]     = useState(null)
   const abortRef = useRef(null)
 
   const fetchTopics = useCallback(async ({ silent = false } = {}) => {
-    // Cancel any in-flight request for a previous niche
+    // Cancel any in-flight request
     if (abortRef.current) abortRef.current.abort()
     abortRef.current = new AbortController()
 
@@ -88,10 +70,10 @@ export default function Trending() {
     else        setLoading(true)
 
     try {
-      const data = await api.getTrending(niche, lang)
+      const data = await api.getTrending(lang)
       const fresh = data.topics || []
       setTopics(fresh)
-      writeCache(niche, lang, fresh)
+      writeCache(lang, fresh)
     } catch (err) {
       if (err?.name === 'AbortError') return
       if (!silent) {
@@ -102,10 +84,10 @@ export default function Trending() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [niche, lang])
+  }, [lang])
 
   useEffect(() => {
-    const cached = readCache(niche, lang)
+    const cached = readCache(lang)
     if (cached) {
       // Show cached topics instantly, refresh quietly in background
       setTopics(cached)
@@ -116,11 +98,11 @@ export default function Trending() {
       setLoading(true)
       fetchTopics()
     }
-  }, [niche, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerate = (topic) => {
     localStorage.setItem('arc_prefill_topic', topic)
-    navigate('/generate', { state: { topic, niche } })
+    navigate('/generate', { state: { topic } })
   }
 
   const handleBookmark = async (topic, idx) => {
@@ -130,8 +112,7 @@ export default function Trending() {
         name: topic.slice(0, 80),
         type: 'hook',
         content: topic,
-        source: 'trending',
-        niche,
+        source: 'trending'
       })
       setSaved(s => new Set([...s, idx]))
       toast('Saved as template!', 'success')
@@ -142,58 +123,13 @@ export default function Trending() {
     }
   }
 
-  const isOnUserNiche = defaultNiche !== 'general' && niche === defaultNiche
-
   return (
     <div className="page-enter">
       <div style={{ marginBottom: 20 }}>
         <h1 className="page-title">{t('trending_title')}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <p className="page-sub" style={{ margin: 0 }}>Discover what's viral in your niche and turn it into a script instantly.</p>
-          {defaultNiche !== 'general' && (
-            isOnUserNiche ? (
-              <span style={{
-                fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                padding: '3px 10px', borderRadius: 99,
-                background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.3)',
-                color: '#00C9A7', letterSpacing: '0.05em',
-              }}>
-                ✓ your niche
-              </span>
-            ) : (
-              <button
-                onClick={() => setNiche(defaultNiche)}
-                style={{
-                  fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                  padding: '3px 10px', borderRadius: 99, cursor: 'pointer',
-                  background: 'rgba(255,95,31,0.08)', border: '1px solid rgba(255,95,31,0.3)',
-                  color: 'var(--accent)', letterSpacing: '0.05em',
-                }}
-              >
-                ↩ Back to your niche ({defaultNiche})
-              </button>
-            )
-          )}
+          <p className="page-sub" style={{ margin: 0 }}>Discover what's viral and turn it into a script instantly.</p>
         </div>
-      </div>
-
-      {/* Niche selector */}
-      <div style={tStyles.nicheBar}>
-        {NICHES.map(n => (
-          <button
-            key={n.value}
-            onClick={() => setNiche(n.value)}
-            style={{
-              ...tStyles.nicheBtn,
-              border: niche === n.value ? '2px solid var(--accent)' : '1px solid var(--border)',
-              background: niche === n.value ? 'var(--accent-dim)' : 'var(--surface2)',
-              color: niche === n.value ? 'var(--accent)' : 'var(--text-muted)',
-              fontWeight: niche === n.value ? 600 : 400,
-            }}
-          >
-            {n.label}
-          </button>
-        ))}
       </div>
 
       {/* Refresh button */}
@@ -231,7 +167,7 @@ export default function Trending() {
                   <p style={{ fontFamily: 'var(--font-head)', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: 8 }}>
                     No trending topics found
                   </p>
-                  <p>Try refreshing or selecting a different niche.</p>
+                  <p>Try refreshing.</p>
                   <button onClick={fetchTopics} className="btn btn-primary btn-sm" style={{ marginTop: 16 }}>
                     Try Again
                   </button>
@@ -286,21 +222,6 @@ export default function Trending() {
 }
 
 const tStyles = {
-  nicheBar: {
-    display: 'flex',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginBottom: 20,
-  },
-  nicheBtn: {
-    padding: '8px 14px',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    transition: 'all 0.15s',
-    fontFamily: 'var(--font-body)',
-    whiteSpace: 'nowrap',
-  },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',

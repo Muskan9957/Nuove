@@ -432,25 +432,6 @@ export default function Profile() {
               </select>
             }
           />
-          <Row
-            icon="🎯"
-            label="Niche"
-            value={
-              Array.isArray(prefs.niches) && prefs.niches.length
-                ? prefs.niches.map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(', ')
-                : prefs.niche
-                  ? prefs.niche.charAt(0).toUpperCase() + prefs.niche.slice(1)
-                  : 'Not set'
-            }
-            action={
-              <button
-                onClick={() => { localStorage.removeItem('vs_onboarded'); navigate('/onboarding') }}
-                style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
-              >
-                Edit
-              </button>
-            }
-          />
           <Row icon="📅" label="Joined"       value={joinDate} />
         </Section>
       </div>
