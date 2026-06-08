@@ -731,7 +731,7 @@ export const translations = {
     dash_action_analyze: 'विश्लेषण',
     dash_action_calendar: 'कैलेंडर',
     dash_unlock_title: 'अनलिमिटेड स्क्रिप्ट अनलॉक करें',
-    dash_free_desc: 'फ्री प्लान · ₹799/माह में Pro पर अपग्रेड करें',
+    dash_free_desc: 'फ्री प्लान · Pro पर अपग्रेड करें',
     dash_upgrade_btn: 'Pro पर अपग्रेड करें →',
     dash_seg_consistency: 'निरंतरता',
     dash_seg_hook: 'हुक क्वालिटी',

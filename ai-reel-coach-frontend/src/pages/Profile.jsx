@@ -492,7 +492,7 @@ export default function Profile() {
                   Unlock unlimited scripts
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Go Pro for ₹799/month ,  unlimited AI scripts, Content Remix, Creator Advisor & more.
+                  Go Pro for unlimited AI scripts, Content Remix, Creator Advisor & more.
                 </div>
               </div>
             </div>
