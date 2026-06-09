@@ -23,6 +23,23 @@ function TypingIndicator() {
   )
 }
 
+const formatText = (text) => {
+  if (!text) return null;
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} style={{ color: 'var(--text-bright, inherit)' }}>{part.slice(2, -2)}</strong>;
+    }
+    const subParts = part.split(/(\*[^\*]+\*)/g);
+    return subParts.map((sub, j) => {
+      if (sub.startsWith('*') && sub.endsWith('*')) {
+        return <em key={`${i}-${j}`}>{sub.slice(1, -1)}</em>;
+      }
+      return sub;
+    });
+  });
+}
+
 function Message({ msg }) {
   const isUser = msg.role === 'user'
   return (
@@ -54,7 +71,7 @@ function Message({ msg }) {
           </div>
         )}
         <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.65, color: isUser ? '#fff' : 'var(--text)', whiteSpace: 'pre-wrap' }}>
-          {msg.content}
+          {formatText(msg.content)}
         </p>
       </div>
     </div>
