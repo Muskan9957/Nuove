@@ -21,6 +21,9 @@ export const AuthProvider = ({ children }) => {
 
     if (oauthToken) {
       localStorage.setItem('arc_token', oauthToken)
+      try {
+        sessionStorage.clear()
+      } catch {}
       // Clean the token from URL immediately
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -32,7 +35,10 @@ export const AuthProvider = ({ children }) => {
         if (d.user.onboarded) localStorage.setItem('vs_onboarded', '1')
         setUser(d.user)
       })
-      .catch(() => localStorage.removeItem('arc_token'))
+      .catch(() => {
+        localStorage.removeItem('arc_token')
+        try { sessionStorage.clear() } catch {}
+      })
       .finally(() => setLoading(false))
 
     // Global listener to refresh user stats (streak, usage, badges) when events fire
