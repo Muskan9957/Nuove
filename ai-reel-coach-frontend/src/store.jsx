@@ -50,6 +50,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const data = await api.login({ email, password })
     localStorage.setItem('arc_token', data.token)
+    try {
+      sessionStorage.clear()
+    } catch {}
     setUser(data.user)
     return data
   }
@@ -60,6 +63,9 @@ export const AuthProvider = ({ children }) => {
     // Always clear onboarding state for fresh accounts
     localStorage.removeItem('vs_onboarded')
     localStorage.removeItem('vs_prefs')
+    try {
+      sessionStorage.clear()
+    } catch {}
     setUser(data.user)
     return data
   }
@@ -76,6 +82,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('arc_token')
+    localStorage.removeItem('vs_onboarded')
+    localStorage.removeItem('vs_prefs')
+    localStorage.removeItem('dash_scripts')
+    localStorage.removeItem('dash_logs')
+    localStorage.removeItem('dash_badges')
+    localStorage.removeItem('dash_profile')
+    try {
+      sessionStorage.clear()
+    } catch {}
     setUser(null)
   }
 
