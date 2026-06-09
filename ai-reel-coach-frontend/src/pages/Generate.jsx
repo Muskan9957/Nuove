@@ -1098,10 +1098,7 @@ export default function Generate() {
                   fontWeight: 800,
                   fontSize: '1.05rem',
                   margin: '0 0 3px',
-                  background: 'linear-gradient(135deg, #fff 20%, #C4ABFF 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
+                  color: 'var(--text)',
                 }}>
                   ✦ Tweak This Take
                 </h3>
@@ -1141,8 +1138,8 @@ export default function Generate() {
                     fontSize: '0.83rem',
                     fontWeight: 600,
                     fontFamily: 'var(--font-body)',
-                    border: '1px solid rgba(123,92,240,0.2)',
-                    background: 'rgba(13,18,66,0.6)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface2)',
                     color: 'var(--text-muted)',
                     cursor: (refining || rerolling) ? 'not-allowed' : 'pointer',
                     opacity: (refining || rerolling) ? 0.38 : 1,
@@ -1155,15 +1152,15 @@ export default function Generate() {
                   }}
                   onMouseEnter={e => {
                     if (refining || rerolling) return
-                    e.currentTarget.style.borderColor = 'rgba(155,114,255,0.6)'
-                    e.currentTarget.style.background = 'rgba(123,92,240,0.2)'
-                    e.currentTarget.style.color = '#D4BFFF'
+                    e.currentTarget.style.borderColor = 'rgba(123,92,240,0.5)'
+                    e.currentTarget.style.background = 'rgba(123,92,240,0.15)'
+                    e.currentTarget.style.color = 'var(--text)'
                     e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(123,92,240,0.25)'
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(123,92,240,0.15)'
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(123,92,240,0.2)'
-                    e.currentTarget.style.background = 'rgba(13,18,66,0.6)'
+                    e.currentTarget.style.borderColor = 'var(--border)'
+                    e.currentTarget.style.background = 'var(--surface2)'
                     e.currentTarget.style.color = 'var(--text-muted)'
                     e.currentTarget.style.transform = 'none'
                     e.currentTarget.style.boxShadow = 'none'
