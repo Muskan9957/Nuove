@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { api } from '../api'
 import { MicButton } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
@@ -69,7 +69,7 @@ export default function Coach() {
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const chatEndRef = useRef(null)
   const inputRef   = useRef(null)
-  const { niches, goals, platform, aiContext } = usePrefs()
+  const { goals, platform, aiContext } = usePrefs()
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -147,35 +147,16 @@ export default function Coach() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', minHeight: 0 }}>
           {/* Empty state with starter questions */}
           {isEmpty && (() => {
-            const primaryNiche = niches[0] || ''
-            const nicheLabel = primaryNiche ? primaryNiche.charAt(0).toUpperCase() + primaryNiche.slice(1) : ''
-            // Niche-specific starter questions when niche is set
-            const nicheQuestions = nicheLabel ? [
-              `What type of ${nicheLabel} content is going viral right now?`,
-              `Give me 5 hook ideas for my ${nicheLabel} audience`,
-              `What posting schedule works best for ${nicheLabel} creators?`,
-              `How do I stand out in the ${nicheLabel} niche?`,
-            ] : [t('coach_q1'), t('coach_q2'), t('coach_q3'), t('coach_q4')]
+            const starterQuestions = [t('coach_q1'), t('coach_q2'), t('coach_q3'), t('coach_q4')]
 
             return (
               <div style={{ textAlign: 'center', paddingTop: 20 }}>
                 <div style={{ fontSize: '2rem', marginBottom: 12 }}>💬</div>
-                {nicheLabel ? (
-                  <div style={{ marginBottom: 20 }}>
-                    <p style={{ color: 'var(--text)', fontSize: '0.92rem', fontWeight: 600, marginBottom: 4 }}>
-                      I'm set up for your <span style={{ color: 'var(--accent)' }}>{nicheLabel}</span> content
-                    </p>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      Ask me anything ,  scripts, growth tactics, hook ideas, strategy
-                    </p>
-                  </div>
-                ) : (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
-                    {t('coach_empty')}
-                  </p>
-                )}
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
+                  {t('coach_empty')}
+                </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 420, margin: '0 auto' }}>
-                  {nicheQuestions.map((q, i) => (
+                  {starterQuestions.map((q, i) => (
                     <button
                       key={i}
                       onClick={() => sendMessage(q)}
