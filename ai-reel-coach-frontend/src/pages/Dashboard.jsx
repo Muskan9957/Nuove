@@ -17,6 +17,7 @@ const C = {
   coral:  '#FF5F4C',
   violet: '#B36DFF',
   teal:   '#00E5A0',
+  green:  '#10B981',
 }
 
 const NICHE_META = {
@@ -93,14 +94,13 @@ function LiveDot() {
 }
 
 /* ─── Today's Brief ,  editorial redesign ─────────────────────────── */
-function TrendingBrief({ userName, niches = [], onEditNiche }) {
+function TrendingBrief({ userName }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
   const isLight = theme === 'light'
   const { speak, speaking, stopSpeaking } = useTextToSpeech()
   const [played, setPlayed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const primaryNiche = niches[0] || ''
 
   const [greeting, setGreeting]             = useState(null)
   const [trends, setTrends]                 = useState([])
@@ -124,10 +124,8 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
 
-    const greetingPromise = api.getGreeting(region, lang, niches, bust)
-    const trendingPromise = primaryNiche
-      ? api.getTrending(primaryNiche, lang, region, force).catch(() => null)
-      : Promise.resolve(null)
+    const greetingPromise = api.getGreeting(region, lang, bust)
+    const trendingPromise = api.getTrending(lang, region, force).catch(() => null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
@@ -136,18 +134,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           ? trendData.topics
           : (trendData?.trends?.length ? trendData.trends : greetData?.trends)
 
-        setGreeting({
-          ...greetData,
-          nicheLabel: primaryNiche ? primaryNiche.charAt(0).toUpperCase() + primaryNiche.slice(1) : null,
-          nicheEmoji: primaryNiche ? (NICHE_META[primaryNiche]?.emoji || '🎯') : null,
-          nicheColor: primaryNiche ? (NICHE_META[primaryNiche]?.color || C.cyan) : null,
-        })
+        setGreeting(greetData)
         setTrends(liveTrends || [])
         setTrendFetchedAt(trendData?.fetchedAt || Date.now())
       })
       .catch(() => {})
       .finally(() => { setLoading(false); setRefreshing(false) })
-  }, [lang, niches.join(',')])
+  }, [lang])
 
   const fetchAudio = useCallback(() => {
     const region = getSavedRegion() || 'India'
@@ -158,7 +151,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
       .finally(() => setAudioLoading(false))
   }, [])
 
-  useEffect(() => { fetchBrief(false); fetchAudio() }, [lang, niches.join(',')])
+  useEffect(() => { fetchBrief(false); fetchAudio() }, [lang])
 
   const playGreeting = () => {
     if (!greeting) return
@@ -209,8 +202,6 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
           color: 'var(--text-faint)', letterSpacing: '0.06em',
         }}>{today}</span>
-
-
 
         {/* Source chips ,  live platforms used */}
         {!loading && !refreshing && trends.length > 0 && (
@@ -277,8 +268,6 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
         </button>
       </div>
 
-
-
       {/* ── AI context line ── */}
       {!loading && !refreshing && greeting?.greeting && (
         <p style={{
@@ -300,8 +289,11 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
         </div>
       ) : trends.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {trends.slice(0, 6).map((trend, i) => {
-            const color    = CATEGORY_COLORS[trend.category] || CATEGORY_COLORS[primaryNiche] || C.cyan
+          {trends.slice(0, 3).map((trendItem, i) => {
+            const isObj = typeof trendItem === 'object'
+            const trend = isObj ? trendItem : { title: trendItem }
+            const FALLBACK_COLORS = [C.green, C.violet, C.pink]
+            const color    = CATEGORY_COLORS[trend.category] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
             const rank     = String(i + 1).padStart(2, '0')
             const virality = VIRALITY[i] || 38
             const badge    = TREND_BADGE[i] || '📊 TRENDING'
@@ -310,7 +302,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
               <Link
                 key={i}
                 to="/generate"
-                state={{ topic: trend.title, niche: primaryNiche || trend.category?.toLowerCase() }}
+                state={{ topic: trend.title }}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <div
@@ -465,15 +457,13 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           })}
         </div>
       ) : (
-        niches.length > 0 && (
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-faint)', margin: 0 }}>
-            Could not load today's trends.{' '}
-            <button onClick={() => fetchBrief(true)} style={{
-              background: 'none', border: 'none', color: C.cyan,
-              cursor: 'pointer', fontSize: 'inherit', padding: 0, textDecoration: 'underline',
-            }}>Retry</button>
-          </p>
-        )
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-faint)', margin: 0 }}>
+          Could not load today's trends.{' '}
+          <button onClick={() => fetchBrief(true)} style={{
+            background: 'none', border: 'none', color: C.cyan,
+            cursor: 'pointer', fontSize: 'inherit', padding: 0, textDecoration: 'underline',
+          }}>Retry</button>
+        </p>
       )}
 
       {/* ── 🎵 Trending Audio Section (Spotify) ── */}
@@ -810,7 +800,6 @@ function StreakBanner({ streak, isLight }) {
           </div>
         </div>
       </div>
-
     </div>
   )
 }
@@ -819,14 +808,14 @@ function StreakBanner({ streak, isLight }) {
 export default function Dashboard() {
   const { user }          = useAuth()
   const { t, lang }       = useLang()
-  const { niches, goals, platform } = usePrefs()
+  const { goals, platform } = usePrefs()
   const navigate = useNavigate()
-  const [scripts, setSc]  = useState([])
-  const [logs, setLogs]   = useState([])
-  const [badges, setBadges] = useState([])
-  const [profile, setProfile] = useState(null)
+  const [scripts, setSc]  = useState(() => JSON.parse(localStorage.getItem('dash_scripts') || '[]'))
+  const [logs, setLogs]   = useState(() => JSON.parse(localStorage.getItem('dash_logs') || '[]'))
+  const [badges, setBadges] = useState(() => JSON.parse(localStorage.getItem('dash_badges') || '[]'))
+  const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('dash_profile') || 'null'))
   const [creatorScore, setCreatorScore] = useState(null)
-  const [loading, setLd]  = useState(true)
+  const [loading, setLd]  = useState(!localStorage.getItem('dash_profile'))
   const [showBadgeModal, setShowBadgeModal] = useState(false)
 
   useEffect(() => {
@@ -843,17 +832,21 @@ export default function Dashboard() {
         setBadges(b.badges || [])
         setProfile(prof)
         setCreatorScore(cs)
+        
+        try {
+          localStorage.setItem('dash_scripts', JSON.stringify(s.scripts || []))
+          localStorage.setItem('dash_logs', JSON.stringify(p.logs || []))
+          localStorage.setItem('dash_badges', JSON.stringify(b.badges || []))
+          if (prof) localStorage.setItem('dash_profile', JSON.stringify(prof))
+        } catch {}
 
-        if (prof?.niches?.length) {
+        if (prof?.platform) {
           try {
             const stored = JSON.parse(localStorage.getItem('vs_prefs') || '{}')
-            if (!stored.niches?.length) {
-              localStorage.setItem('vs_prefs', JSON.stringify({
-                niches:   prof.niches,
-                platform: prof.platform || stored.platform || null,
-                goals:    prof.goals    || stored.goals    || [],
-              }))
-            }
+            localStorage.setItem('vs_prefs', JSON.stringify({
+              platform: prof.platform || stored.platform || null,
+              goals:    prof.goals    || stored.goals    || [],
+            }))
           } catch {}
         }
       })
@@ -864,11 +857,6 @@ export default function Dashboard() {
   const isLight  = theme === 'light'
   const limit    = { FREE: 10, STARTER: 50, PRO: '∞' }[user?.plan] || 10
 
-  // Edit niche: clear onboarded flag → go straight to Step 1 (niche picker)
-  const handleEditNiche = () => {
-    localStorage.removeItem('vs_onboarded')
-    navigate('/onboarding')
-  }
   const used     = user?.generationsUsed || 0
   const streak   = profile?.user?.streak ?? profile?.streak ?? 0
   const firstName = user?.name?.split(' ')[0] || 'Creator'
@@ -902,8 +890,6 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* niche chips removed ,  niche filters briefs silently */}
-
       {/* ─── Stats strip ──────────────────────────────────────────── */}
       <StatsStrip
         scripts={scripts.length}
@@ -917,7 +903,7 @@ export default function Dashboard() {
       <StreakBanner streak={streak} isLight={isLight} />
 
       {/* ─── Trending brief ───────────────────────────────────────── */}
-      <TrendingBrief userName={firstName} niches={niches} onEditNiche={handleEditNiche} />
+      <TrendingBrief userName={firstName} />
 
       {/* ─── Badges shelf ─────────────────────────────────────────── */}
       <BadgesShelf badges={badges} isLight={isLight} onOpenModal={() => setShowBadgeModal(true)} />
