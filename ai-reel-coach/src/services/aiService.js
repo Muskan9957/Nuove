@@ -1,7 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
-const MODEL       = 'claude-sonnet-4-6';           // Quality model for creative tasks
-const MODEL_FAST  = 'claude-haiku-4-5-20251001';   // Fast model for scoring/rewriting
+const MODEL       = 'claude-3-5-sonnet-20241022';           // Quality model for creative tasks
+const MODEL_FAST  = 'claude-3-haiku-20240307';   // Fast model for scoring/rewriting
 
 // ─── Language instruction helper ─────────────────────────────────
 // NOTE: 'en' has an EXPLICIT instruction so the AI never drifts into
