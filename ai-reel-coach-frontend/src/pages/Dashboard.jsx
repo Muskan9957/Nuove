@@ -210,20 +210,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
           color: 'var(--text-faint)', letterSpacing: '0.06em',
         }}>{today}</span>
 
-        {/* Niche badge ,  shows active niche */}
-        {greeting?.nicheLabel && (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            padding: '3px 9px', borderRadius: 99, letterSpacing: '0.06em',
-            background: `${greeting.nicheColor || C.violet}18`,
-            border: `1px solid ${greeting.nicheColor || C.violet}40`,
-            color: greeting.nicheColor || C.violet,
-            textTransform: 'uppercase',
-          }}>
-            {greeting.nicheEmoji} {greeting.nicheLabel}
-          </span>
-        )}
+
 
         {/* Source chips ,  live platforms used */}
         {!loading && !refreshing && trends.length > 0 && (
@@ -290,36 +277,7 @@ function TrendingBrief({ userName, niches = [], onEditNiche }) {
         </button>
       </div>
 
-      {/* ── No niche nudge ── */}
-      {!loading && niches.length === 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 12, flexWrap: 'wrap',
-          padding: '16px 20px', borderRadius: 14,
-          background: isLight ? 'rgba(255,140,0,0.06)' : `${C.amber}0C`,
-          border: `1px solid ${C.amber}28`,
-          marginBottom: 16,
-        }}>
-          <div>
-            <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>
-              📌 Personalise your brief
-            </p>
-            <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-faint)' }}>
-              Pick your niche ,  your daily brief will be tailored to your content category
-            </p>
-          </div>
-          <button
-            onClick={onEditNiche}
-            style={{
-              textDecoration: 'none', flexShrink: 0,
-              padding: '8px 18px', borderRadius: 99,
-              background: C.amber, color: '#000', border: 'none',
-              fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-            }}
-          >Set niche →</button>
-        </div>
-      )}
+
 
       {/* ── AI context line ── */}
       {!loading && !refreshing && greeting?.greeting && (
@@ -852,13 +810,7 @@ function StreakBanner({ streak, isLight }) {
           </div>
         </div>
       </div>
-      <Link to="/generate" style={{
-        textDecoration: 'none',
-        padding: '8px 18px', borderRadius: 99,
-        background: C.amber, color: '#000',
-        fontSize: '0.76rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-        flexShrink: 0,
-      }}>Create now →</Link>
+
     </div>
   )
 }
