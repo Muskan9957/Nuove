@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Background Options — Nuove</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Dancing+Script:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:#0C0810;
+  color:#FFF5E8;
+  padding:32px 20px 80px;
+  min-height:100vh;
+}
+.hdr{text-align:center;margin-bottom:40px}
+.hdr h1{
+  font-family:'Dancing Script',cursive;font-size:2.2rem;font-weight:700;
+  background:linear-gradient(135deg,#FF8C00,#FF2D6F);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:6px;
+}
+.hdr p{font-family:'DM Mono',monospace;font-size:0.72rem;color:rgba(255,245,232,0.4);letter-spacing:.08em}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:20px;
+  max-width:1260px;
+  margin:0 auto;
+}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+
+.card{
+  border-radius:18px;
+  overflow:hidden;
+  border:1.5px solid rgba(255,140,0,0.18);
+  background:#0C0810;
+  cursor:pointer;
+  transition:transform .2s,border-color .2s,box-shadow .2s;
+}
+.card:hover{
+  transform:translateY(-5px);
+  border-color:rgba(255,140,0,0.55);
+  box-shadow:0 24px 60px rgba(0,0,0,.7),0 0 40px rgba(255,140,0,.15);
+}
+
+/* ── Canvas ── */
+.canvas{
+  width:100%;height:260px;
+  position:relative;overflow:hidden;
+}
+
+/* ── Mock UI overlaid on each canvas ── */
+.ui{
+  position:absolute;inset:0;z-index:20;
+  display:flex;flex-direction:column;
+  padding:18px;gap:11px;
+  pointer-events:none;
+}
+.ui-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ui-stat{
+  border-radius:10px;padding:11px 13px;
+  background:rgba(8,5,14,0.68);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.08);
+}
+.ui-num{font-family:'Bricolage Grotesque',sans-serif;font-size:1.35rem;font-weight:900;line-height:1;margin-bottom:4px}
+.ui-line{height:5px;border-radius:99px;background:rgba(255,255,255,0.10)}
+.ui-line.s{width:55%}.ui-line.m{width:78%}.ui-line.a{background:rgba(255,140,0,0.35);width:42%}
+.ui-block{
+  border-radius:10px;padding:13px 14px;
+  background:rgba(8,5,14,0.68);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.08);
+  display:flex;flex-direction:column;gap:7px;
+}
+
+/* ── Footer ── */
+.foot{
+  padding:14px 18px 16px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.tag-wrap{display:flex;flex-direction:column;gap:3px}
+.opt-badge{
+  font-family:'DM Mono',monospace;font-size:0.6rem;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;
+  padding:3px 9px;border-radius:99px;width:fit-content;
+  background:rgba(255,140,0,0.14);border:1px solid rgba(255,140,0,0.30);color:#FF8C00;
+}
+.opt-name{font-family:'Bricolage Grotesque',sans-serif;font-size:0.95rem;font-weight:800;color:#FFF5E8;letter-spacing:-.02em}
+.opt-sub{font-size:0.65rem;color:rgba(255,245,232,0.38);font-family:'DM Mono',monospace;margin-top:1px}
+.btn{
+  background:linear-gradient(135deg,#FF8C00,#FF2D6F);
+  border:none;border-radius:99px;padding:8px 18px;
+  color:#fff;font-family:'DM Mono',monospace;font-size:0.68rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+  white-space:nowrap;flex-shrink:0;
+  transition:opacity .15s,transform .15s;
+}
+.btn:hover{opacity:.82;transform:scale(1.05)}
+
+/* ════════════════════════════════════════
+   A — AURORA RIBBONS (animated warm glow)
+   ════════════════════════════════════════ */
+.a-bg{
+  position:absolute;inset:0;
+  background:#07040F;
+}
+.a-bg::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 110% 70% at -5% 20%, rgba(255,100,0,0.55) 0%,transparent 48%),
+    radial-gradient(ellipse 90%  80% at 108% 5%,  rgba(255,45,111,0.45) 0%,transparent 46%),
+    radial-gradient(ellipse 80%  90% at 50% 115%, rgba(179,109,255,0.38) 0%,transparent 50%),
+    radial-gradient(ellipse 60%  55% at 75% 55%,  rgba(255,140,0,0.22)  0%,transparent 44%);
+  animation:auroraMove 7s ease-in-out infinite alternate;
+}
+@keyframes auroraMove{
+  0%  {transform:translate(0,0)   scale(1)}
+  50% {transform:translate(-4%,5%)scale(1.06)}
+  100%{transform:translate(3%,-3%)scale(.96)}
+}
+
+/* ════════════════════════════════════════
+   B — FILM STRIP  (vertical bands + horizontal lines)
+   ════════════════════════════════════════ */
+.b-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 100% 65% at 5% 10%,  rgba(255,100,0,0.42) 0%,transparent 50%),
+    radial-gradient(ellipse 80%  75% at 96% 8%,  rgba(255,45,111,0.32) 0%,transparent 48%),
+    radial-gradient(ellipse 70%  60% at 48% 105%,rgba(179,109,255,0.25)0%,transparent 50%),
+    #06040A;
+  background-size:100%;
+}
+.b-bg::after{
+  content:'';position:absolute;inset:0;
+  background-image:
+    repeating-linear-gradient(90deg,
+      transparent 0, transparent 60px,
+      rgba(255,255,255,0.04) 60px, rgba(255,255,255,0.04) 62px
+    ),
+    repeating-linear-gradient(0deg,
+      transparent 0, transparent 5px,
+      rgba(255,255,255,0.025) 5px, rgba(255,255,255,0.025) 6px
+    );
+}
+
+/* ════════════════════════════════════════
+   C — BOKEH DEPTH (soft circular lights)
+   ════════════════════════════════════════ */
+.c-bg{
+  position:absolute;inset:0;
+  background:#060410;
+}
+.c-bg::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(circle 180px at 18% 28%,  rgba(255,140,0,0.45)  0%,transparent 65%),
+    radial-gradient(circle 150px at 80% 18%,  rgba(255,45,111,0.40) 0%,transparent 65%),
+    radial-gradient(circle 220px at 52% 88%,  rgba(179,109,255,0.30)0%,transparent 65%),
+    radial-gradient(circle 110px at 88% 65%,  rgba(255,140,0,0.28)  0%,transparent 65%),
+    radial-gradient(circle  80px at 10% 72%,  rgba(0,229,160,0.22)  0%,transparent 65%),
+    radial-gradient(circle  70px at 62% 42%,  rgba(255,45,111,0.20) 0%,transparent 65%);
+  filter:blur(2px);
+}
+.c-bg::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 150% 150% at 50% 50%,transparent 32%,rgba(4,2,10,0.72)100%);
+}
+
+/* ════════════════════════════════════════
+   D — DOT GRID  (structured, Linear-style)
+   ════════════════════════════════════════ */
+.d-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 75% 65% at 0%   0%,  rgba(255,110,0,0.38) 0%,transparent 48%),
+    radial-gradient(ellipse 65% 75% at 100% 0%,  rgba(255,45,111,0.30)0%,transparent 46%),
+    radial-gradient(ellipse 70% 60% at 100% 100%,rgba(179,109,255,0.24)0%,transparent 50%),
+    radial-gradient(ellipse 60% 70% at 0%   100%,rgba(255,140,0,0.20) 0%,transparent 48%),
+    #0A0614;
+}
+.d-bg::after{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,140,0,0.45) 1.2px,transparent 1.2px);
+  background-size:26px 26px;
+}
+
+/* ════════════════════════════════════════
+   E — DIAGONAL HAZE (animated + lines)
+   ════════════════════════════════════════ */
+.e-bg{
+  position:absolute;inset:0;
+  background:#050410;
+}
+.e-bg::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 105% 80% at 3%  4%,  rgba(255,115,0,0.48)  0%,transparent 50%),
+    radial-gradient(ellipse 85%  105% at 98% 10%, rgba(255,45,111,0.38) 0%,transparent 48%),
+    radial-gradient(ellipse 95%  75% at 48% 112%, rgba(179,109,255,0.28)0%,transparent 50%);
+  animation:hazeFloat 9s ease-in-out infinite alternate;
+}
+.e-bg::after{
+  content:'';position:absolute;inset:0;
+  background-image:
+    repeating-linear-gradient(-35deg,
+      transparent 0,transparent 48px,
+      rgba(255,140,0,0.09) 48px,rgba(255,140,0,0.09) 49px
+    ),
+    repeating-linear-gradient(35deg,
+      transparent 0,transparent 48px,
+      rgba(255,45,111,0.055) 48px,rgba(255,45,111,0.055) 49px
+    );
+}
+@keyframes hazeFloat{
+  0%  {transform:translate(0,0)    scale(1)}
+  50% {transform:translate(3%,-4%) scale(1.05)}
+  100%{transform:translate(-2%,3%) scale(.97)}
+}
+
+/* ════════════════════════════════════════
+   F — CONSTELLATION (dots + angled wires)
+   ════════════════════════════════════════ */
+.f-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 85% 70% at 5% 8%,   rgba(255,100,0,0.38) 0%,transparent 50%),
+    radial-gradient(ellipse 70% 85% at 96% 10%,  rgba(255,45,111,0.30)0%,transparent 48%),
+    radial-gradient(ellipse 75% 60% at 50% 106%, rgba(179,109,255,0.22)0%,transparent 50%),
+    #07050E;
+}
+.f-bg::after{
+  content:'';position:absolute;inset:0;
+  background-image:
+    radial-gradient(circle,rgba(255,140,0,0.70) 1.2px,transparent 1.2px),
+    radial-gradient(circle,rgba(255,45,111,0.45) 1px,  transparent 1px),
+    repeating-linear-gradient(68deg, transparent 0,transparent 74px,rgba(255,140,0,0.06) 74px,rgba(255,140,0,0.06) 75px),
+    repeating-linear-gradient(128deg,transparent 0,transparent 88px,rgba(255,45,111,0.04) 88px,rgba(255,45,111,0.04) 89px),
+    repeating-linear-gradient(22deg, transparent 0,transparent 98px,rgba(179,109,255,0.03) 98px,rgba(179,109,255,0.03) 99px);
+  background-size:52px 52px,78px 78px,100% 100%,100% 100%,100% 100%;
+  background-position:0 0,26px 26px,0 0,0 0,0 0;
+}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:28px;left:50%;
+  transform:translateX(-50%) translateY(90px);
+  background:linear-gradient(135deg,#FF8C00,#FF2D6F);
+  color:#fff;padding:13px 30px;border-radius:99px;
+  font-family:'DM Mono',monospace;font-size:0.78rem;font-weight:700;
+  letter-spacing:.06em;box-shadow:0 10px 40px rgba(255,140,0,.45);
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .25s;
+  opacity:0;pointer-events:none;z-index:999;white-space:nowrap;
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>Nuove</h1>
+  <p>— pick a background style —</p>
+</div>
+
+<div class="grid">
+
+  <!-- A -->
+  <div class="card">
+    <div class="canvas">
+      <div class="a-bg"></div>
+      <div class="ui">
+        <div class="ui-stats">
+          <div class="ui-stat"><div class="ui-num" style="color:#FF8C00">12</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#00E5A0">5</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#B36DFF">3</div><div class="ui-line s"></div></div>
+        </div>
+        <div class="ui-block"><div class="ui-line a"></div><div class="ui-line m"></div><div class="ui-line s"></div></div>
+        <div class="ui-block"><div class="ui-line" style="background:rgba(255,45,111,.35);width:38%"></div><div class="ui-line m"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="tag-wrap">
+        <span class="opt-badge">Option A</span>
+        <span class="opt-name">Aurora Ribbons</span>
+        <span class="opt-sub">Animated warm glow · breathing light</span>
+      </div>
+      <button class="btn" onclick="pick('A','Aurora Ribbons')">Pick →</button>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="card">
+    <div class="canvas">
+      <div class="b-bg"></div>
+      <div class="ui">
+        <div class="ui-stats">
+          <div class="ui-stat"><div class="ui-num" style="color:#FF8C00">12</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#00E5A0">5</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#B36DFF">3</div><div class="ui-line s"></div></div>
+        </div>
+        <div class="ui-block"><div class="ui-line a"></div><div class="ui-line m"></div><div class="ui-line s"></div></div>
+        <div class="ui-block"><div class="ui-line" style="background:rgba(255,45,111,.35);width:38%"></div><div class="ui-line m"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="tag-wrap">
+        <span class="opt-badge">Option B</span>
+        <span class="opt-name">Film Studio</span>
+        <span class="opt-sub">Vertical bands + scan lines · cinematic</span>
+      </div>
+      <button class="btn" onclick="pick('B','Film Studio')">Pick →</button>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="card">
+    <div class="canvas">
+      <div class="c-bg"></div>
+      <div class="ui">
+        <div class="ui-stats">
+          <div class="ui-stat"><div class="ui-num" style="color:#FF8C00">12</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#00E5A0">5</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#B36DFF">3</div><div class="ui-line s"></div></div>
+        </div>
+        <div class="ui-block"><div class="ui-line a"></div><div class="ui-line m"></div><div class="ui-line s"></div></div>
+        <div class="ui-block"><div class="ui-line" style="background:rgba(255,45,111,.35);width:38%"></div><div class="ui-line m"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="tag-wrap">
+        <span class="opt-badge">Option C</span>
+        <span class="opt-name">Bokeh Depth</span>
+        <span class="opt-sub">Soft circular light pockets · dramatic</span>
+      </div>
+      <button class="btn" onclick="pick('C','Bokeh Depth')">Pick →</button>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="card">
+    <div class="canvas">
+      <div class="d-bg"></div>
+      <div class="ui">
+        <div class="ui-stats">
+          <div class="ui-stat"><div class="ui-num" style="color:#FF8C00">12</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#00E5A0">5</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#B36DFF">3</div><div class="ui-line s"></div></div>
+        </div>
+        <div class="ui-block"><div class="ui-line a"></div><div class="ui-line m"></div><div class="ui-line s"></div></div>
+        <div class="ui-block"><div class="ui-line" style="background:rgba(255,45,111,.35);width:38%"></div><div class="ui-line m"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="tag-wrap">
+        <span class="opt-badge">Option D</span>
+        <span class="opt-name">Dot Grid</span>
+        <span class="opt-sub">Corner mesh + dot pattern · structured</span>
+      </div>
+      <button class="btn" onclick="pick('D','Dot Grid')">Pick →</button>
+    </div>
+  </div>
+
+  <!-- E -->
+  <div class="card">
+    <div class="canvas">
+      <div class="e-bg"></div>
+      <div class="ui">
+        <div class="ui-stats">
+          <div class="ui-stat"><div class="ui-num" style="color:#FF8C00">12</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#00E5A0">5</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#B36DFF">3</div><div class="ui-line s"></div></div>
+        </div>
+        <div class="ui-block"><div class="ui-line a"></div><div class="ui-line m"></div><div class="ui-line s"></div></div>
+        <div class="ui-block"><div class="ui-line" style="background:rgba(255,45,111,.35);width:38%"></div><div class="ui-line m"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="tag-wrap">
+        <span class="opt-badge">Option E</span>
+        <span class="opt-name">Diagonal Haze</span>
+        <span class="opt-sub">Floating haze + diagonal lines · editorial</span>
+      </div>
+      <button class="btn" onclick="pick('E','Diagonal Haze')">Pick →</button>
+    </div>
+  </div>
+
+  <!-- F -->
+  <div class="card">
+    <div class="canvas">
+      <div class="f-bg"></div>
+      <div class="ui">
+        <div class="ui-stats">
+          <div class="ui-stat"><div class="ui-num" style="color:#FF8C00">12</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#00E5A0">5</div><div class="ui-line s"></div></div>
+          <div class="ui-stat"><div class="ui-num" style="color:#B36DFF">3</div><div class="ui-line s"></div></div>
+        </div>
+        <div class="ui-block"><div class="ui-line a"></div><div class="ui-line m"></div><div class="ui-line s"></div></div>
+        <div class="ui-block"><div class="ui-line" style="background:rgba(255,45,111,.35);width:38%"></div><div class="ui-line m"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="tag-wrap">
+        <span class="opt-badge">Option F</span>
+        <span class="opt-name">Constellation</span>
+        <span class="opt-sub">Star dots + network lines · cosmic</span>
+      </div>
+      <button class="btn" onclick="pick('F','Constellation')">Pick →</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+function pick(l,n){
+  const t=document.getElementById('toast')
+  t.textContent=`Option ${l} — ${n}. Tell Claude to apply it!`
+  t.style.opacity='1'
+  t.style.transform='translateX(-50%) translateY(0)'
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(90px)'},3500)
+}
+</script>
+</body>
+</html>

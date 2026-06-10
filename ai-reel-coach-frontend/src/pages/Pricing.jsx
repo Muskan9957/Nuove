@@ -443,12 +443,11 @@ export default function Pricing() {
 
               {/* Features */}
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {plan.features.map((f, j) => (
+                {plan.features.filter(f => f.ok).map((f, j) => (
                   <li key={j} style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 10,
-                    opacity: f.ok ? 1 : 0.35,
                   }}>
                     <div style={{
                       width: 18, height: 18,
