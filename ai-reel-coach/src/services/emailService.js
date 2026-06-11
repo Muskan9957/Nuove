@@ -6,8 +6,8 @@ const getResend = () => {
   return new Resend(process.env.RESEND_API_KEY);
 };
 
-const FROM = process.env.EMAIL_FROM || 'Viral Studio <noreply@viralstudio.in>';
-const APP  = 'Viral Studio';
+const FROM = process.env.EMAIL_FROM || 'Nuove <noreply@nuove.in>';
+const APP  = 'Nuove';
 
 // ─── Shared HTML wrapper ─────────────────────────────────────────────
 const layout = (content) => `
@@ -175,4 +175,46 @@ const sendWelcome = async ({ to, name }) => {
   });
 };
 
-module.exports = { sendPasswordReset, sendWelcome };
+// ─── Verification Email ───────────────────────────────────────────────
+const verificationHtml = ({ name, verifyUrl }) => layout(`
+  <div style="background:linear-gradient(135deg,rgba(255,95,31,0.15),rgba(255,60,172,0.10));padding:36px 40px 28px;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:36px;margin-bottom:12px;">✉️</div>
+    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Verify your email</h1>
+    <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
+      Hey ${name || 'Creator'}, just one click to activate your Nuove account.
+    </p>
+  </div>
+  <div style="padding:32px 40px;">
+    <p style="color:#6B6B90;font-size:14px;line-height:1.7;margin:0 0 28px;">
+      Click the button below to verify your email. This link expires in <strong style="color:#F0F0F8;">24 hours</strong>.
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%">
+      <tr><td align="center" style="padding-bottom:28px;">
+        <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#FF5F1F,#FF3CAC);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;letter-spacing:0.2px;">
+          Verify Email →
+        </a>
+      </td></tr>
+    </table>
+    <div style="background:#161626;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px;margin-bottom:24px;">
+      <p style="color:#3A3A5C;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:1px;">Or copy this link</p>
+      <p style="color:#6B6B90;font-size:12px;margin:0;word-break:break-all;font-family:monospace;">${verifyUrl}</p>
+    </div>
+    <p style="color:#3A3A5C;font-size:13px;margin:0;">Didn't sign up? You can safely ignore this email.</p>
+  </div>
+`);
+
+const sendVerificationEmail = async ({ to, name, verifyUrl }) => {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[EMAIL SKIPPED] Verify URL: ${verifyUrl}`);
+    return;
+  }
+  await resend.emails.send({
+    from   : FROM,
+    to,
+    subject: `Verify your ${APP} email`,
+    html   : verificationHtml({ name, verifyUrl }),
+  });
+};
+
+module.exports = { sendPasswordReset, sendWelcome, sendVerificationEmail };

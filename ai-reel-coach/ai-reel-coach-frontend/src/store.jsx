@@ -34,21 +34,39 @@ export const AuthProvider = ({ children }) => {
       })
       .catch(() => localStorage.removeItem('arc_token'))
       .finally(() => setLoading(false))
+
+    // Global listener to refresh user stats (streak, usage, badges) when events fire
+    const handleRefresh = () => refreshUser()
+    window.addEventListener('streak-updated', handleRefresh)
+    window.addEventListener('usage-updated', handleRefresh)
+    window.addEventListener('badge-earned', handleRefresh)
+    return () => {
+      window.removeEventListener('streak-updated', handleRefresh)
+      window.removeEventListener('usage-updated', handleRefresh)
+      window.removeEventListener('badge-earned', handleRefresh)
+    }
   }, [])
 
   const login = async (email, password) => {
     const data = await api.login({ email, password })
     localStorage.setItem('arc_token', data.token)
+    try {
+      sessionStorage.clear()
+    } catch {}
     setUser(data.user)
     return data
   }
 
   const register = async (email, password, name) => {
     const data = await api.register({ email, password, name })
+    // If email verification is needed, don't set user session yet
+    if (data.needsVerification) return data
     localStorage.setItem('arc_token', data.token)
-    // Always clear onboarding state for fresh accounts
     localStorage.removeItem('vs_onboarded')
     localStorage.removeItem('vs_prefs')
+    try {
+      sessionStorage.clear()
+    } catch {}
     setUser(data.user)
     return data
   }
@@ -65,6 +83,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('arc_token')
+    localStorage.removeItem('vs_onboarded')
+    localStorage.removeItem('vs_prefs')
+    localStorage.removeItem('dash_scripts')
+    localStorage.removeItem('dash_logs')
+    localStorage.removeItem('dash_badges')
+    localStorage.removeItem('dash_profile')
+    try {
+      sessionStorage.clear()
+    } catch {}
     setUser(null)
   }
 

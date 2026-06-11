@@ -28,6 +28,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy'
 import Terms from './pages/Terms'
 import Record from './pages/Record'
 import Support from './pages/Support'
+import VerifyEmail from './pages/VerifyEmail'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -73,6 +74,7 @@ export default function App() {
                 <Route path="/"             element={<LandingRoute />} />
                 <Route path="/auth"         element={<AuthRoute />} />
                 <Route path="/pricing"          element={<Pricing />} />
+                <Route path="/verify-email"     element={<VerifyEmail />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password"  element={<ResetPassword />} />
                 <Route path="/demo"            element={<Demo />} />

@@ -211,7 +211,8 @@
       "Bash(node --check src/routes/scripts.js)",
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('prisma:', p.dependencies['@prisma/client'], p.devDependencies?.['prisma']\\); console.log\\('node engines:', p.engines\\)\")",
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('scripts:', JSON.stringify\\(p.scripts, null, 2\\)\\)\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(git pull *)"
     ]
   }
 }

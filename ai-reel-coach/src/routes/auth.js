@@ -49,4 +49,7 @@ router.post('/reset-password',
   controller.resetPassword
 );
 
+// GET /api/auth/verify-email?token=xxx
+router.get('/verify-email', controller.verifyEmail);
+
 module.exports = router;

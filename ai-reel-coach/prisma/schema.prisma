@@ -28,9 +28,11 @@ model User {
   streak               Int       @default(0)
   lastActiveDate       String?
   language             String    @default("en")
-  passwordResetToken   String?
-  passwordResetExpires DateTime?
-  onboarded            Boolean   @default(false)
+  passwordResetToken      String?
+  passwordResetExpires    DateTime?
+  onboarded               Boolean   @default(false)
+  emailVerified           Boolean   @default(true)
+  emailVerificationToken  String?
 
   scripts          Script[]
   hookScores       HookScore[]

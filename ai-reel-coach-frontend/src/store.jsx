@@ -59,8 +59,9 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, name) => {
     const data = await api.register({ email, password, name })
+    // If email verification is needed, don't set user session yet
+    if (data.needsVerification) return data
     localStorage.setItem('arc_token', data.token)
-    // Always clear onboarding state for fresh accounts
     localStorage.removeItem('vs_onboarded')
     localStorage.removeItem('vs_prefs')
     try {
