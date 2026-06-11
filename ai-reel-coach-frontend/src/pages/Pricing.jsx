@@ -19,7 +19,6 @@ const PLANS = [
     ctaStyle: 'ghost',
     features: [
       { text: '10 AI scripts / month',             ok: true },
-      { text: '10 hook scores / month',            ok: true },
       { text: '10 captions / month',               ok: true },
       { text: '10 Coach messages / month',         ok: true },
       { text: 'Scripts library',                   ok: true },
@@ -45,7 +44,6 @@ const PLANS = [
     ctaStyle: 'primary',
     features: [
       { text: 'Unlimited AI scripts',              ok: true },
-      { text: 'Unlimited hook scores',             ok: true },
       { text: 'Unlimited captions',                ok: true },
       { text: 'Unlimited Coach messages',          ok: true },
       { text: 'Everything in Free — unlimited',    ok: true },
