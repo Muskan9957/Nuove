@@ -21,7 +21,7 @@ const PLANS = [
       { text: '10 AI scripts / month',             ok: true  },
       { text: 'Hook scoring',                      ok: true  },
       { text: 'Scripts library',                   ok: true  },
-      { text: 'General daily brief',               ok: true  },
+      { text: 'Daily brief',                        ok: true  },
     ],
   },
   {
@@ -38,7 +38,7 @@ const PLANS = [
     features: [
       { text: 'Unlimited AI scripts',              ok: true  },
       { text: 'Hook scoring',                      ok: true  },
-      { text: 'Niche-personalised daily brief',    ok: true  },
+      { text: 'Daily brief',                       ok: true  },
       { text: 'Caption Generator',                 ok: true  },
       { text: 'Teleprompter & Recorder',           ok: true  },
       { text: 'Trending Topics',                   ok: true  },
