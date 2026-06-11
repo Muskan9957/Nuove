@@ -73,6 +73,11 @@ const login = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
+    // OAuth-only account — no password set
+    if (!user.passwordHash) {
+      return res.status(401).json({ error: 'This account uses Google sign-in. Please use the Google button to log in.' });
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid email or password.' });
