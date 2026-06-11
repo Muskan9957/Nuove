@@ -18,8 +18,8 @@ const PLANS = [
     cta:      'Get started free',
     ctaStyle: 'ghost',
     features: [
-      { text: '5 AI scripts / month',              ok: true  },
-      { text: '5 hook scores / month',             ok: true  },
+      { text: '10 AI scripts / month',             ok: true  },
+      { text: 'Hook scoring',                      ok: true  },
       { text: 'Scripts library',                   ok: true  },
       { text: 'General daily brief',               ok: true  },
     ],
@@ -37,7 +37,7 @@ const PLANS = [
     ctaStyle: 'primary',
     features: [
       { text: 'Unlimited AI scripts',              ok: true  },
-      { text: 'Unlimited hook scores',             ok: true  },
+      { text: 'Hook scoring',                      ok: true  },
       { text: 'Niche-personalised daily brief',    ok: true  },
       { text: 'Caption Generator',                 ok: true  },
       { text: 'Teleprompter & Recorder',           ok: true  },
