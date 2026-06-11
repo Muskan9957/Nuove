@@ -516,20 +516,9 @@ export default function Pricing() {
           >
             Start for free →
           </button>
-          <button
-            onClick={() => {
-              window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-              });
-            }}
-            className="btn btn-ghost btn-lg"
-          >
-            See Pro features
-          </button>
         </div>
         <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', marginTop: 16 }}>
-          🌍 Made for creators worldwide &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; Multi-language support
+          🌍 Made for creators worldwide &nbsp;·&nbsp; Multi-language support
         </p>
       </div>
     </div>
