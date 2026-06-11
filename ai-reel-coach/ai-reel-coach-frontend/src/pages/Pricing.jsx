@@ -62,7 +62,6 @@ const PLANS = [
     ctaStyle: 'gradient',
     features: [
       { text: 'Everything in Pro',                 ok: true  },
-      { text: 'My Voice — Creator DNA',            ok: true  },
       { text: 'Priority AI (2× faster)',           ok: true  },
       { text: 'Early access to new features',      ok: true  },
       { text: 'Dedicated support',                 ok: true  },
