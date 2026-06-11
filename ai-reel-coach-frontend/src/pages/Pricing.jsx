@@ -26,9 +26,9 @@ const PLANS = [
       { text: 'Trending Topics',                   ok: true },
       { text: 'Script Templates',                  ok: true },
       { text: 'Content Calendar',                  ok: true },
-      { text: 'Teleprompter & Recorder',           ok: true },
+      { text: '5 recordings / month',               ok: true },
+      { text: '5 content remixes / month',         ok: true },
       { text: 'Performance Analytics',             ok: true },
-      { text: 'Content Remix',                     ok: true },
     ],
   },
   {
