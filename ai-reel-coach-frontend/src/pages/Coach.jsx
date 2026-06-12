@@ -148,7 +148,7 @@ export default function Coach() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', minHeight: 0 }}>
           {/* Empty state with starter questions */}
           {isEmpty && (() => {
-            const primaryNiche = niches[0] || ''
+            const primaryNiche = niches?.[0] || ''
             const nicheLabel = primaryNiche ? primaryNiche.charAt(0).toUpperCase() + primaryNiche.slice(1) : ''
             // Niche-specific starter questions when niche is set
             const nicheQuestions = nicheLabel ? [
