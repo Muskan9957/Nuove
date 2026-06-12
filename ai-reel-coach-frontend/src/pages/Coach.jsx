@@ -80,8 +80,9 @@ export default function Coach() {
   useEffect(() => {
     api.getCoachHistory()
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages(data.map(m => ({ role: m.role, content: m.content })))
+        const msgs = Array.isArray(data) ? data : (data?.messages || [])
+        if (msgs.length > 0) {
+          setMessages(msgs.map(m => ({ role: m.role, content: m.content })))
         }
       })
       .catch(() => {})
