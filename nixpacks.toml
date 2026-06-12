@@ -1,0 +1,13 @@
+providers = []
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
+
+[phases.install]
+cmds = ["cd ai-reel-coach && npm install"]
+
+[phases.build]
+cmds = ["cd ai-reel-coach && npx prisma generate"]
+
+[start]
+cmd = "cd ai-reel-coach && npx prisma db push && node src/server.js"
