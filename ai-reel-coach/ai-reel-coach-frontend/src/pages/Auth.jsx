@@ -95,11 +95,11 @@ export default function Auth() {
         )}
 
         {!verifySent && (
-
-        {/* Logo */}
-        {!verifySent && <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <Logo size={42} showWordmark />
-        </div>}
+          <>
+            {/* Logo */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+              <Logo size={42} showWordmark />
+            </div>
 
         {/* Auth card */}
         <div style={{
@@ -253,6 +253,7 @@ export default function Auth() {
             </button>
           </p>
         </div>
+          </>
         )}
       </div>
     </div>

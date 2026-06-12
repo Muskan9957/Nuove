@@ -124,7 +124,7 @@ function TrendingBrief({ userName }) {
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
 
-    const greetingPromise = api.getGreeting(region, lang, bust)
+    const greetingPromise = api.getGreeting(region, lang, bust).catch(() => null)
     const trendingPromise = api.getTrending(lang, region, force).catch(() => null)
 
     Promise.all([greetingPromise, trendingPromise])

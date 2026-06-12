@@ -53,11 +53,12 @@ const PLANS = [
     tagline:  'For serious creators & brands',
     priceM:   499,
     priceY:   374,
-    badge:    'Best Value',
+    badge:    null,
     accent:   '#FF2D6F',
     accentBg: 'rgba(255,45,111,0.10)',
-    cta:      'Start Studio',
+    cta:      'Coming Soon',
     ctaStyle: 'gradient',
+    disabled: true,
     features: [
       { text: 'Everything in Pro',                 ok: true },
       { text: 'Priority AI — faster responses',    ok: true },
@@ -100,7 +101,7 @@ export default function Pricing() {
 
       // If not configured yet, show friendly message
       if (!data?.subscriptionId) {
-        toast('Payments launching soon ,  we\'ll notify you! 🚀', 'success')
+        toast('Payments launching soon — we\'ll notify you! 🚀', 'success')
         return
       }
 
@@ -116,7 +117,7 @@ export default function Pricing() {
         key             : data.keyId,
         subscription_id : data.subscriptionId,
         name            : 'Nuove',
-        description     : `${plan.name} Plan ,  ₹${plan.priceM}/month`,
+        description     : `${plan.name} Plan — ₹${plan.priceM}/month`,
         image           : '/logo.png',
         prefill         : {
           email : data.userEmail || user?.email || '',
@@ -146,7 +147,7 @@ export default function Pricing() {
               setTimeout(() => navigate('/dashboard'), 1500)
             }
           } catch {
-            toast('Payment received but verification failed ,  contact support.', 'error')
+            toast('Payment received but verification failed — contact support.', 'error')
           } finally {
             setCheckingOut(null)
           }
@@ -157,7 +158,7 @@ export default function Pricing() {
 
     } catch (err) {
       if (err.message?.includes('not configured')) {
-        toast('Payments are being set up ,  stay tuned! 🚀', 'success')
+        toast('Payments are being set up — stay tuned! 🚀', 'success')
       } else {
         toast(err.message || 'Something went wrong.', 'error')
       }
@@ -207,7 +208,7 @@ export default function Pricing() {
           textTransform: 'uppercase',
           marginBottom: 20,
         }}>
-          🌍 Creator-First Pricing
+          🌍 Creator First Pricing
         </div>
 
         <h1 style={{
@@ -229,10 +230,6 @@ export default function Pricing() {
             viral growth
           </span>
         </h1>
-
-        <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1.7, marginBottom: 32 }}>
-          Every plan comes with a 7-day free trial. No credit card required.
-        </p>
 
         {/* Toggle */}
         <div style={{
@@ -295,6 +292,177 @@ export default function Pricing() {
         {PLANS.map((plan, i) => {
           const price = annual ? plan.priceY : plan.priceM
           const isPopular = plan.id === 'pro'
+
+          // ── STUDIO: premium mystery card (adaptive theme) ────────────
+          if (plan.disabled) {
+            const studioPrice = annual ? plan.priceY : plan.priceM
+            return (
+              <div key={plan.id} style={{
+                position: 'relative',
+                borderRadius: 24,
+                padding: '28px 24px',
+                // Adaptive glass instead of forced dark
+                background: 'linear-gradient(160deg, var(--surface-card) 0%, var(--surface) 100%)',
+                backdropFilter: 'blur(20px)',
+                border: '1.5px solid rgba(179,109,255,0.2)',
+                boxShadow: 'var(--shadow), 0 0 0 1px rgba(255,45,111,0.05)',
+                animation: `fadeUp 0.4s ease ${i * 0.1}s both, studioFloat 4s ease-in-out infinite`,
+                overflow: 'hidden',
+                minHeight: 440,
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+
+                {/* Soft purple glow orb — top right */}
+                <div style={{
+                  position: 'absolute', width: 200, height: 200,
+                  borderRadius: '50%', top: -60, right: -60,
+                  background: 'radial-gradient(circle, rgba(179,109,255,0.15) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+
+                {/* Pink glow orb — bottom left */}
+                <div style={{
+                  position: 'absolute', width: 160, height: 160,
+                  borderRadius: '50%', bottom: -40, left: -30,
+                  background: 'radial-gradient(circle, rgba(255,45,111,0.12) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+
+                {/* Pulsing border overlay */}
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: 23,
+                  boxShadow: 'inset 0 0 0 1.5px rgba(179,109,255,0.25)',
+                  animation: 'studioBorderPulse 2.8s ease-in-out infinite',
+                  pointerEvents: 'none',
+                }} />
+
+                {/* ── Top section: name + tagline + dim price ── */}
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  {/* Plan chip */}
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: 'rgba(255,45,111,0.12)',
+                    border: '1px solid rgba(255,45,111,0.2)',
+                    borderRadius: 8, padding: '5px 12px', marginBottom: 10,
+                  }}>
+                    <div style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: '#FF2D6F',
+                      boxShadow: '0 0 8px rgba(255,45,111,0.5)',
+                    }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#FF2D6F', fontFamily: 'var(--font-mono)' }}>
+                      Studio
+                    </span>
+                  </div>
+
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: 14 }}>
+                    For serious creators &amp; brands
+                  </p>
+
+                  {/* Price — dim ghost */}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 0 }}>
+                    <span style={{ fontSize: '1rem', color: 'var(--text-faint)', fontWeight: 500 }}>₹</span>
+                    <span style={{
+                      fontFamily: 'var(--font-head)', fontSize: '2.6rem',
+                      fontWeight: 900, letterSpacing: '-0.04em',
+                      color: 'var(--text-faint)',
+                    }}>
+                      {studioPrice.toLocaleString('en-IN')}
+                    </span>
+                    <span style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>/ mo</span>
+                  </div>
+                </div>
+
+                {/* ── Centre: big COMING SOON focal point ── */}
+                <div style={{
+                  flex: 1,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '24px 0 8px',
+                  gap: 16,
+                  position: 'relative', zIndex: 1,
+                }}>
+
+                  {/* Lock icon glowing circle */}
+                  <div style={{
+                    width: 72, height: 72, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, rgba(255,45,111,0.12), rgba(179,109,255,0.15))',
+                    border: '1.5px solid rgba(179,109,255,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '2rem',
+                    boxShadow: '0 0 20px rgba(179,109,255,0.2), 0 0 40px rgba(255,45,111,0.1)',
+                    animation: 'studioPulseIcon 2.8s ease-in-out infinite',
+                  }}>
+                    🔒
+                  </div>
+
+                  {/* COMING SOON gradient text */}
+                  <div>
+                    <div style={{
+                      fontSize: '1.55rem',
+                      fontWeight: 900,
+                      fontFamily: 'var(--font-head)',
+                      letterSpacing: '-0.03em',
+                      background: 'linear-gradient(135deg, #FF2D6F 0%, #B36DFF 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      marginBottom: 8,
+                      filter: 'drop-shadow(0 0 8px rgba(255,45,111,0.25))',
+                    }}>
+                      Coming Soon
+                    </div>
+                    <p style={{
+                      fontSize: '0.76rem',
+                      color: 'var(--text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                      letterSpacing: '0.06em',
+                      lineHeight: 1.7,
+                    }}>
+                      Something powerful<br />is being crafted for you...
+                    </p>
+                  </div>
+
+                  {/* Redacted feature bars */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginTop: 4 }}>
+                    {[
+                      { w: '82%' },
+                      { w: '62%' },
+                      { w: '72%' },
+                      { w: '50%' },
+                    ].map(({ w }, j) => (
+                      <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {/* Dot */}
+                        <div style={{
+                          width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                          background: 'rgba(179,109,255,0.1)',
+                          border: '1px solid rgba(179,109,255,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.4rem', color: 'rgba(179,109,255,0.4)',
+                        }}>●</div>
+                        {/* Shimmer redacted bar */}
+                        <div style={{
+                          height: 8, width: w, borderRadius: 99,
+                          background: 'linear-gradient(90deg, rgba(179,109,255,0.1), rgba(255,45,111,0.06))',
+                          position: 'relative', overflow: 'hidden',
+                        }}>
+                          <div style={{
+                            position: 'absolute', inset: 0,
+                            background: 'linear-gradient(90deg, transparent 0%, rgba(179,109,255,0.15) 50%, transparent 100%)',
+                            animation: `shimmerSweep 2.4s ease-in-out ${j * 0.4}s infinite`,
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          // ── Regular cards: Free + Pro ──────────────────────────────
           return (
             <div
               key={plan.id}
@@ -365,7 +533,7 @@ export default function Pricing() {
                   <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)', fontWeight: 500 }}>₹</span>
                   <span style={{
                     fontFamily: 'var(--font-head)',
-                    fontSize: price === 0 ? '2.6rem' : '2.6rem',
+                    fontSize: '2.6rem',
                     fontWeight: 900,
                     letterSpacing: '-0.04em',
                     color: 'var(--text)',
@@ -405,10 +573,6 @@ export default function Pricing() {
                     background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)',
                     color: '#fff',
                     boxShadow: '0 4px 20px rgba(255,140,0,0.40)',
-                  } : plan.ctaStyle === 'gradient' ? {
-                    background: 'linear-gradient(135deg, #FF2D6F, #B36DFF)',
-                    color: '#fff',
-                    boxShadow: '0 4px 20px rgba(255,45,111,0.32)',
                   } : {
                     background: 'var(--surface2)',
                     color: 'var(--text)',
@@ -507,4 +671,3 @@ export default function Pricing() {
     </div>
   )
 }
-
