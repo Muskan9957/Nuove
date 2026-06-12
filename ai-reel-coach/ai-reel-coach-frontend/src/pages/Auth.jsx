@@ -28,15 +28,16 @@ const YouTubeIcon = () => (
 
 /* ─── Auth ───────────────────────────────────────────────────────── */
 export default function Auth() {
-  const [mode, setMode]       = useState('login')
-  const [email, setEmail]     = useState('')
-  const [password, setPass]   = useState('')
-  const [name, setName]       = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showPass, setShowPass] = useState(false)
-  const { login, register }   = useAuth()
-  const toast                 = useToast()
-  const navigate              = useNavigate()
+  const [mode, setMode]             = useState('login')
+  const [email, setEmail]           = useState('')
+  const [password, setPass]         = useState('')
+  const [name, setName]             = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [showPass, setShowPass]     = useState(false)
+  const [verifySent, setVerifySent] = useState(false)
+  const { login, register }         = useAuth()
+  const toast                       = useToast()
+  const navigate                    = useNavigate()
 
   const submit = async e => {
     e.preventDefault()
@@ -45,11 +46,11 @@ export default function Auth() {
       if (mode === 'login') {
         await login(email, password)
         toast('Welcome back!', 'success')
+        navigate('/dashboard')
       } else {
         await register(email, password, name)
-        toast('Account created!', 'success')
+        setVerifySent(true)
       }
-      navigate('/dashboard')
     } catch (err) {
       toast(err.message, 'error')
     } finally {
@@ -76,10 +77,29 @@ export default function Auth() {
 
       <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }} className="page-enter">
 
+        {/* Email verification sent screen */}
+        {verifySent && (
+          <div style={{ background: 'var(--surface-card)', backdropFilter: 'blur(24px)', border: '1px solid var(--border-bright)', borderRadius: 20, padding: '40px 32px', textAlign: 'center' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 16 }}>📬</div>
+            <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.5rem', color: 'var(--text)', marginBottom: 8 }}>Check your inbox</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>
+              We've sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Click it to activate your account.
+            </p>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem' }}>
+              Didn't get it? Check your spam folder.
+            </p>
+            <button onClick={() => { setVerifySent(false); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 16, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+              Back to sign in
+            </button>
+          </div>
+        )}
+
+        {!verifySent && (
+
         {/* Logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+        {!verifySent && <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
           <Logo size={42} showWordmark />
-        </div>
+        </div>}
 
         {/* Auth card */}
         <div style={{
@@ -233,6 +253,7 @@ export default function Auth() {
             </button>
           </p>
         </div>
+        )}
       </div>
     </div>
   )

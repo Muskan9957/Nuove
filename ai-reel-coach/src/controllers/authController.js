@@ -1,9 +1,21 @@
 const bcrypt           = require('bcryptjs');
 const jwt              = require('jsonwebtoken');
 const crypto           = require('crypto');
+const dns              = require('dns').promises;
 const { validationResult } = require('express-validator');
 const prisma           = require('../config/prisma');
-const { sendPasswordReset, sendWelcome } = require('../services/emailService');
+const { sendPasswordReset, sendWelcome, sendVerificationEmail } = require('../services/emailService');
+
+// ─── Validate email domain has MX records ────────────────────────
+const isValidEmailDomain = async (email) => {
+  try {
+    const domain  = email.split('@')[1];
+    const records = await dns.resolveMx(domain);
+    return records && records.length > 0;
+  } catch {
+    return false;
+  }
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────
 const signToken = (user) =>
@@ -33,25 +45,37 @@ const register = async (req, res, next) => {
 
     const { email, password, name } = req.body;
 
+    // Reject fake/non-existent email domains
+    const domainValid = await isValidEmailDomain(email);
+    if (!domainValid) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     const user = await prisma.user.create({
-      data: { email, passwordHash, name },
+      data: {
+        email,
+        passwordHash,
+        name,
+        emailVerified          : false,
+        emailVerificationToken : verificationToken,
+      },
     });
 
-    const token = signToken(user);
-
-    // Send welcome email (non-blocking)
-    sendWelcome({ to: user.email, name: user.name }).catch(() => {});
+    // Send verification email (non-blocking)
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    sendVerificationEmail({ to: user.email, name: user.name, verifyUrl }).catch(() => {});
 
     return res.status(201).json({
-      message: 'Account created successfully!',
-      token,
-      user: { id: user.id, email: user.email, name: user.name, plan: user.plan, avatar: user.avatar, streak: 0 },
+      message: 'Account created! Please check your email to verify your account.',
+      needsVerification: true,
     });
   } catch (err) {
     next(err);
@@ -71,6 +95,16 @@ const login = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // OAuth-only account — no password set
+    if (!user.passwordHash) {
+      return res.status(401).json({ error: 'This account uses Google sign-in. Please use the Google button to log in.' });
+    }
+
+    // Email not verified yet
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: 'Please verify your email before logging in. Check your inbox for the verification link.', needsVerification: true });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -191,4 +225,37 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe, forgotPassword, resetPassword };
+// ─── VERIFY EMAIL ────────────────────────────────────────────────────
+const verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Verification token is required.' });
+
+    const user = await prisma.user.findFirst({
+      where: { emailVerificationToken: token },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired verification link.' });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data : { emailVerified: true, emailVerificationToken: null },
+    });
+
+    // Send welcome email now that they're verified
+    sendWelcome({ to: user.email, name: user.name }).catch(() => {});
+
+    const authToken = signToken(user);
+    return res.json({
+      message: 'Email verified successfully! Welcome to Nuove.',
+      token  : authToken,
+      user   : { id: user.id, email: user.email, name: user.name, plan: user.plan, avatar: user.avatar, streak: 0 },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, login, getMe, forgotPassword, resetPassword, verifyEmail };

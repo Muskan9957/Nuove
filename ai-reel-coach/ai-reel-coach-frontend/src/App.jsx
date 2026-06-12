@@ -27,6 +27,8 @@ import Scripts from './pages/Scripts'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import Terms from './pages/Terms'
 import Record from './pages/Record'
+import Support from './pages/Support'
+import VerifyEmail from './pages/VerifyEmail'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -72,6 +74,7 @@ export default function App() {
                 <Route path="/"             element={<LandingRoute />} />
                 <Route path="/auth"         element={<AuthRoute />} />
                 <Route path="/pricing"          element={<Pricing />} />
+                <Route path="/verify-email"     element={<VerifyEmail />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password"  element={<ResetPassword />} />
                 <Route path="/demo"            element={<Demo />} />
@@ -93,6 +96,7 @@ export default function App() {
                 <Route path="/coach"        element={<Protected><Coach /></Protected>} />
                 <Route path="/profile"      element={<Protected><Profile /></Protected>} />
                 <Route path="/record"       element={<Protected><Record /></Protected>} />
+                <Route path="/support"      element={<Protected><Support /></Protected>} />
                 <Route path="/reel-ready"   element={<Navigate to="/dashboard" replace />} />
                 <Route path="/creator-dna"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="/my-voice"     element={<Navigate to="/dashboard" replace />} />

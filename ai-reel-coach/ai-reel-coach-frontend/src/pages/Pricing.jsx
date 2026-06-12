@@ -18,24 +18,17 @@ const PLANS = [
     cta:      'Get started free',
     ctaStyle: 'ghost',
     features: [
-      { text: '5 AI scripts / month',              ok: true  },
-      { text: '5 hook scores / month',             ok: true  },
-      { text: 'Scripts library',                   ok: true  },
-      { text: 'Hook Library (browse)',             ok: true  },
-      { text: 'General daily brief',               ok: true  },
-      { text: 'Niche-personalised brief',          ok: false },
-      { text: 'Caption Generator',                 ok: false },
-      { text: 'Teleprompter & Recorder',           ok: false },
-      { text: 'Performance Analytics',             ok: false },
-      { text: 'Content Calendar',                  ok: false },
-      { text: 'Creator Coach (AI chat)',            ok: false },
-      { text: 'My Voice — Creator DNA',            ok: false },
+      { text: '10 AI scripts / month',             ok: true },
+      { text: '10 captions / month',               ok: true },
+      { text: '10 Coach messages / month',         ok: true },
+      { text: '5 recordings / month',              ok: true },
+      { text: '5 content remixes / month',         ok: true },
     ],
   },
   {
     id:       'pro',
     name:     'Pro',
-    tagline:  'Everything a creator needs',
+    tagline:  'Unlimited. No caps, no limits.',
     priceM:   99,
     priceY:   74,
     badge:    'Most Popular',
@@ -44,24 +37,20 @@ const PLANS = [
     cta:      'Start Pro',
     ctaStyle: 'primary',
     features: [
-      { text: 'Unlimited AI scripts',              ok: true  },
-      { text: 'Unlimited hook scores',             ok: true  },
-      { text: 'Niche-personalised daily brief',    ok: true  },
-      { text: 'Caption Generator (unlimited)',     ok: true  },
-      { text: 'Teleprompter & Recorder',           ok: true  },
-      { text: 'Reel Ready (captions + songs)',     ok: true  },
-      { text: 'Trending Topics (live)',            ok: true  },
-      { text: 'Script Templates',                  ok: true  },
-      { text: 'Performance Analytics',             ok: true  },
-      { text: 'Content Calendar',                  ok: true  },
-      { text: 'Creator Coach (unlimited chat)',    ok: true  },
-      { text: 'My Voice — Creator DNA',            ok: false },
+      { text: 'Unlimited AI scripts',              ok: true },
+      { text: 'Unlimited captions',                ok: true },
+      { text: 'Unlimited Coach messages',          ok: true },
+      { text: 'Unlimited recordings',              ok: true },
+      { text: 'Unlimited content remixes',         ok: true },
+      { text: 'Scripts library & Templates',       ok: true },
+      { text: 'Daily brief & Trending Topics',     ok: true },
+      { text: 'Content Calendar & Analytics',      ok: true },
     ],
   },
   {
     id:       'studio',
     name:     'Studio',
-    tagline:  'For power creators & brands',
+    tagline:  'For serious creators & brands',
     priceM:   499,
     priceY:   374,
     badge:    'Best Value',
@@ -70,38 +59,14 @@ const PLANS = [
     cta:      'Start Studio',
     ctaStyle: 'gradient',
     features: [
-      { text: 'Everything in Pro',                 ok: true  },
-      { text: 'My Voice — Creator DNA',            ok: true  },
-      { text: 'Content Remix (all platforms)',     ok: true  },
-      { text: 'Priority AI (2× faster)',           ok: true  },
-      { text: 'Advanced performance reports',      ok: true  },
-      { text: 'Creator Score insights',            ok: true  },
-      { text: 'Script retakes & refinements',      ok: true  },
-      { text: 'Full Hook Library + Templates',     ok: true  },
-      { text: 'Early access to new features',      ok: true  },
-      { text: 'Dedicated support',                 ok: true  },
+      { text: 'Everything in Pro',                 ok: true },
+      { text: 'Priority AI — faster responses',    ok: true },
+      { text: 'Early access to new features',      ok: true },
+      { text: 'Dedicated support',                 ok: true },
     ],
   },
 ]
 
-const FAQS = [
-  {
-    q: 'Can I cancel anytime?',
-    a: 'Yes — cancel from your profile page, no questions asked. You keep access until the end of your current billing period.',
-  },
-  {
-    q: 'Do you support Hindi / regional language scripts?',
-    a: 'Absolutely. Select Hindi, Hinglish, or your regional language in settings and the AI writes naturally in that language.',
-  },
-  {
-    q: 'What\'s the difference between Pro and Studio?',
-    a: 'Pro (₹99/mo) unlocks everything — unlimited scripts, niche brief, captions, teleprompter, reel ready, analytics, calendar, and coach. Studio (₹499/mo) adds My Voice (Creator DNA), Content Remix, Priority AI, advanced reports, and early feature access.',
-  },
-  {
-    q: 'Can I upgrade or downgrade later?',
-    a: 'Yes, any time. Upgrades take effect immediately. Downgrades apply at the start of the next billing cycle.',
-  },
-]
 
 // ─── Load Razorpay script dynamically ─────────────────────────────
 function loadRazorpayScript() {
@@ -117,7 +82,6 @@ function loadRazorpayScript() {
 
 export default function Pricing() {
   const [annual, setAnnual]           = useState(false)
-  const [openFaq, setOpenFaq]         = useState(null)
   const [checkingOut, setCheckingOut] = useState(null)
   const { user, refreshUser }         = useAuth()
   const navigate                      = useNavigate()
@@ -136,7 +100,7 @@ export default function Pricing() {
 
       // If not configured yet, show friendly message
       if (!data?.subscriptionId) {
-        toast('Payments launching soon — we\'ll notify you! 🚀', 'success')
+        toast('Payments launching soon ,  we\'ll notify you! 🚀', 'success')
         return
       }
 
@@ -152,7 +116,7 @@ export default function Pricing() {
         key             : data.keyId,
         subscription_id : data.subscriptionId,
         name            : 'Nuove',
-        description     : `${plan.name} Plan — ₹${plan.priceM}/month`,
+        description     : `${plan.name} Plan ,  ₹${plan.priceM}/month`,
         image           : '/logo.png',
         prefill         : {
           email : data.userEmail || user?.email || '',
@@ -182,7 +146,7 @@ export default function Pricing() {
               setTimeout(() => navigate('/dashboard'), 1500)
             }
           } catch {
-            toast('Payment received but verification failed — contact support.', 'error')
+            toast('Payment received but verification failed ,  contact support.', 'error')
           } finally {
             setCheckingOut(null)
           }
@@ -193,7 +157,7 @@ export default function Pricing() {
 
     } catch (err) {
       if (err.message?.includes('not configured')) {
-        toast('Payments are being set up — stay tuned! 🚀', 'success')
+        toast('Payments are being set up ,  stay tuned! 🚀', 'success')
       } else {
         toast(err.message || 'Something went wrong.', 'error')
       }
@@ -462,12 +426,11 @@ export default function Pricing() {
 
               {/* Features */}
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {plan.features.map((f, j) => (
+                {plan.features.filter(f => f.ok).map((f, j) => (
                   <li key={j} style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 10,
-                    opacity: f.ok ? 1 : 0.35,
                   }}>
                     <div style={{
                       width: 18, height: 18,
@@ -505,63 +468,6 @@ export default function Pricing() {
       </div>
 
 
-      {/* FAQ */}
-      <div style={{ maxWidth: 640, margin: '0 auto 72px' }}>
-        <h2 style={{
-          fontFamily: 'var(--font-head)',
-          fontSize: '1.8rem',
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
-          color: 'var(--text)',
-          textAlign: 'center',
-          marginBottom: 32,
-        }}>
-          Questions? Answered.
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {FAQS.map((f, i) => (
-            <div
-              key={i}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                overflow: 'hidden',
-                transition: 'border-color 0.2s',
-                borderColor: openFaq === i ? 'var(--border-bright)' : 'var(--border)',
-              }}
-            >
-              <button
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                style={{
-                  width: '100%', padding: '18px 20px',
-                  background: 'transparent', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  cursor: 'pointer', fontFamily: 'var(--font-body)',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.9rem' }}>{f.q}</span>
-                <span style={{
-                  color: openFaq === i ? 'var(--accent)' : 'var(--text-faint)',
-                  fontSize: '1.2rem',
-                  transform: openFaq === i ? 'rotate(45deg)' : 'none',
-                  transition: 'transform 0.2s ease, color 0.2s ease',
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}>
-                  +
-                </span>
-              </button>
-              {openFaq === i && (
-                <div style={{ padding: '0 20px 18px' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.7 }}>{f.a}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Bottom CTA */}
       <div style={{
@@ -584,7 +490,7 @@ export default function Pricing() {
           Ready to go viral?
         </h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: '0.9rem' }}>
-          Start with the free plan. No credit card needed.
+          Take your first step to effortless content creation. Start with the free plan, no credit card needed.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
@@ -593,17 +499,12 @@ export default function Pricing() {
           >
             Start for free →
           </button>
-          <button
-            onClick={() => navigate(user ? '/dashboard' : '/auth')}
-            className="btn btn-ghost btn-lg"
-          >
-            See Pro features
-          </button>
         </div>
         <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', marginTop: 16 }}>
-          🌍 Made for creators worldwide &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; Multi-language support
+          🌍 Made for creators worldwide &nbsp;·&nbsp; Multi-language support
         </p>
       </div>
     </div>
   )
 }
+

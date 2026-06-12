@@ -18,24 +18,17 @@ const PLANS = [
     cta:      'Get started free',
     ctaStyle: 'ghost',
     features: [
-      { text: '10 AI scripts / month',             ok: true  },
-      { text: '10 hook scores / month',            ok: true  },
-      { text: 'Scripts library',                   ok: true  },
-      { text: 'Hook Library (browse)',             ok: true  },
-      { text: 'General daily brief',               ok: true  },
-      { text: 'Niche-personalised brief',          ok: false },
-      { text: 'Caption Generator',                 ok: false },
-      { text: 'Teleprompter & Recorder',           ok: false },
-      { text: 'Performance Analytics',             ok: false },
-      { text: 'Content Calendar',                  ok: false },
-      { text: 'Creator Coach (AI chat)',            ok: false },
-      { text: 'My Voice ,  Creator DNA',            ok: false },
+      { text: '10 AI scripts / month',             ok: true },
+      { text: '10 captions / month',               ok: true },
+      { text: '10 Coach messages / month',         ok: true },
+      { text: '5 recordings / month',              ok: true },
+      { text: '5 content remixes / month',         ok: true },
     ],
   },
   {
     id:       'pro',
     name:     'Pro',
-    tagline:  'Everything a creator needs',
+    tagline:  'Unlimited. No caps, no limits.',
     priceM:   99,
     priceY:   74,
     badge:    'Most Popular',
@@ -44,24 +37,20 @@ const PLANS = [
     cta:      'Start Pro',
     ctaStyle: 'primary',
     features: [
-      { text: 'Unlimited AI scripts',              ok: true  },
-      { text: 'Unlimited hook scores',             ok: true  },
-      { text: 'Niche-personalised daily brief',    ok: true  },
-      { text: 'Caption Generator (unlimited)',     ok: true  },
-      { text: 'Teleprompter & Recorder',           ok: true  },
-      { text: 'Reel Ready (captions + songs)',     ok: true  },
-      { text: 'Trending Topics (live)',            ok: true  },
-      { text: 'Script Templates',                  ok: true  },
-      { text: 'Performance Analytics',             ok: true  },
-      { text: 'Content Calendar',                  ok: true  },
-      { text: 'Creator Coach (unlimited chat)',    ok: true  },
-      { text: 'My Voice ,  Creator DNA',            ok: false },
+      { text: 'Unlimited AI scripts',              ok: true },
+      { text: 'Unlimited captions',                ok: true },
+      { text: 'Unlimited Coach messages',          ok: true },
+      { text: 'Unlimited recordings',              ok: true },
+      { text: 'Unlimited content remixes',         ok: true },
+      { text: 'Scripts library & Templates',       ok: true },
+      { text: 'Daily brief & Trending Topics',     ok: true },
+      { text: 'Content Calendar & Analytics',      ok: true },
     ],
   },
   {
     id:       'studio',
     name:     'Studio',
-    tagline:  'For power creators & brands',
+    tagline:  'For serious creators & brands',
     priceM:   499,
     priceY:   374,
     badge:    'Best Value',
@@ -70,16 +59,10 @@ const PLANS = [
     cta:      'Start Studio',
     ctaStyle: 'gradient',
     features: [
-      { text: 'Everything in Pro',                 ok: true  },
-      { text: 'My Voice ,  Creator DNA',            ok: true  },
-      { text: 'Content Remix (all platforms)',     ok: true  },
-      { text: 'Priority AI (2× faster)',           ok: true  },
-      { text: 'Advanced performance reports',      ok: true  },
-      { text: 'Creator Score insights',            ok: true  },
-      { text: 'Script retakes & refinements',      ok: true  },
-      { text: 'Full Hook Library + Templates',     ok: true  },
-      { text: 'Early access to new features',      ok: true  },
-      { text: 'Dedicated support',                 ok: true  },
+      { text: 'Everything in Pro',                 ok: true },
+      { text: 'Priority AI — faster responses',    ok: true },
+      { text: 'Early access to new features',      ok: true },
+      { text: 'Dedicated support',                 ok: true },
     ],
   },
 ]
@@ -443,12 +426,11 @@ export default function Pricing() {
 
               {/* Features */}
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {plan.features.map((f, j) => (
+                {plan.features.filter(f => f.ok).map((f, j) => (
                   <li key={j} style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 10,
-                    opacity: f.ok ? 1 : 0.35,
                   }}>
                     <div style={{
                       width: 18, height: 18,
@@ -517,20 +499,9 @@ export default function Pricing() {
           >
             Start for free →
           </button>
-          <button
-            onClick={() => {
-              window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-              });
-            }}
-            className="btn btn-ghost btn-lg"
-          >
-            See Pro features
-          </button>
         </div>
         <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', marginTop: 16 }}>
-          🌍 Made for creators worldwide &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; Multi-language support
+          🌍 Made for creators worldwide &nbsp;·&nbsp; Multi-language support
         </p>
       </div>
     </div>
