@@ -1,9 +1,21 @@
 const bcrypt           = require('bcryptjs');
 const jwt              = require('jsonwebtoken');
 const crypto           = require('crypto');
+const dns              = require('dns').promises;
 const { validationResult } = require('express-validator');
 const prisma           = require('../config/prisma');
 const { sendPasswordReset, sendWelcome, sendVerificationEmail } = require('../services/emailService');
+
+// ─── Validate email domain has MX records ────────────────────────
+const isValidEmailDomain = async (email) => {
+  try {
+    const domain  = email.split('@')[1];
+    const records = await dns.resolveMx(domain);
+    return records && records.length > 0;
+  } catch {
+    return false;
+  }
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────
 const signToken = (user) =>
@@ -32,6 +44,12 @@ const register = async (req, res, next) => {
     }
 
     const { email, password, name } = req.body;
+
+    // Reject fake/non-existent email domains
+    const domainValid = await isValidEmailDomain(email);
+    if (!domainValid) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
