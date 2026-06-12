@@ -510,8 +510,8 @@ Each topic should be:
 Return ONLY a JSON array of 10 strings. No extra text. Example:
 ["Topic 1", "Topic 2", ...]
 `
-  const raw = await ask(prompt, 600)
   try {
+    const raw = await ask(prompt, 600)
     const match = raw.match(/\[[\s\S]*\]/)
     if (!match) throw new Error('No JSON array')
     return JSON.parse(match[0])
@@ -668,8 +668,8 @@ Return ONLY valid JSON (no markdown, no code blocks):
 
 Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, Fashion, Business, Health, Bollywood`
 
-  const raw = await ask(prompt, 600, MODEL_FAST)
   try {
+    const raw = await ask(prompt, 600, MODEL_FAST)
     const jsonMatch = raw.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error('No JSON')
     return JSON.parse(jsonMatch[0])
