@@ -69,8 +69,10 @@ const get = async (req, res, next) => {
 
     // 3. No cache at all (or forced refresh) — must wait for AI
     const topics = await aiService.getTrendingTopicsLive(niche, language, region)
-    await prisma.trendingCache.create({
-      data: { niche, language, topics: JSON.stringify(topics), date: today },
+    await prisma.trendingCache.upsert({
+      where : { niche_language_date: { niche, language, date: today } },
+      create: { niche, language, topics: JSON.stringify(topics), date: today },
+      update: { topics: JSON.stringify(topics) },
     })
     return res.json({ niche, language, date: today, topics, cached: false })
 
