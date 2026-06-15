@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const { enrichSongs } = require('./spotifyService');
 
 const MODEL       = 'claude-3-5-sonnet-20241022';           // Quality model for creative tasks
 const MODEL_FAST  = 'claude-3-haiku-20240307';   // Fast model for scoring/rewriting
@@ -983,31 +984,32 @@ Return ONLY valid JSON, no markdown, no code blocks:
     if (!match) throw new Error('No JSON')
     const parsed = JSON.parse(match[0])
     if (!Array.isArray(parsed.songs) || parsed.songs.length === 0) throw new Error('Empty songs')
+    parsed.songs = await enrichSongs(parsed.songs)
     return parsed
   } catch {
     // Fallback is region-aware
     const isIndia = audience === 'India' || language === 'hi'
     if (isIndia) {
       return {
-        songs: [
+        songs: await enrichSongs([
           { title: 'Tum Hi Ho', artist: 'Arijit Singh', bpm: 68, energy: 'medium', mood: 'emotional, soulful', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Tum+Hi+Ho+Arijit+Singh' },
           { title: 'Kesariya', artist: 'Arijit Singh', bpm: 112, energy: 'high', mood: 'romantic, uplifting', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Kesariya+Arijit+Singh' },
           { title: 'Pasoori', artist: 'Ali Sethi & Shae Gill', bpm: 95, energy: 'medium', mood: 'dreamy, vibrant', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Pasoori+Ali+Sethi' },
           { title: 'Hindi Motivational Background', artist: 'Various', bpm: 120, energy: 'high', mood: 'powerful, uplifting', royaltyFree: true, library: 'Hoopr.ai', searchUrl: 'https://hoopr.ai/playlists/motivational' },
           { title: 'Desi Beats Instrumental', artist: 'Various', bpm: 110, energy: 'high', mood: 'energetic, desi', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/indian/' },
           { title: 'Bollywood Background Score', artist: 'Various', bpm: 100, energy: 'medium', mood: 'cinematic, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
-        ]
+        ])
       }
     }
     return {
-      songs: [
+      songs: await enrichSongs([
         { title: 'Blinding Lights', artist: 'The Weeknd', bpm: 171, energy: 'high', mood: 'urgent, driving', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd' },
         { title: 'Levitating', artist: 'Dua Lipa', bpm: 103, energy: 'high', mood: 'euphoric, fun', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Levitating+Dua+Lipa' },
         { title: 'STAY', artist: 'The Kid LAROI & Justin Bieber', bpm: 170, energy: 'high', mood: 'emotional, intense', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=STAY+The+Kid+LAROI+Justin+Bieber' },
         { title: 'Inspiring Uplifting', artist: 'Various', bpm: 120, energy: 'medium', mood: 'motivational', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/motivational/' },
         { title: 'Energetic Sport', artist: 'Various', bpm: 130, energy: 'high', mood: 'powerful, athletic', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/sport' },
         { title: 'Positive Upbeat', artist: 'Various', bpm: 108, energy: 'medium', mood: 'happy, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
-      ]
+      ])
     }
   }
 }
