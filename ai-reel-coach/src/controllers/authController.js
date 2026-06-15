@@ -258,4 +258,21 @@ const verifyEmail = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe, forgotPassword, resetPassword, verifyEmail };
+// ─── VERIFICATION STATUS (polled by frontend "check inbox" screen) ───
+const verificationStatus = async (req, res, next) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'email is required.' });
+
+    const user = await prisma.user.findUnique({
+      where : { email },
+      select: { emailVerified: true },
+    });
+
+    return res.json({ verified: !!(user && user.emailVerified) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, login, getMe, forgotPassword, resetPassword, verifyEmail, verificationStatus };

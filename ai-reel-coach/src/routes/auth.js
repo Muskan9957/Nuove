@@ -52,4 +52,7 @@ router.post('/reset-password',
 // GET /api/auth/verify-email?token=xxx
 router.get('/verify-email', controller.verifyEmail);
 
+// GET /api/auth/verification-status?email=xxx  (polled by "check inbox" screen)
+router.get('/verification-status', controller.verificationStatus);
+
 module.exports = router;

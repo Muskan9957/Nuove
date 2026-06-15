@@ -39,6 +39,7 @@ export const api = {
   // Auth
   register:      (body)          => req('POST', '/auth/register', body),
   verifyEmail:   (token)         => req('GET', `/auth/verify-email?token=${token}`),
+  checkVerification: (email)     => req('GET', `/auth/verification-status?email=${encodeURIComponent(email)}`),
   login:         (body)          => req('POST', '/auth/login', body),
   getMe:         ()              => req('GET',  '/auth/me'),
   forgotPassword:(email)         => req('POST', '/auth/forgot-password', { email }),
