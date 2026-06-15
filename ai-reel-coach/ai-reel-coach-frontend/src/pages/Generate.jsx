@@ -391,11 +391,12 @@ export default function Generate() {
             const hit = d.results?.[0]
             return {
               ...song,
-              previewUrl : hit?.previewUrl  || null,
-              artworkUrl : hit?.artworkUrl60?.replace('60x60', '100x100') || null,
+              // Prefer Spotify data from backend; fall back to iTunes
+              previewUrl : song.previewUrl || hit?.previewUrl || null,
+              artworkUrl : song.albumArt   || hit?.artworkUrl60?.replace('60x60', '100x100') || null,
             }
           } catch {
-            return song
+            return { ...song, previewUrl: song.previewUrl || null, artworkUrl: song.albumArt || null }
           }
         })
       )
@@ -1060,21 +1061,21 @@ export default function Generate() {
                                       {canPlay && (
                                         <span style={{ fontSize: '0.66rem', color: 'var(--text-faint)' }}>30s preview</span>
                                       )}
-                                      {song.searchUrl && (
+                                      {(song.spotifyUrl || song.searchUrl) && (
                                         <a
-                                          href={song.searchUrl}
+                                          href={song.spotifyUrl || song.searchUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           style={{
                                             marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
                                             padding: '2px 9px', borderRadius: 99,
-                                            background: song.royaltyFree ? 'rgba(29,185,84,0.10)' : 'rgba(252,175,69,0.10)',
-                                            color: song.royaltyFree ? '#1DB954' : '#FCAF45',
-                                            border: `1px solid ${song.royaltyFree ? 'rgba(29,185,84,0.28)' : 'rgba(252,175,69,0.28)'}`,
+                                            background: song.spotifyUrl ? 'rgba(29,185,84,0.14)' : (song.royaltyFree ? 'rgba(29,185,84,0.10)' : 'rgba(252,175,69,0.10)'),
+                                            color: song.spotifyUrl ? '#1DB954' : (song.royaltyFree ? '#1DB954' : '#FCAF45'),
+                                            border: `1px solid ${song.spotifyUrl ? 'rgba(29,185,84,0.35)' : (song.royaltyFree ? 'rgba(29,185,84,0.28)' : 'rgba(252,175,69,0.28)')}`,
                                             textDecoration: 'none',
                                           }}
                                         >
-                                          Full ↗
+                                          {song.spotifyUrl ? 'Spotify ↗' : 'Full ↗'}
                                         </a>
                                       )}
                                     </div>
