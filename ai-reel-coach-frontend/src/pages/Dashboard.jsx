@@ -129,14 +129,18 @@ function TrendingBrief({ userName }) {
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
-        // trendData.topics is the new structured array from live sources
+        if (greetData) {
+          setGreeting(greetData)
+        }
+        
         const liveTrends = trendData?.topics?.length
           ? trendData.topics
           : (trendData?.trends?.length ? trendData.trends : greetData?.trends)
 
-        setGreeting(greetData)
-        setTrends(liveTrends || [])
-        setTrendFetchedAt(trendData?.fetchedAt || Date.now())
+        if (liveTrends && liveTrends.length > 0) {
+          setTrends(liveTrends)
+          setTrendFetchedAt(trendData?.fetchedAt || Date.now())
+        }
       })
       .catch(() => {})
       .finally(() => { setLoading(false); setRefreshing(false) })
@@ -204,7 +208,7 @@ function TrendingBrief({ userName }) {
         }}>{today}</span>
 
         {/* Source chips ,  live platforms used */}
-        {!loading && !refreshing && trends.length > 0 && (
+        {!loading && trends.length > 0 && (
           [...new Set(trends.map(tr => tr.source).filter(Boolean))].map(src => {
             const meta = SOURCE_META[src] || SOURCE_META.ai
             return (
@@ -218,7 +222,7 @@ function TrendingBrief({ userName }) {
           })
         )}
         {/* Freshness stamp */}
-        {ago && !loading && !refreshing && (
+        {ago && !loading && (
           <span style={{
             fontSize: '0.58rem', fontFamily: 'var(--font-mono)',
             color: 'var(--text-faint)', letterSpacing: '0.04em',
@@ -240,9 +244,10 @@ function TrendingBrief({ userName }) {
             cursor: refreshing || loading ? 'default' : 'pointer',
             fontSize: '0.8rem',
             transition: 'all 0.15s',
-            display: 'flex', alignItems: 'center', gap: 4,
+            display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
+          {refreshing && <span style={{ fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.05em' }}>ANALYZING LIVE TRENDS...</span>}
           <span style={{
             display: 'inline-block',
             animation: refreshing ? 'spinOnce 0.8s linear infinite' : 'none',
@@ -269,26 +274,30 @@ function TrendingBrief({ userName }) {
       </div>
 
       {/* ── AI context line ── */}
-      {!loading && !refreshing && greeting?.greeting && (
+      {!loading && greeting?.greeting && (
         <p style={{
           fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.65,
           margin: '0 0 20px',
           paddingLeft: 14,
           borderLeft: `3px solid ${isLight ? 'rgba(200,80,0,0.25)' : 'rgba(255,140,0,0.28)'}`,
+          opacity: refreshing ? 0.5 : 1, transition: 'opacity 0.3s'
         }}>
           {greeting.greeting}
         </p>
       )}
 
       {/* ── Trend cards ── */}
-      {(loading || refreshing) ? (
+      {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           {[0,1,2].map(i => (
             <div key={i} className="shimmer" style={{ height: 160, borderRadius: 16 }} />
           ))}
         </div>
       ) : trends.length ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+        <div style={{ 
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14,
+          opacity: refreshing ? 0.5 : 1, pointerEvents: refreshing ? 'none' : 'auto', transition: 'opacity 0.3s'
+        }}>
           {trends.slice(0, 3).map((trendItem, i) => {
             const isObj = typeof trendItem === 'object'
             const trend = isObj ? trendItem : { title: trendItem }
