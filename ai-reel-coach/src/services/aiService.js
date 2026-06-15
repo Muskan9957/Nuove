@@ -1,5 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { enrichSongs } = require('./spotifyService');
+const { getTrendingTitles } = require('./youtubeService');
 
 const MODEL       = 'claude-3-5-sonnet-20241022';           // Quality model for creative tasks
 const MODEL_FAST  = 'claude-3-haiku-20240307';   // Fast model for scoring/rewriting
@@ -539,6 +540,48 @@ Return ONLY a JSON array of 10 strings. No extra text. Example:
       'Why consistency beats quality',
       'The truth about going viral',
     ]
+  }
+}
+
+// ─── Trending topics grounded in REAL YouTube data ────────────────
+// Pulls the most-viewed short-form videos for the niche/region from
+// YouTube, then asks the AI to turn them into 10 creator topic ideas.
+// Falls back to pure-AI topics when YouTube data is unavailable.
+const getTrendingTopicsLive = async (niche = 'general', language = 'en', region = 'India') => {
+  let realTitles = []
+  try {
+    realTitles = await getTrendingTitles(niche, region)
+  } catch {
+    realTitles = []
+  }
+
+  // No real data (no key / quota / error) → fall back to pure-AI topics
+  if (!realTitles.length) {
+    return getTrendingTopics(niche, language)
+  }
+
+  const langInstruction = getLangInstruction(language) || 'Respond in English.'
+  const prompt = `
+You are a viral content strategist. Below are REAL trending short-form videos on YouTube RIGHT NOW for the "${niche}" niche in ${region}:
+
+${realTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+${langInstruction}
+
+Based on what's ACTUALLY trending above, generate 10 fresh, specific topic ideas a creator in the "${niche}" niche could make today. Ride these real trends but make each idea original and optimized for a 60-90 second Reel/Short. Do not copy the titles verbatim.
+
+Return ONLY a JSON array of 10 strings. No extra text.
+["Topic 1", "Topic 2", ...]
+`
+  try {
+    const raw = await ask(prompt, 600)
+    const match = raw.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error('No JSON array')
+    const topics = JSON.parse(match[0])
+    if (!Array.isArray(topics) || topics.length === 0) throw new Error('Empty')
+    return topics
+  } catch {
+    return getTrendingTopics(niche, language)
   }
 }
 
@@ -1127,6 +1170,7 @@ module.exports = {
   rewriteHook,
   analyzePerformance,
   getTrendingTopics,
+  getTrendingTopicsLive,
   generateWeeklyReport,
   translateContent,
   getRegionalGreeting,
