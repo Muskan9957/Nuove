@@ -507,8 +507,10 @@ Each topic should be:
 - Optimized for short-form video (60-90 seconds)
 - Likely to get high engagement
 
-Return ONLY a JSON array of 10 strings. No extra text. Example:
-["Topic 1", "Topic 2", ...]
+Return ONLY a JSON array of 10 objects. No extra text. Example:
+[
+  {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Trending"}
+]
 `
   try {
     const raw = await ask(prompt, 600)
@@ -517,27 +519,56 @@ Return ONLY a JSON array of 10 strings. No extra text. Example:
     return JSON.parse(match[0])
   } catch {
     const fallbackTopics = {
-      hi: ['30 दिनों में 1000 फॉलोअर्स कैसे पाए','नए क्रिएटर्स की सबसे बड़ी गलती','मेरी कंटेंट क्रिएशन रूटीन','वीडियो पर व्यूज़ क्यों नहीं आते','हुक फॉर्मूला जो हमेशा काम करता है','रोज़ काम आने वाले कंटेंट टूल्स','एक दिन में 30 वीडियो कैसे रिकॉर्ड करें','मेरी एडिटिंग वर्कफ़्लो','क्वालिटी से ज़्यादा कंसिस्टेंसी क्यों ज़रूरी है','वायरल होने की असली सच्चाई'],
-      es: ['Cómo gané 1000 seguidores en 30 días','El mayor error de los nuevos creadores','Mi rutina honesta de creación de contenido','Por qué tus videos no tienen vistas','La fórmula de gancho que siempre funciona','Herramientas de contenido que uso a diario','Cómo grabar 30 videos en un día','Mi flujo de edición revelado','Por qué la consistencia supera a la calidad','La verdad sobre hacerse viral'],
-      fr: ['Comment j\'ai gagné 1000 abonnés en 30 jours','La plus grande erreur des nouveaux créateurs','Ma routine honnête de création de contenu','Pourquoi vos vidéos n\'ont pas de vues','La formule d\'accroche qui fonctionne toujours','Outils de contenu que j\'utilise quotidiennement','Comment enregistrer 30 vidéos en une journée','Mon flux de montage révélé','Pourquoi la régularité bat la qualité','La vérité sur devenir viral'],
-      pt: ['Como conquistei 1000 seguidores em 30 dias','O maior erro dos novos criadores','Minha rotina honesta de criação de conteúdo','Por que seus vídeos não têm visualizações','A fórmula de gancho que sempre funciona','Ferramentas de conteúdo que uso diariamente','Como gravar 30 vídeos em um dia','Meu fluxo de edição revelado','Por que consistência supera qualidade','A verdade sobre se tornar viral'],
-      de: ['Wie ich in 30 Tagen 1000 Follower gewann','Der größte Fehler neuer Creator','Meine ehrliche Content-Creation-Routine','Warum deine Videos keine Aufrufe bekommen','Die Hook-Formel, die immer funktioniert','Content-Tools, die ich täglich nutze','Wie man 30 Videos an einem Tag aufnimmt','Mein Bearbeitungs-Workflow enthüllt','Warum Konsistenz Qualität schlägt','Die Wahrheit über virales werden'],
-      ar: ['كيف حصلت على 1000 متابع في 30 يوماً','أكبر خطأ يرتكبه المبدعون الجدد','روتيني الصادق في إنشاء المحتوى','لماذا مقاطع الفيديو الخاصة بك لا تحصل على مشاهدات','صيغة الخطاف التي تعمل دائماً','أدوات المحتوى التي أستخدمها يومياً','كيفية تسجيل 30 مقطعاً في يوم واحد','سير عمل التحرير الخاص بي','لماذا الاستمرارية تتفوق على الجودة','الحقيقة حول الانتشار الفيروسي'],
-      id: ['Cara mendapat 1000 followers dalam 30 hari','Kesalahan terbesar kreator baru','Rutina pembuatan konten saya yang jujur','Kenapa video kamu tidak dapat views','Formula hook yang selalu berhasil','Tools konten yang saya gunakan setiap hari','Cara merekam 30 video dalam satu hari','Alur kerja editing saya terungkap','Kenapa konsistensi mengalahkan kualitas','Kebenaran tentang menjadi viral'],
-      ja: ['30日で1000フォロワーを獲得した方法','新人クリエイターの最大の失敗','私の正直なコンテンツ制作ルーティン','なぜあなたの動画に再生数がつかないのか','いつでも機能するフック公式','毎日使うコンテンツツール','1日で30本の動画を撮る方法','私の編集ワークフロー公開','なぜ継続性が質を上回るのか','バイラルになる真実'],
-      ko: ['30일 만에 팔로워 1000명 얻는 방법','신규 크리에이터의 가장 큰 실수','나의 솔직한 콘텐츠 제작 루틴','영상 조회수가 안 나오는 이유','항상 효과적인 훅 공식','매일 사용하는 콘텐츠 툴','하루에 영상 30개 찍는 방법','내 편집 워크플로우 공개','일관성이 품질을 이기는 이유','바이럴이 되는 진실'],
+      hi: [
+        {title: '30 दिनों में 1000 फॉलोअर्स कैसे पाए', description: 'यह रणनीति अभी बहुत काम कर रही है।', category: 'Growth'},
+        {title: 'नए क्रिएटर्स की सबसे बड़ी गलती', description: 'लोग इन गलतियों से बचना चाहते हैं।', category: 'Tips'},
+        {title: 'मेरी कंटेंट क्रिएशन रूटीन', description: 'पर्दे के पीछे का दृश्य हमेशा लोकप्रिय होता है।', category: 'Vlog'}
+      ],
+      es: [
+        {title: 'Cómo gané 1000 seguidores en 30 días', description: 'Esta estrategia funciona muy bien ahora mismo.', category: 'Growth'},
+        {title: 'El mayor error de los nuevos creadores', description: 'La gente quiere evitar estos errores comunes.', category: 'Tips'},
+        {title: 'Mi rutina honesta de creación', description: 'El detrás de escena siempre es popular.', category: 'Vlog'}
+      ],
+      fr: [
+        {title: 'Comment j\'ai gagné 1000 abonnés en 30 jours', description: 'Cette stratégie fonctionne très bien en ce moment.', category: 'Growth'},
+        {title: 'La plus grande erreur des nouveaux créateurs', description: 'Les gens veulent éviter ces erreurs courantes.', category: 'Tips'},
+        {title: 'Ma routine honnête de création', description: 'Les coulisses sont toujours populaires.', category: 'Vlog'}
+      ],
+      pt: [
+        {title: 'Como conquistei 1000 seguidores em 30 dias', description: 'Esta estratégia funciona muito bem agora.', category: 'Growth'},
+        {title: 'O maior erro dos novos criadores', description: 'As pessoas querem evitar esses erros.', category: 'Tips'},
+        {title: 'Minha rotina honesta de criação', description: 'Os bastidores sempre são populares.', category: 'Vlog'}
+      ],
+      de: [
+        {title: 'Wie ich in 30 Tagen 1000 Follower gewann', description: 'Diese Strategie funktioniert derzeit sehr gut.', category: 'Growth'},
+        {title: 'Der größte Fehler neuer Creator', description: 'Die Leute wollen diese häufigen Fehler vermeiden.', category: 'Tips'},
+        {title: 'Meine ehrliche Content-Routine', description: 'Hinter den Kulissen ist immer beliebt.', category: 'Vlog'}
+      ],
+      ar: [
+        {title: 'كيف حصلت على 1000 متابع في 30 يوماً', description: 'هذه الاستراتيجية تعمل بشكل جيد الآن.', category: 'Growth'},
+        {title: 'أكبر خطأ يرتكبه المبدعون الجدد', description: 'يريد الناس تجنب هذه الأخطاء.', category: 'Tips'},
+        {title: 'روتيني الصادق في إنشاء المحتوى', description: 'كواليس العمل دائماً تحظى بشعبية.', category: 'Vlog'}
+      ],
+      id: [
+        {title: 'Cara mendapat 1000 followers dalam 30 hari', description: 'Strategi ini bekerja dengan sangat baik sekarang.', category: 'Growth'},
+        {title: 'Kesalahan terbesar kreator baru', description: 'Orang ingin menghindari kesalahan umum ini.', category: 'Tips'},
+        {title: 'Rutina pembuatan konten saya yang jujur', description: 'Di balik layar selalu populer.', category: 'Vlog'}
+      ],
+      ja: [
+        {title: '30日で1000フォロワーを獲得した方法', description: 'この戦略は今非常に効果的です。', category: 'Growth'},
+        {title: '新人クリエイターの最大の失敗', description: '人々はこれらの失敗を避けたいと思っています。', category: 'Tips'},
+        {title: '私の正直なコンテンツ制作ルーティン', description: '舞台裏は常に人気があります。', category: 'Vlog'}
+      ],
+      ko: [
+        {title: '30일 만에 팔로워 1000명 얻는 방법', description: '이 전략은 현재 매우 효과적입니다.', category: 'Growth'},
+        {title: '신규 크리에이터의 가장 큰 실수', description: '사람들은 이러한 실수를 피하고 싶어합니다.', category: 'Tips'},
+        {title: '나의 솔직한 콘텐츠 제작 루틴', description: '비하인드 스토리는 항상 인기가 많습니다.', category: 'Vlog'}
+      ],
     }
     return fallbackTopics[language] || [
-      'How I gained 1000 followers in 30 days',
-      'The biggest mistake new creators make',
-      'My honest content creation routine',
-      'Why your videos get 0 views',
-      'The hook formula that always works',
-      'Content creation tools I use daily',
-      'How to batch record 30 videos in one day',
-      'My editing workflow revealed',
-      'Why consistency beats quality',
-      'The truth about going viral',
+      {title: 'How I gained 1000 followers in 30 days', description: 'This strategy is working incredibly well right now.', category: 'Growth'},
+      {title: 'The biggest mistake new creators make', description: 'People want to avoid these common pitfalls.', category: 'Tips'},
+      {title: 'My honest content creation routine', description: 'Behind-the-scenes content always performs well.', category: 'Vlog'}
     ]
   }
 }

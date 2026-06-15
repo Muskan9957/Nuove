@@ -95,14 +95,13 @@ export function useTextToSpeech() {
   }
 
   // ── Google Neural TTS via backend (primary path) ─────────────────
-  const playBackend = async (text, langCode) => {
+  const playBackend = async (text, langCode, audio) => {
     const resp = await api.tts(text, langCode)
     if (!resp.ok) throw new Error(await resp.text())
     const blob    = await resp.blob()
     const blobUrl = URL.createObjectURL(blob)
-    const audio   = new Audio(blobUrl)
-    audio._blobUrl     = blobUrl
-    audioRef.current   = audio
+    audio._blobUrl = blobUrl
+    audio.src = blobUrl
     audio.onended = () => { URL.revokeObjectURL(blobUrl); setSpeaking(false) }
     audio.onerror = () => { URL.revokeObjectURL(blobUrl); setSpeaking(false) }
     await audio.play()
@@ -117,8 +116,14 @@ export function useTextToSpeech() {
     setSpeaking(true)
 
     try {
+      // Create audio synchronously to bypass iOS/Safari auto-play blocks
+      const audio = new Audio()
+      audioRef.current = audio
+      // Play silently to unlock the audio context for this element
+      audio.play().catch(() => {})
+
       // Try ElevenLabs Neural TTS via backend — best quality, consistent on all devices
-      await playBackend(text, langCode)
+      await playBackend(text, langCode, audio)
     } catch (err) {
       console.warn('[TTS] Backend failed, falling back to Web Speech:', err?.message)
       // Backend not configured or offline — fall back to Web Speech API
