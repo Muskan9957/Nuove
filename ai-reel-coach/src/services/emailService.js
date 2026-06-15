@@ -68,7 +68,7 @@ const passwordResetHtml = ({ name, resetUrl }) => layout(`
     <div style="font-size:36px;margin-bottom:12px;">🔐</div>
     <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Reset your password</h1>
     <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
-      Hey ${name || 'Creator'}, we got a request to reset your Viral Studio password.
+      Hey ${name || 'Creator'}, we got a request to reset your ${APP} password.
     </p>
   </div>
 
@@ -104,7 +104,7 @@ const welcomeHtml = ({ name }) => layout(`
   <!-- Header band -->
   <div style="background:linear-gradient(135deg,rgba(255,95,31,0.15),rgba(255,60,172,0.10));padding:36px 40px 28px;border-bottom:1px solid rgba(255,255,255,0.06);">
     <div style="font-size:36px;margin-bottom:12px;">🚀</div>
-    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Welcome to Viral Studio!</h1>
+    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Welcome to ${APP}!</h1>
     <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
       Hey ${name || 'Creator'}, your account is ready. Let's make your first viral script.
     </p>
@@ -115,10 +115,10 @@ const welcomeHtml = ({ name }) => layout(`
     <!-- Feature bullets -->
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
       ${[
-        ['⚡', 'AI Script Generator', 'Write hooks, body, and CTA in seconds'],
-        ['🎯', 'Hook Scorer',         'Know if your hook will grab attention'],
-        ['🤖', 'AI Coach',            'Get personalised advice for your niche'],
-        ['📈', 'Trending Topics',     'India-specific trends updated daily'],
+        ['⚡', 'Script Generator', 'Hooks, body & CTA in seconds'],
+        ['💬', 'Creator Advisor',  'Personalised AI coaching, on demand'],
+        ['📈', 'Trending Topics',  'Real, current trends to ride today'],
+        ['✍️', 'Captions',         'Scroll-stopping captions & hashtags'],
       ].map(([emoji, title, sub]) => `
         <tr>
           <td style="padding:10px 0;vertical-align:top;">
@@ -138,7 +138,7 @@ const welcomeHtml = ({ name }) => layout(`
 
     <table cellpadding="0" cellspacing="0" width="100%">
       <tr><td align="center">
-        <a href="${process.env.FRONTEND_URL || 'https://viralstudio.in'}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#FF5F1F,#FF3CAC);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;">
+        <a href="${process.env.FRONTEND_URL || 'https://nuove.in'}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#FF5F1F,#FF3CAC);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;">
           Open my dashboard →
         </a>
       </td></tr>
