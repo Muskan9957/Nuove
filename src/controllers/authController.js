@@ -38,10 +38,12 @@ const register = async (req, res, next) => {
     // Send welcome email (non-blocking)
     sendWelcome({ to: user.email, name: user.name }).catch(() => {});
 
+    const safeUser = { id: user.id, email: user.email, name: user.name, plan: user.plan, generationsUsed: user.generationsUsed, streak: user.streak, avatar: user.avatar, createdAt: user.createdAt };
+
     return res.status(201).json({
       message: 'Account created successfully!',
       token,
-      user: { id: user.id, email: user.email, name: user.name, plan: user.plan },
+      user: safeUser,
     });
   } catch (err) {
     next(err);
@@ -68,11 +70,13 @@ const login = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
+    const safeUser = { id: user.id, email: user.email, name: user.name, plan: user.plan, generationsUsed: user.generationsUsed, streak: user.streak, avatar: user.avatar, createdAt: user.createdAt };
+
     const token = signToken(user);
     return res.json({
       message: 'Logged in successfully!',
       token,
-      user: { id: user.id, email: user.email, name: user.name, plan: user.plan },
+      user: safeUser,
     });
   } catch (err) {
     next(err);
@@ -94,6 +98,7 @@ const getMe = async (req, res, next) => {
         createdAt       : true,
         onboarded       : true,
         avatar          : true,
+        streak          : true,
       },
     });
     if (!user) return res.status(404).json({ error: 'User not found.' });
@@ -167,11 +172,13 @@ const resetPassword = async (req, res, next) => {
       },
     });
 
+    const safeUser = { id: user.id, email: user.email, name: user.name, plan: user.plan, generationsUsed: user.generationsUsed, streak: user.streak, avatar: user.avatar, createdAt: user.createdAt };
+
     const authToken = signToken(user);
     return res.json({
       message: 'Password reset successfully!',
       token  : authToken,
-      user   : { id: user.id, email: user.email, name: user.name, plan: user.plan },
+      user   : safeUser,
     });
   } catch (err) {
     next(err);
