@@ -6,8 +6,9 @@ const getResend = () => {
   return new Resend(process.env.RESEND_API_KEY);
 };
 
-const FROM = process.env.EMAIL_FROM || 'Nuove <noreply@nuove.in>';
-const APP  = 'Nuove';
+const FROM     = process.env.EMAIL_FROM || 'Nuove <noreply@nuove.in>';
+const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support.nuove@anahatone.com';
+const APP      = 'Nuove';
 
 // ─── Shared HTML wrapper ─────────────────────────────────────────────
 const layout = (content) => `
@@ -154,7 +155,8 @@ const sendPasswordReset = async ({ to, name, resetUrl }) => {
     return;
   }
   await resend.emails.send({
-    from   : FROM,
+    from    : FROM,
+    replyTo : REPLY_TO,
     to,
     subject: `Reset your ${APP} password`,
     html   : passwordResetHtml({ name, resetUrl }),
@@ -168,7 +170,8 @@ const sendWelcome = async ({ to, name }) => {
     return;
   }
   await resend.emails.send({
-    from   : FROM,
+    from    : FROM,
+    replyTo : REPLY_TO,
     to,
     subject: `Welcome to ${APP} 🚀`,
     html   : welcomeHtml({ name }),
@@ -210,7 +213,8 @@ const sendVerificationEmail = async ({ to, name, verifyUrl }) => {
     return;
   }
   await resend.emails.send({
-    from   : FROM,
+    from    : FROM,
+    replyTo : REPLY_TO,
     to,
     subject: `Verify your ${APP} email`,
     html   : verificationHtml({ name, verifyUrl }),
