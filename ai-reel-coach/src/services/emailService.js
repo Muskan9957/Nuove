@@ -18,6 +18,7 @@ const layout = (content) => `
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>${APP}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet"/>
 </head>
 <body style="margin:0;padding:0;background:#07070E;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#07070E;padding:40px 20px;">
@@ -26,17 +27,8 @@ const layout = (content) => `
 
         <!-- Logo -->
         <tr><td style="padding-bottom:32px;text-align:center;">
-          <table cellpadding="0" cellspacing="0" style="display:inline-table;">
-            <tr>
-              <td style="background:linear-gradient(135deg,#FF5F1F,#FF3CAC);border-radius:12px;padding:10px 14px;vertical-align:middle;">
-                <span style="color:#fff;font-size:18px;font-weight:900;letter-spacing:-0.5px;">▶</span>
-              </td>
-              <td style="padding-left:10px;vertical-align:middle;">
-                <div style="color:#F0F0F8;font-size:20px;font-weight:800;letter-spacing:-0.5px;">${APP}</div>
-                <div style="color:#3A3A5C;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-top:1px;">Content Intelligence</div>
-              </td>
-            </tr>
-          </table>
+          <span style="font-size:30px;vertical-align:middle;line-height:1;">🎬</span>
+          <span style="font-family:'Dancing Script','Brush Script MT',cursive;font-size:36px;font-weight:700;color:#FF2D8B;vertical-align:middle;padding-left:8px;">${APP}</span>
         </td></tr>
 
         <!-- Card -->
@@ -47,7 +39,7 @@ const layout = (content) => `
         <!-- Footer -->
         <tr><td style="padding:24px 0;text-align:center;">
           <p style="color:#3A3A5C;font-size:12px;margin:0;">
-            © ${new Date().getFullYear()} ${APP} · Built for Indian Creators 🇮🇳
+            © ${new Date().getFullYear()} ${APP}
           </p>
           <p style="color:#3A3A5C;font-size:11px;margin:6px 0 0;">
             If you didn't request this email, you can safely ignore it.
