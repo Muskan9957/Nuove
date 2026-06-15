@@ -18,7 +18,6 @@ const layout = (content) => `
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>${APP}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet"/>
 </head>
 <body style="margin:0;padding:0;background:#07070E;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#07070E;padding:40px 20px;">
@@ -27,8 +26,7 @@ const layout = (content) => `
 
         <!-- Logo -->
         <tr><td style="padding-bottom:32px;text-align:center;">
-          <span style="font-size:30px;vertical-align:middle;line-height:1;">🎬</span>
-          <span style="font-family:'Dancing Script','Brush Script MT',cursive;font-size:36px;font-weight:700;color:#FF2D8B;vertical-align:middle;padding-left:8px;">${APP}</span>
+          <img src="https://www.nuove.in/email-logo.png" alt="${APP}" width="300" height="80" style="display:inline-block;width:300px;height:80px;border:0;outline:none;"/>
         </td></tr>
 
         <!-- Card -->
