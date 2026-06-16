@@ -107,6 +107,7 @@ const welcomeHtml = ({ name }) => layout(`
       ${[
         ['⚡', 'Script Generator', 'Hooks, body & CTA in seconds'],
         ['💬', 'Creator Advisor',  'Personalised AI coaching, on demand'],
+        ['🎥', 'Record',           'Built-in teleprompter to record on the spot'],
         ['📈', 'Trending Topics',  'Real, current trends to ride today'],
         ['✍️', 'Captions',         'Scroll-stopping captions & hashtags'],
       ].map(([emoji, title, sub]) => `
