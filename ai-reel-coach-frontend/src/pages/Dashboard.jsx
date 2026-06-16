@@ -255,6 +255,7 @@ function TrendingBrief({ userName }) {
               background: scope === 'global' ? 'var(--accent)' : 'transparent',
               color: scope === 'global' ? '#fff' : 'var(--text-muted)',
             }}
+          >
             🌍 Global
           </button>
         </div>
