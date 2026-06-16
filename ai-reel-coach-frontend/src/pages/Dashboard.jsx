@@ -98,7 +98,7 @@ function TrendingBrief({ userName }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
   const isLight = theme === 'light'
-  const { speak, speaking, stopSpeaking } = useTextToSpeech()
+  const { speaking, preparing, speak, stopSpeaking, prefetch } = useTextToSpeech()
   const [played, setPlayed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -171,8 +171,6 @@ function TrendingBrief({ userName }) {
   }
 
   useEffect(() => { fetchBrief(false); fetchAudio() }, [lang])
-
-  const { speaking, preparing, speak, stopSpeaking, prefetch } = useTextToSpeech()
 
   // Generate text for TTS
   const getGreetingText = useCallback(() => {
@@ -257,11 +255,10 @@ function TrendingBrief({ userName }) {
               background: scope === 'global' ? 'var(--accent)' : 'transparent',
               color: scope === 'global' ? '#fff' : 'var(--text-muted)',
             }}
-          >
             🌍 Global
           </button>
         </div>
-      </div>
+      {/* ── End Local / Global Toggle ── */}
 
         {/* Date chip */}
         <span style={{
