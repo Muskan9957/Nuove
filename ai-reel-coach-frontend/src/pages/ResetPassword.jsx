@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../store'
 import Logo from '../components/Logo'
+import PasswordChecklist, { isPasswordValid } from '../components/PasswordChecklist'
 
 export default function ResetPassword() {
   const [searchParams]      = useSearchParams()
@@ -36,7 +37,7 @@ export default function ResetPassword() {
 
   const submit = async e => {
     e.preventDefault()
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (!isPasswordValid(password)) { setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
     setError('')
     setLoading(true)
@@ -115,6 +116,7 @@ export default function ResetPassword() {
                 <span style={{ fontSize: '0.75rem', color: strengthColor, fontWeight: 600 }}>{strengthLabel}</span>
               </div>
             )}
+            <PasswordChecklist password={password} />
           </div>
 
           {/* Confirm password */}
@@ -147,7 +149,7 @@ export default function ResetPassword() {
           <button
             type="submit"
             className="btn btn-primary btn-full"
-            disabled={loading || !password || password !== confirm}
+            disabled={loading || !isPasswordValid(password) || password !== confirm}
             style={{ marginTop: 4 }}
           >
             {loading ? <span className="spinner" /> : 'Update password →'}

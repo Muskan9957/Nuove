@@ -4,6 +4,7 @@ import { useAuth } from '../store'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
 import Logo from '../components/Logo'
+import PasswordChecklist, { isPasswordValid } from '../components/PasswordChecklist'
 
 // Known webmail providers → direct inbox link (so the user can jump to their mail)
 const PROVIDER_URLS = {
@@ -260,7 +261,7 @@ export default function Auth() {
                 <input
                   className="input"
                   type={showPass ? 'text' : 'password'}
-                  placeholder={mode === 'register' ? 'Min 8 characters' : '••••••••'}
+                  placeholder={mode === 'register' ? 'Create a strong password' : '••••••••'}
                   value={password}
                   onChange={e => setPass(e.target.value)}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -295,11 +296,12 @@ export default function Auth() {
                   )}
                 </button>
               </div>
+              {mode === 'register' && <PasswordChecklist password={password} />}
             </div>
             <button
               type="submit"
               className="btn btn-primary btn-full btn-lg"
-              disabled={loading}
+              disabled={loading || (mode === 'register' && !isPasswordValid(password))}
               style={{ marginTop: 4, fontSize: '1rem', fontWeight: 700, letterSpacing: '0.01em' }}
             >
               {loading

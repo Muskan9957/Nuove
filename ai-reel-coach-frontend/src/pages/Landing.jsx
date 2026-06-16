@@ -5,6 +5,7 @@ import { useLang } from '../i18n.jsx'
 import { useAuth } from '../store'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
+import PasswordChecklist, { isPasswordValid } from '../components/PasswordChecklist'
 import ThemeToggle from '../components/ThemeToggle'
 
 // Known webmail providers → direct inbox link (jump straight to the user's mail)
@@ -670,8 +671,9 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
                   : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
               </button>
             </div>
+            {mode === 'register' && <PasswordChecklist password={password} />}
           </div>
-          <button id="auth-submit-btn" type="submit" disabled={loading}
+          <button id="auth-submit-btn" type="submit" disabled={loading || (mode === 'register' && !isPasswordValid(password))}
             style={{ marginTop: 4, height: 46, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontSize: '0.95rem', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 6px 24px rgba(0,212,255,0.25)' }}>
             {loading ? <><span className="spinner" /> {t('landing_auth_processing')}</> : mode === 'login' ? t('landing_auth_signin_btn') : t('landing_auth_signup_btn')}
           </button>
