@@ -48,6 +48,8 @@ function chunkText(text, maxLen = 190) {
   return chunks.filter(c => c.length > 0)
 }
 
+const blobCache = new Map()
+
 // ─── Text-to-Speech ───────────────────────────────────────────────
 // Primary:  backend /api/tts  →  Google Neural2 (real Indian voice, consistent
 //           across Chrome / Edge / Safari / iPhone — sounds the same everywhere)
@@ -55,6 +57,7 @@ function chunkText(text, maxLen = 190) {
 export function useTextToSpeech() {
   const { lang }                = useLang()
   const [speaking, setSpeaking] = useState(false)
+  const [preparing, setPreparing] = useState(false)
   const cancelRef               = useRef(false)
   const audioRef                = useRef(null)
   const chunksRef               = useRef([])
@@ -96,14 +99,20 @@ export function useTextToSpeech() {
 
   // ── Google Neural TTS via backend (primary path) ─────────────────
   const playBackend = async (text, langCode, audio) => {
-    const resp = await api.tts(text, langCode)
-    if (!resp.ok) throw new Error(await resp.text())
-    const blob    = await resp.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    audio._blobUrl = blobUrl
+    let blobUrl
+    if (blobCache.has(text) && blobCache.get(text) !== 'fetching') {
+      blobUrl = blobCache.get(text)
+    } else {
+      const resp = await api.tts(text, langCode)
+      if (!resp.ok) throw new Error(await resp.text())
+      const blob = await resp.blob()
+      blobUrl = URL.createObjectURL(blob)
+      blobCache.set(text, blobUrl)
+    }
+    
     audio.src = blobUrl
-    audio.onended = () => { URL.revokeObjectURL(blobUrl); setSpeaking(false) }
-    audio.onerror = () => { URL.revokeObjectURL(blobUrl); setSpeaking(false) }
+    audio.onended = () => { setSpeaking(false) }
+    audio.onerror = () => { setSpeaking(false) }
     await audio.play()
   }
 
@@ -113,8 +122,7 @@ export function useTextToSpeech() {
     cancelRef.current = false
 
     const langCode = LANG_CODES[lang] || 'en-IN'
-    setSpeaking(true)
-
+    
     try {
       // Create audio synchronously to bypass iOS/Safari auto-play blocks
       const audio = new Audio()
@@ -122,11 +130,20 @@ export function useTextToSpeech() {
       // Play silently to unlock the audio context for this element
       audio.play().catch(() => {})
 
+      // If not cached, show loading state
+      if (!blobCache.has(text) || blobCache.get(text) === 'fetching') {
+        setPreparing(true)
+      }
+      
       // Try ElevenLabs Neural TTS via backend — best quality, consistent on all devices
       await playBackend(text, langCode, audio)
+      setPreparing(false)
+      setSpeaking(true)
     } catch (err) {
+      setPreparing(false)
       console.warn('[TTS] Backend failed, falling back to Web Speech:', err?.message)
       // Backend not configured or offline — fall back to Web Speech API
+      setSpeaking(true)
       const chunks = chunkText(text)
       if (!chunks.length) { setSpeaking(false); return }
       chunksRef.current = chunks
@@ -146,9 +163,26 @@ export function useTextToSpeech() {
     }
   }
 
-  const stopSpeaking = () => { stopAll(); setSpeaking(false) }
+  const prefetch = async (text) => {
+    if (!text?.trim() || blobCache.has(text)) return
+    const langCode = LANG_CODES[lang] || 'en-IN'
+    blobCache.set(text, 'fetching')
+    try {
+      const resp = await api.tts(text, langCode)
+      if (resp.ok) {
+        const blob = await resp.blob()
+        blobCache.set(text, URL.createObjectURL(blob))
+      } else {
+        blobCache.delete(text)
+      }
+    } catch {
+      blobCache.delete(text)
+    }
+  }
 
-  return { speaking, speak, stopSpeaking }
+  const stopSpeaking = () => { stopAll(); setSpeaking(false); setPreparing(false) }
+
+  return { speaking, preparing, speak, stopSpeaking, prefetch }
 }
 
 // ─── Speech to Text ───────────────────────────────────────────────
@@ -394,25 +428,25 @@ export function MicButton({ onResult, onInterim, lang: langProp, style = {} }) {
 
 // ─── Speaker Button ───────────────────────────────────────────────
 export function SpeakButton({ text, style = {} }) {
-  const { speaking, speak, stopSpeaking } = useTextToSpeech()
+  const { speaking, preparing, speak, stopSpeaking } = useTextToSpeech()
   if (!text) return null
   return (
     <button
       type="button"
-      onClick={speaking ? stopSpeaking : () => speak(text)}
+      onClick={speaking || preparing ? stopSpeaking : () => speak(text)}
       title={speaking ? 'Stop' : 'Read aloud'}
       style={{
         padding: '6px 14px', borderRadius: 8,
         border: '1px solid var(--border)',
-        background: speaking ? 'var(--accent-dim)' : 'var(--surface2)',
-        color: speaking ? 'var(--accent)' : 'var(--text-muted)',
+        background: speaking || preparing ? 'var(--accent-dim)' : 'var(--surface2)',
+        color: speaking || preparing ? 'var(--accent)' : 'var(--text-muted)',
         cursor: 'pointer', fontSize: '0.8rem',
         display: 'flex', alignItems: 'center', gap: 6,
         transition: 'all 0.2s',
         ...style,
       }}
     >
-      {speaking ? '⏹ Stop' : '🔊 Read Aloud'}
+      {preparing ? '⏳ Loading...' : (speaking ? '⏹ Stop' : '🔊 Read Aloud')}
     </button>
   )
 }

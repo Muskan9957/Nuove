@@ -87,15 +87,27 @@ export default function Auth() {
     setLoading(true)
     try {
       if (mode === 'login') {
-        await login(email, password)
-        toast('Welcome back!', 'success')
-        navigate('/dashboard')
+        const data = await login(email, password)
+        if (data?.needsVerification) {
+          setVerifySent(true)
+        } else {
+          toast('Welcome back!', 'success')
+          navigate('/dashboard')
+        }
       } else {
-        await register(email, password, name)
-        setVerifySent(true)
+        const data = await register(email, password, name)
+        if (data?.needsVerification) {
+          setVerifySent(true)
+        } else {
+          navigate('/dashboard')
+        }
       }
     } catch (err) {
-      toast(err.message, 'error')
+      if (err.data?.needsVerification) {
+        setVerifySent(true)
+      } else {
+        toast(err.message, 'error')
+      }
     } finally {
       setLoading(false)
     }

@@ -142,14 +142,14 @@ const welcomeHtml = ({ name }) => layout(`
 const sendPasswordReset = async ({ to, name, resetUrl }) => {
   const resend = getResend();
   if (!resend) {
-    console.log(`[EMAIL SKIPPED — add RESEND_API_KEY to .env] Reset URL: ${resetUrl}`);
+    console.log(\`[EMAIL SKIPPED — add RESEND_API_KEY to .env] Reset URL: \${resetUrl}\`);
     return;
   }
   await resend.emails.send({
     from    : FROM,
     replyTo : REPLY_TO,
     to,
-    subject: `Reset your ${APP} password`,
+    subject: \`Reset your \${APP} password\`,
     html   : passwordResetHtml({ name, resetUrl }),
   });
 };
@@ -157,14 +157,14 @@ const sendPasswordReset = async ({ to, name, resetUrl }) => {
 const sendWelcome = async ({ to, name }) => {
   const resend = getResend();
   if (!resend) {
-    console.log(`[EMAIL SKIPPED — add RESEND_API_KEY to .env] Welcome for ${to}`);
+    console.log(\`[EMAIL SKIPPED — add RESEND_API_KEY to .env] Welcome for \${to}\`);
     return;
   }
   await resend.emails.send({
     from    : FROM,
     replyTo : REPLY_TO,
     to,
-    subject: `Welcome to ${APP} 🚀`,
+    subject: \`Welcome to \${APP} 🚀\`,
     html   : welcomeHtml({ name }),
   });
 };
@@ -200,14 +200,14 @@ const verificationHtml = ({ name, verifyUrl }) => layout(`
 const sendVerificationEmail = async ({ to, name, verifyUrl }) => {
   const resend = getResend();
   if (!resend) {
-    console.log(`[EMAIL SKIPPED] Verify URL: ${verifyUrl}`);
+    console.log(\`[EMAIL SKIPPED] Verify URL: \${verifyUrl}\`);
     return;
   }
   await resend.emails.send({
     from    : FROM,
     replyTo : REPLY_TO,
     to,
-    subject: `Verify your ${APP} email`,
+    subject: \`Verify your \${APP} email\`,
     html   : verificationHtml({ name, verifyUrl }),
   });
 };

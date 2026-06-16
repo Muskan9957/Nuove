@@ -102,6 +102,9 @@ function TrendingBrief({ userName }) {
   const [played, setPlayed] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
+  const [scope, setScope] = useState('local')
+  const scopeRef = useRef('local')
+
   const [greeting, setGreeting]             = useState(null)
   const [trends, setTrends]                 = useState([])
   const [trendFetchedAt, setTrendFetchedAt] = useState(null)
@@ -119,13 +122,14 @@ function TrendingBrief({ userName }) {
     if (force) setRefreshing(true)
     else setLoading(true)
 
-    const region = getSavedRegion() || 'India'
+    const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
+    const niche  = scopeRef.current === 'global' ? 'global' : undefined
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
 
     const greetingPromise = api.getGreeting(region, lang, bust).catch(() => null)
-    const trendingPromise = api.getTrending(lang, region, force).catch(() => null)
+    const trendingPromise = api.getTrending(lang, region, force, niche).catch(() => null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
@@ -155,16 +159,42 @@ function TrendingBrief({ userName }) {
       .finally(() => setAudioLoading(false))
   }, [])
 
+  const handleScopeChange = (newScope) => {
+    if (newScope === scopeRef.current) return
+    scopeRef.current = newScope
+    setScope(newScope)
+    setGreeting(null)
+    setTrends([])
+    setLoading(true)
+    setRefreshing(false)
+    fetchBrief(true)
+  }
+
   useEffect(() => { fetchBrief(false); fetchAudio() }, [lang])
 
-  const playGreeting = () => {
-    if (!greeting) return
-    if (speaking) { stopSpeaking(); return }
+  const { speaking, preparing, speak, stopSpeaking, prefetch } = useTextToSpeech()
+
+  // Generate text for TTS
+  const getGreetingText = useCallback(() => {
+    if (!greeting) return ''
     let text = `${t('dash_greeting_' + getTimeMood().key)} ${userName}! ${greeting.greeting}`
-    if (greeting.trends?.length) {
-      const topTrends = greeting.trends.slice(0, 3).map(tr => tr.title).join(', ')
+    if (trends?.length) {
+      const topTrends = trends.slice(0, 3).map(tr => typeof tr === 'string' ? tr : tr.text || tr.title).join(', ')
       text += ` Today's top trending topics are: ${topTrends}.`
     }
+    return text
+  }, [greeting, trends, userName, t])
+
+  // Prefetch TTS audio when greeting/trends load
+  useEffect(() => {
+    const text = getGreetingText()
+    if (text) prefetch(text)
+  }, [getGreetingText, prefetch])
+
+  const playGreeting = () => {
+    const text = getGreetingText()
+    if (!text) return
+    if (speaking || preparing) { stopSpeaking(); return }
     speak(text)
     setPlayed(true)
   }
@@ -177,9 +207,10 @@ function TrendingBrief({ userName }) {
 
       {/* ── Section header ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        marginBottom: 16, flexWrap: 'wrap',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 16, flexWrap: 'wrap', gap: 10
       }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {/* LIVE badge */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
@@ -198,8 +229,39 @@ function TrendingBrief({ userName }) {
           margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
           fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
         }}>
-          Today's Brief
+          {t('dash_trending_brief')}
         </h2>
+        </div>
+
+        {/* Local / Global Toggle */}
+        <div style={{
+          display: 'flex', alignItems: 'center', background: 'var(--surface2)',
+          borderRadius: 99, padding: 4, border: '1px solid var(--border)',
+        }}>
+          <button
+            onClick={() => handleScopeChange('local')}
+            style={{
+              padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
+              fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s',
+              background: scope === 'local' ? 'var(--accent)' : 'transparent',
+              color: scope === 'local' ? '#fff' : 'var(--text-muted)',
+            }}
+          >
+            📍 Local
+          </button>
+          <button
+            onClick={() => handleScopeChange('global')}
+            style={{
+              padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
+              fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s',
+              background: scope === 'global' ? 'var(--accent)' : 'transparent',
+              color: scope === 'global' ? '#fff' : 'var(--text-muted)',
+            }}
+          >
+            🌍 Global
+          </button>
+        </div>
+      </div>
 
         {/* Date chip */}
         <span style={{
@@ -258,18 +320,18 @@ function TrendingBrief({ userName }) {
         {/* Listen button */}
         <button
           onClick={playGreeting}
-          disabled={!greeting}
+          disabled={!greeting || preparing}
           style={{
             padding: '6px 14px', borderRadius: 99,
-            border: `1px solid ${speaking ? C.teal : 'var(--border)'}`,
-            background: speaking ? `${C.teal}14` : 'transparent',
-            color: speaking ? C.teal : 'var(--text-faint)',
-            cursor: greeting ? 'pointer' : 'not-allowed',
+            border: `1px solid ${speaking || preparing ? C.teal : 'var(--border)'}`,
+            background: speaking || preparing ? `${C.teal}14` : 'transparent',
+            color: speaking || preparing ? C.teal : 'var(--text-faint)',
+            cursor: greeting && !preparing ? 'pointer' : 'not-allowed',
             fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
             transition: 'all 0.15s',
           }}
         >
-          {speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen')}
+          {preparing ? 'Loading...' : (speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen'))}
         </button>
       </div>
 

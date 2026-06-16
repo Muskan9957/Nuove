@@ -31,7 +31,8 @@ model User {
   passwordResetToken      String?
   passwordResetExpires    DateTime?
   onboarded               Boolean   @default(false)
-  emailVerified           Boolean   @default(true)
+  creatorStyle            String?   // JSON: AI-extracted voice fingerprint (premium feature)
+  emailVerified           Boolean   @default(false)
   emailVerificationToken  String?
 
   scripts          Script[]
