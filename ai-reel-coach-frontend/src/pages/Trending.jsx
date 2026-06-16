@@ -3,17 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLang } from '../i18n.jsx'
 import { useToast } from '../components/Toast'
+import { getSavedRegion } from '../utils/detectRegion'
 
 // ─── Frontend topic cache ──────────────────────────────────────────
 // Keyed by "lang". Stored in localStorage with a 30-min TTL.
 // Returns topics instantly on repeat visits; refreshes silently in bg.
 const CACHE_TTL_MS = 30 * 60 * 1000  // 30 minutes
 
-function cacheKey(lang)   { return `vc_trending_${lang}` }
+// Cache key includes lang AND scope so local/global results are stored separately
+function cacheKey(lang, scope)   { return `vc_trending_${lang}_${scope}` }
 
-function readCache(lang) {
+function readCache(lang, scope) {
   try {
-    const raw = localStorage.getItem(cacheKey(lang))
+    const raw = localStorage.getItem(cacheKey(lang, scope))
     if (!raw) return null
     const { topics, ts } = JSON.parse(raw)
     if (Date.now() - ts > CACHE_TTL_MS) return null
@@ -21,9 +23,9 @@ function readCache(lang) {
   } catch { return null }
 }
 
-function writeCache(lang, topics) {
+function writeCache(lang, scope, topics) {
   try {
-    localStorage.setItem(cacheKey(lang), JSON.stringify({ topics, ts: Date.now() }))
+    localStorage.setItem(cacheKey(lang, scope), JSON.stringify({ topics, ts: Date.now() }))
   } catch {}
 }
 
@@ -54,12 +56,16 @@ export default function Trending() {
   const navigate     = useNavigate()
   const toast        = useToast()
 
-  const [topics,     setTopics]     = useState(() => readCache(lang) || [])
-  const [loading,    setLoading]    = useState(() => !readCache(lang))
+  const [topics,     setTopics]     = useState(() => readCache(lang, 'local') || [])
+  const [loading,    setLoading]    = useState(() => !readCache(lang, 'local'))
   const [refreshing, setRefreshing] = useState(false)
   const [saved,      setSaved]      = useState(new Set())
   const [saving,     setSaving]     = useState(null)
   const abortRef = useRef(null)
+
+  // ── Local / Global scope toggle ──────────────────────────────────
+  const [scope, setScope] = useState('local')  // 'local' | 'global'
+  const scopeRef          = useRef('local')     // always-fresh ref for fetchTopics closure
 
   const fetchTopics = useCallback(async ({ silent = false } = {}) => {
     // Cancel any in-flight request
@@ -69,11 +75,15 @@ export default function Trending() {
     if (silent) setRefreshing(true)
     else        setLoading(true)
 
+    // Resolve region from scopeRef (always current, no stale-closure risk)
+    const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
+    const currentScope = scopeRef.current
+
     try {
-      const data = await api.getTrending(lang)
+      const data = await api.getTrending(lang, region)
       const fresh = data.topics || []
       setTopics(fresh)
-      writeCache(lang, fresh)
+      writeCache(lang, currentScope, fresh)
     } catch (err) {
       if (err?.name === 'AbortError') return
       if (!silent) {
@@ -86,8 +96,26 @@ export default function Trending() {
     }
   }, [lang])
 
+  // Switching scope: clear topics + force a fresh fetch
+  const handleScopeChange = (newScope) => {
+    if (newScope === scopeRef.current) return
+    scopeRef.current = newScope
+    setScope(newScope)
+    setSaved(new Set()) // reset saved state for new set of topics
+    const cached = readCache(lang, newScope)
+    if (cached) {
+      setTopics(cached)
+      setLoading(false)
+      fetchTopics({ silent: true })
+    } else {
+      setTopics([])
+      setLoading(true)
+      fetchTopics()
+    }
+  }
+
   useEffect(() => {
-    const cached = readCache(lang)
+    const cached = readCache(lang, scopeRef.current)
     if (cached) {
       // Show cached topics instantly, refresh quietly in background
       setTopics(cached)
@@ -132,27 +160,75 @@ export default function Trending() {
         </div>
       </div>
 
-      {/* Refresh button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        {refreshing && (
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-            updating…
-          </span>
-        )}
-        <button
-          onClick={() => fetchTopics()}
-          disabled={loading || refreshing}
-          className="btn btn-ghost btn-sm"
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ animation: (loading || refreshing) ? 'spin 1s linear infinite' : 'none' }}>
-            <path d="M23 4v6h-6"/>
-            <path d="M1 20v-6h6"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
-          Refresh
-        </button>
+      {/* Refresh + Scope toggle row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+
+        {/* ── Local / Global pill toggle ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          background: 'var(--surface2)',
+          borderRadius: 99, padding: 3,
+          border: '1px solid var(--border)',
+          gap: 2,
+        }}>
+          <button
+            onClick={() => handleScopeChange('local')}
+            title="Trending in your region"
+            style={{
+              padding: '6px 16px', borderRadius: 99, border: 'none',
+              cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+              background: scope === 'local' ? 'var(--surface-card)' : 'transparent',
+              color: scope === 'local' ? 'var(--accent)' : 'var(--text-faint)',
+              boxShadow: scope === 'local' ? '0 1px 4px rgba(0,0,0,0.20)' : 'none',
+              transition: 'all 0.18s',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            📍 Local
+          </button>
+          <button
+            onClick={() => handleScopeChange('global')}
+            title="Trending around the world"
+            style={{
+              padding: '6px 16px', borderRadius: 99, border: 'none',
+              cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+              background: scope === 'global'
+                ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+                : 'transparent',
+              color: scope === 'global' ? '#fff' : 'var(--text-faint)',
+              boxShadow: scope === 'global' ? '0 2px 12px rgba(99,102,241,0.45)' : 'none',
+              transition: 'all 0.18s',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            🌍 Global
+          </button>
+        </div>
+
+        {/* Right side: updating indicator + Refresh button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {refreshing && (
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+              updating…
+            </span>
+          )}
+          <button
+            onClick={() => fetchTopics()}
+            disabled={loading || refreshing}
+            className="btn btn-ghost btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ animation: (loading || refreshing) ? 'spin 1s linear infinite' : 'none' }}>
+              <path d="M23 4v6h-6"/>
+              <path d="M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Topics grid */}

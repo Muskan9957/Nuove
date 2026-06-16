@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -109,6 +109,10 @@ function TrendingBrief({ userName }) {
   const [audioLoading, setAudioLoading]     = useState(false)
   const [loading, setLoading]               = useState(true)
 
+  // ── Local / Global scope toggle ──────────────────────────────────
+  const [scope, setScope]   = useState('local')   // 'local' | 'global'
+  const scopeRef            = useRef('local')      // always-fresh ref for use inside callbacks
+
   const SOURCE_META = {
     google:  { label: '🔍 Google Trends', color: '#4285F4' },
     youtube: { label: '📺 YouTube',        color: '#FF0000' },
@@ -119,7 +123,9 @@ function TrendingBrief({ userName }) {
     if (force) setRefreshing(true)
     else setLoading(true)
 
-    const region = getSavedRegion() || 'India'
+    // Use scopeRef (not state) so the callback always reads the latest scope
+    // without needing to re-create on every scope change
+    const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
@@ -145,6 +151,16 @@ function TrendingBrief({ userName }) {
       .catch(() => {})
       .finally(() => { setLoading(false); setRefreshing(false) })
   }, [lang])
+
+  // Switching scope clears stale trends and force-fetches fresh regional/global data
+  const handleScopeChange = (newScope) => {
+    if (newScope === scopeRef.current) return
+    scopeRef.current = newScope
+    setScope(newScope)
+    setTrends([])         // clear old results immediately
+    setGreeting(null)     // clear stale greeting
+    fetchBrief(true)      // force=true bypasses backend cache
+  }
 
   const fetchAudio = useCallback(() => {
     const region = getSavedRegion() || 'India'
@@ -230,6 +246,63 @@ function TrendingBrief({ userName }) {
         )}
 
         <div style={{ flex: 1 }} />
+
+        {/* ── Local / Global scope toggle ── */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)',
+          borderRadius: 99,
+          padding: 3,
+          border: isLight ? '1px solid rgba(0,0,0,0.10)' : '1px solid rgba(255,255,255,0.10)',
+          gap: 2,
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={() => handleScopeChange('local')}
+            title="Trending in your region"
+            style={{
+              padding: '4px 12px', borderRadius: 99, border: 'none',
+              cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+              background: scope === 'local'
+                ? (isLight ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)')
+                : 'transparent',
+              color: scope === 'local'
+                ? (isLight ? '#B45309' : '#FF8C00')
+                : 'var(--text-faint)',
+              boxShadow: scope === 'local'
+                ? (isLight ? '0 1px 4px rgba(0,0,0,0.12)' : '0 1px 4px rgba(0,0,0,0.30)')
+                : 'none',
+              transition: 'all 0.18s',
+              display: 'flex', alignItems: 'center', gap: 4,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            📍 Local
+          </button>
+          <button
+            onClick={() => handleScopeChange('global')}
+            title="Trending around the world"
+            style={{
+              padding: '4px 12px', borderRadius: 99, border: 'none',
+              cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+              background: scope === 'global'
+                ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+                : 'transparent',
+              color: scope === 'global' ? '#fff' : 'var(--text-faint)',
+              boxShadow: scope === 'global'
+                ? '0 2px 10px rgba(99,102,241,0.45)'
+                : 'none',
+              transition: 'all 0.18s',
+              display: 'flex', alignItems: 'center', gap: 4,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            🌍 Global
+          </button>
+        </div>
 
         {/* Refresh button */}
         <button
