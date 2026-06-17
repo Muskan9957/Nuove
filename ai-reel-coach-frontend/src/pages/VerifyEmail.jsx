@@ -8,7 +8,7 @@ export default function VerifyEmail() {
   const [status, setStatus]   = useState('verifying') // verifying | success | error
   const [message, setMessage] = useState('')
   const [searchParams]        = useSearchParams()
-  const { login: setSession } = useAuth()
+  const { refreshUser }       = useAuth()
   const navigate              = useNavigate()
 
   useEffect(() => {
@@ -16,12 +16,14 @@ export default function VerifyEmail() {
     if (!token) { setStatus('error'); setMessage('No verification token found.'); return }
 
     api.verifyEmail(token)
-      .then(data => {
-        // Store token and user in session
+      .then(async data => {
+        // Store token AND populate the auth context, otherwise protected
+        // routes (onboarding/dashboard) see no user and bounce to login.
         localStorage.setItem('arc_token', data.token)
         localStorage.removeItem('vs_onboarded')
+        await refreshUser()
         setStatus('success')
-        setTimeout(() => navigate('/onboarding'), 2000)
+        setTimeout(() => navigate('/onboarding'), 1500)
       })
       .catch(err => {
         setStatus('error')
