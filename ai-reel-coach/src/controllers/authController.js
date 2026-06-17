@@ -57,7 +57,8 @@ const register = async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    // 6-digit one-time code — entered on the same screen, so no new tab/window opens
+    const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
 
     const user = await prisma.user.create({
       data: {
@@ -65,13 +66,12 @@ const register = async (req, res, next) => {
         passwordHash,
         name,
         emailVerified          : false,
-        emailVerificationToken : verificationToken,
+        emailVerificationToken : verificationCode,
       },
     });
 
-    // Send verification email (non-blocking)
-    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
-    sendVerificationEmail({ to: user.email, name: user.name, verifyUrl }).catch(() => {});
+    // Send verification email with the code (non-blocking)
+    sendVerificationEmail({ to: user.email, name: user.name, code: verificationCode }).catch(() => {});
 
     return res.status(201).json({
       message: 'Account created! Please check your email to verify your account.',
@@ -259,6 +259,41 @@ const verifyEmail = async (req, res, next) => {
   }
 };
 
+// ─── VERIFY CODE (OTP entered on the same signup screen) ─────────────
+const verifyCode = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ error: 'Email and code are required.' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { email, emailVerificationToken: String(code).trim() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired code. Please check and try again.' });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data : { emailVerified: true, emailVerificationToken: null },
+    });
+
+    // Welcome email now that they're verified
+    sendWelcome({ to: user.email, name: user.name }).catch(() => {});
+
+    const token = signToken(user);
+    return res.json({
+      message: 'Email verified successfully! Welcome to Nuove.',
+      token,
+      user   : { id: user.id, email: user.email, name: user.name, plan: user.plan, avatar: user.avatar, streak: 0 },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── VERIFICATION STATUS (polled by frontend "check inbox" screen) ───
 const verificationStatus = async (req, res, next) => {
   try {
@@ -276,4 +311,4 @@ const verificationStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe, forgotPassword, resetPassword, verifyEmail, verificationStatus };
+module.exports = { register, login, getMe, forgotPassword, resetPassword, verifyEmail, verifyCode, verificationStatus };

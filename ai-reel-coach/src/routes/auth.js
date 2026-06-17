@@ -51,8 +51,11 @@ router.post('/reset-password',
   controller.resetPassword
 );
 
-// GET /api/auth/verify-email?token=xxx
+// GET /api/auth/verify-email?token=xxx  (legacy link-based)
 router.get('/verify-email', controller.verifyEmail);
+
+// POST /api/auth/verify-code  { email, code }  (OTP entered on the signup screen)
+router.post('/verify-code', apiLimiter, controller.verifyCode);
 
 // GET /api/auth/verification-status?email=xxx  (polled by "check inbox" screen)
 router.get('/verification-status', controller.verificationStatus);

@@ -524,7 +524,7 @@ function FeatureCarousel() {
 /* ─── Auth Modal ─────────────────────────────────────────────────── */
 function AuthModal({ open, onClose, defaultMode = 'login' }) {
   const { t } = useLang()
-  const { login, register } = useAuth()
+  const { login, register, refreshUser } = useAuth()
   const toast    = useToast()
   const navigate = useNavigate()
 
@@ -535,6 +535,25 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
   const [loading, setLoading] = useState(false)
   const [showPass, setShow]   = useState(false)
   const [verifySent, setVerifySent]     = useState(false)
+  const [code, setCode]                 = useState('')
+  const [verifying, setVerifying]       = useState(false)
+
+  const handleVerifyCode = async e => {
+    e.preventDefault()
+    if (code.trim().length !== 6) return
+    setVerifying(true)
+    try {
+      const data = await api.verifyCode(email, code.trim())
+      localStorage.setItem('arc_token', data.token)
+      localStorage.removeItem('vs_onboarded')
+      await refreshUser()
+      navigate('/onboarding')
+    } catch (err) {
+      toast(err.message || 'Invalid code. Please try again.', 'error')
+    } finally {
+      setVerifying(false)
+    }
+  }
 
   useEffect(() => { if (open) setMode(defaultMode) }, [defaultMode, open])
   useEffect(() => {
@@ -582,19 +601,30 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
           <div style={{ textAlign: 'center', padding: '12px 4px' }}>
             <div style={{ fontSize: '2.6rem', marginBottom: 12 }}>📬</div>
             <h2 style={{ margin: '0 0 8px', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '1.5rem', color: 'var(--text)' }}>
-              Check your inbox
+              Enter your code
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 22 }}>
-              We've sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Click it to verify your account and get started.
+              We've sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Enter it below to verify your account.
             </p>
-            {inboxUrlFor(email) && (
-              <a href={inboxUrlFor(email)} target="_blank" rel="noopener noreferrer"
-                 style={{ display: 'block', height: 46, lineHeight: '46px', borderRadius: 8, background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', marginBottom: 14 }}>
-                Open your email →
-              </a>
-            )}
-            <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: 0 }}>Didn't get it? Check your spam folder.</p>
-            <button onClick={() => { setVerifySent(false); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 16, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+            <form onSubmit={handleVerifyCode}>
+              <input
+                className="input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                autoFocus
+                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5em', fontWeight: 700, paddingLeft: '0.5em' }}
+              />
+              <button type="submit" disabled={verifying || code.length !== 6}
+                style={{ marginTop: 14, width: '100%', height: 46, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontSize: '0.95rem', fontWeight: 600, cursor: (verifying || code.length !== 6) ? 'not-allowed' : 'pointer', opacity: (verifying || code.length !== 6) ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+                {verifying ? 'Verifying…' : 'Verify & Continue →'}
+              </button>
+            </form>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: '16px 0 0' }}>Didn't get it? Check your spam folder.</p>
+            <button onClick={() => { setVerifySent(false); setCode(''); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
               Back to sign in
             </button>
           </div>

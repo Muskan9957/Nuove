@@ -52,9 +52,28 @@ export default function Auth() {
   const [loading, setLoading]       = useState(false)
   const [showPass, setShowPass]     = useState(false)
   const [verifySent, setVerifySent] = useState(false)
-  const { login, register }         = useAuth()
+  const [code, setCode]             = useState('')
+  const [verifying, setVerifying]   = useState(false)
+  const { login, register, refreshUser } = useAuth()
   const toast                       = useToast()
   const navigate                    = useNavigate()
+
+  const handleVerifyCode = async e => {
+    e.preventDefault()
+    if (code.trim().length !== 6) return
+    setVerifying(true)
+    try {
+      const data = await api.verifyCode(email, code.trim())
+      localStorage.setItem('arc_token', data.token)
+      localStorage.removeItem('vs_onboarded')
+      await refreshUser()
+      navigate('/onboarding')
+    } catch (err) {
+      toast(err.message || 'Invalid code. Please try again.', 'error')
+    } finally {
+      setVerifying(false)
+    }
+  }
 
   const submit = async e => {
     e.preventDefault()
@@ -94,29 +113,43 @@ export default function Auth() {
 
       <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }} className="page-enter">
 
-        {/* Email verification sent screen */}
+        {/* Email verification — enter the 6-digit code (same screen, no new tab) */}
         {verifySent && (
           <div style={{ background: 'var(--surface-card)', backdropFilter: 'blur(24px)', border: '1px solid var(--border-bright)', borderRadius: 20, padding: '40px 32px', textAlign: 'center' }}>
             <div style={{ fontSize: '3rem', marginBottom: 16 }}>📬</div>
             <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.5rem', color: 'var(--text)', marginBottom: 8 }}>
-              Check your inbox
+              Enter your code
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>
-              We've sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Click it to verify your account and get started.
+              We've sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Enter it below to verify your account.
             </p>
 
-            {inboxUrlFor(email) && (
-              <a href={inboxUrlFor(email)} target="_blank" rel="noopener noreferrer"
-                 className="btn btn-primary btn-full"
-                 style={{ display: 'block', marginBottom: 14, textDecoration: 'none' }}>
-                Open your email →
-              </a>
-            )}
+            <form onSubmit={handleVerifyCode}>
+              <input
+                className="input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                autoFocus
+                style={{ textAlign: 'center', fontSize: '1.6rem', letterSpacing: '0.5em', fontWeight: 700, paddingLeft: '0.5em' }}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary btn-full btn-lg"
+                disabled={verifying || code.length !== 6}
+                style={{ marginTop: 16 }}
+              >
+                {verifying ? <><span className="spinner" /> Verifying...</> : 'Verify & Continue →'}
+              </button>
+            </form>
 
-            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem' }}>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', marginTop: 18 }}>
               Didn't get it? Check your spam folder.
             </p>
-            <button onClick={() => { setVerifySent(false); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 16, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+            <button onClick={() => { setVerifySent(false); setCode(''); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
               Back to sign in
             </button>
           </div>
