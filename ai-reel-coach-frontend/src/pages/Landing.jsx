@@ -535,7 +535,6 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
   const [loading, setLoading] = useState(false)
   const [showPass, setShow]   = useState(false)
   const [verifySent, setVerifySent]     = useState(false)
-  const [autoVerified, setAutoVerified] = useState(false)
 
   useEffect(() => { if (open) setMode(defaultMode) }, [defaultMode, open])
   useEffect(() => {
@@ -543,25 +542,6 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
     if (open) window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [open, onClose])
-
-  // Poll for verification while the "check inbox" screen is up — the moment the
-  // user clicks the link in their mail, sign them in here and go to the dashboard.
-  useEffect(() => {
-    if (!verifySent || autoVerified) return
-    let active = true
-    const id = setInterval(async () => {
-      try {
-        const { verified } = await api.checkVerification(email)
-        if (verified && active) {
-          clearInterval(id)
-          setAutoVerified(true)
-          try { await login(email, password); navigate('/dashboard') }
-          catch { toast('Email verified! Please sign in.', 'success'); setVerifySent(false); setMode('login') }
-        }
-      } catch { /* keep polling */ }
-    }, 3000)
-    return () => { active = false; clearInterval(id) }
-  }, [verifySent, autoVerified, email, password])
 
   const submit = async e => {
     e.preventDefault(); setLoading(true)
@@ -600,33 +580,23 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
 
         {verifySent && (
           <div style={{ textAlign: 'center', padding: '12px 4px' }}>
-            <div style={{ fontSize: '2.6rem', marginBottom: 12 }}>{autoVerified ? '🎉' : '📬'}</div>
+            <div style={{ fontSize: '2.6rem', marginBottom: 12 }}>📬</div>
             <h2 style={{ margin: '0 0 8px', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '1.5rem', color: 'var(--text)' }}>
-              {autoVerified ? 'Email verified!' : 'Check your inbox'}
+              Check your inbox
             </h2>
-            {autoVerified ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Signing you in…</p>
-            ) : (
-              <>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 22 }}>
-                  We've sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Open it and you'll be signed in here automatically.
-                </p>
-                {inboxUrlFor(email) && (
-                  <a href={inboxUrlFor(email)} target="_blank" rel="noopener noreferrer"
-                     style={{ display: 'block', height: 46, lineHeight: '46px', borderRadius: 8, background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', marginBottom: 14 }}>
-                    Open your email →
-                  </a>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-faint)', fontSize: '0.8rem', marginBottom: 16 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 1.2s ease infinite' }} />
-                  Waiting for you to verify…
-                </div>
-                <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: 0 }}>Didn't get it? Check your spam folder.</p>
-                <button onClick={() => { setVerifySent(false); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 16, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
-                  Back to sign in
-                </button>
-              </>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 22 }}>
+              We've sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Click it to verify your account and get started.
+            </p>
+            {inboxUrlFor(email) && (
+              <a href={inboxUrlFor(email)} target="_blank" rel="noopener noreferrer"
+                 style={{ display: 'block', height: 46, lineHeight: '46px', borderRadius: 8, background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', marginBottom: 14 }}>
+                Open your email →
+              </a>
             )}
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: 0 }}>Didn't get it? Check your spam folder.</p>
+            <button onClick={() => { setVerifySent(false); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 16, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+              Back to sign in
+            </button>
           </div>
         )}
 
