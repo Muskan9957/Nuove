@@ -2,6 +2,48 @@ const router  = require('express').Router()
 const { protect: auth } = require('../middleware/auth')
 const { getProfile, updateLanguage, getBadges, pingStreak } = require('../controllers/userController')
 const prisma  = require('../config/prisma')
+const razorpayService = require('../services/razorpayService')
+
+// ─── GET /api/user/export — download all of my data as JSON ───────
+router.get('/export', auth, async (req, res, next) => {
+  try {
+    const data = await prisma.user.findUnique({
+      where  : { id: req.user.id },
+      include: {
+        scripts        : true,
+        chatMessages   : true,
+        calendarEntries: true,
+        templates      : true,
+        performanceLogs: true,
+        badges         : true,
+      },
+    })
+    if (!data) return res.status(404).json({ error: 'User not found.' })
+    // Strip secrets before exporting
+    const { passwordHash, emailVerificationToken, passwordResetToken, passwordResetExpires, ...safe } = data
+    res.setHeader('Content-Disposition', 'attachment; filename="nuove-my-data.json"')
+    res.setHeader('Content-Type', 'application/json')
+    return res.send(JSON.stringify(safe, null, 2))
+  } catch (err) { next(err) }
+})
+
+// ─── DELETE /api/user/account — permanently delete my account ─────
+router.delete('/account', auth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { stripeSubId: true, plan: true },
+    })
+    // Cancel any active paid subscription first (best-effort — don't block deletion)
+    if (user?.stripeSubId && user.plan !== 'FREE') {
+      try { await razorpayService.cancelSubscription(user.stripeSubId, false) }
+      catch (e) { console.error('[delete-account] subscription cancel failed:', e.message) }
+    }
+    // Cascade-deletes scripts, chats, templates, usage counters, etc.
+    await prisma.user.delete({ where: { id: req.user.id } })
+    return res.json({ ok: true, message: 'Your account and all associated data have been permanently deleted.' })
+  } catch (err) { next(err) }
+})
 
 router.get('/profile',      auth, getProfile)
 router.patch('/language',   auth, updateLanguage)

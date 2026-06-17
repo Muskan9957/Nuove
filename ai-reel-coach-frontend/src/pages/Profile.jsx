@@ -266,6 +266,36 @@ export default function Profile() {
     toast('Logged out successfully', 'success')
   }
 
+  const [exporting, setExporting]     = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting]       = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await api.exportMyData()
+      toast('Your data has been downloaded.', 'success')
+    } catch {
+      toast('Could not export your data. Try again.', 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'DELETE') return
+    setDeleting(true)
+    try {
+      await api.deleteAccount()
+      logout()
+      navigate('/')
+      toast('Your account has been permanently deleted.', 'success')
+    } catch (err) {
+      toast(err.message || 'Could not delete account. Try again.', 'error')
+      setDeleting(false)
+    }
+  }
+
   const handleSaveAvatar = async () => {
     if (!selectedAvatar) return
     try {
@@ -719,6 +749,48 @@ export default function Profile() {
               </div>
             </div>
           )}
+
+          {/* Data export + account deletion (privacy / compliance) */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18 }}>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
+                background: 'transparent', border: '1px solid var(--border)',
+                color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600,
+                cursor: exporting ? 'wait' : 'pointer', fontFamily: 'var(--font-body)',
+              }}
+            >
+              {exporting ? 'Preparing…' : '⬇ Export my data (JSON)'}
+            </button>
+
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', marginBottom: 8 }}>
+              Permanently delete your account and all your data. This cannot be undone.
+            </p>
+            <input
+              className="input"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder='Type DELETE to confirm'
+              style={{ marginBottom: 10 }}
+            />
+            <button
+              onClick={handleDeleteAccount}
+              disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE'}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                background: deleteConfirm.trim().toUpperCase() === 'DELETE' ? 'rgba(255,70,70,0.15)' : 'transparent',
+                border: '1px solid rgba(255,70,70,0.3)', color: '#ff6b6b',
+                fontSize: '0.85rem', fontWeight: 700,
+                opacity: (deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE') ? 0.5 : 1,
+                cursor: (deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE') ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {deleting ? 'Deleting…' : 'Delete my account permanently'}
+            </button>
+          </div>
         </Section>
       </div>
 
