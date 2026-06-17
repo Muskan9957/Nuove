@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useLang } from '../i18n.jsx'
@@ -566,13 +566,22 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
   const submit = async e => {
     e.preventDefault(); setLoading(true)
     try {
-      if (mode === 'login') { await login(email, password); toast(t('landing_auth_welcome'), 'success'); navigate('/dashboard') }
-      else {
+      if (mode === 'login') {
+        const data = await login(email, password)
+        if (data?.needsVerification) { setVerifySent(true) }
+        else { toast(t('landing_auth_welcome'), 'success'); navigate('/dashboard') }
+      } else {
         const data = await register(email, password, name)
         if (data?.needsVerification) { setVerifySent(true) }
         else { toast(t('landing_auth_created'), 'success'); navigate('/dashboard') }
       }
-    } catch (err) { toast(err.message, 'error') }
+    } catch (err) {
+      if (err.data?.needsVerification) {
+        setVerifySent(true)
+      } else {
+        toast(err.message, 'error')
+      }
+    }
     finally { setLoading(false) }
   }
 
@@ -613,6 +622,9 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
                   Waiting for you to verify…
                 </div>
                 <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: 0 }}>Didn't get it? Check your spam folder.</p>
+                <button onClick={() => { setVerifySent(false); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 16, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+                  Back to sign in
+                </button>
               </>
             )}
           </div>
@@ -747,20 +759,7 @@ export default function Landing() {
             <p className="lp-up" style={{ animationDelay: '0.3s', fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(0.95rem,1.6vw,1.1rem)', color: 'rgba(255,255,255,0.62)', lineHeight: 1.7, margin: '0 auto 40px', maxWidth: 460 }}>
               {t('landing_hero_sub')}
             </p>
-            <div className="lp-up" style={{ animationDelay: '0.4s', display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button id="hero-start-btn" onClick={() => openModal('register')}
-                style={{ padding: '13px 32px', borderRadius: 8, border: 'none', background: '#fff', color: '#111', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.18s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(0)' }}>
-                {t('landing_hero_btn')}
-              </button>
-              <button id="hero-signin-link" onClick={() => openModal('login')}
-                style={{ padding: '13px 24px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.18s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.6)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)' }}>
-                {t('landing_hero_signin')}
-              </button>
-            </div>
+
           </div>
 
           {/* Scroll hint */}
