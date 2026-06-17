@@ -1,4 +1,5 @@
 const aiService = require('../services/aiService');
+const planService = require('../services/planService');
 const { updateStreak } = require('../services/badgeService');
 
 // ─── POST /api/captions/generate ──────────────────────────────────
@@ -19,6 +20,8 @@ const generate = async (req, res, next) => {
       }),
       updateStreak(req.user.id)
     ]);
+
+    planService.incrementFeature(req.user.id, 'captions').catch(() => {});
 
     return res.json({
       message : 'Captions generated successfully!',

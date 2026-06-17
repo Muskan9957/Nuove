@@ -1,5 +1,6 @@
 const prisma    = require('../config/prisma');
 const aiService = require('../services/aiService');
+const planService = require('../services/planService');
 const { updateStreak } = require('../services/badgeService');
 
 // ─── POST /api/coach/chat ─────────────────────────────────────────
@@ -73,6 +74,8 @@ const chat = async (req, res, next) => {
     await prisma.chatMessage.create({
       data: { userId, role: 'assistant', content: reply },
     });
+
+    planService.incrementFeature(userId, 'coach').catch(() => {});
 
     return res.json({ reply, newStreak });
   } catch (err) {
