@@ -1,5 +1,6 @@
 const prisma    = require('../config/prisma')
 const aiService = require('../services/aiService')
+const trendEngineV2 = require('../services/trendsV2/trendEngineV2')
 
 // ─── GET /api/trending/greeting?region=India&language=hi ─────────
 // Always calls AI fresh — no DB cache — so language changes are instant
@@ -7,8 +8,9 @@ const getGreeting = async (req, res, next) => {
   try {
     const region   = (req.query.region   || 'India').trim()
     const userLang = (req.query.language || 'en').trim()
+    const niche    = (req.query.niche    || 'general').trim()
 
-    const data = await aiService.getRegionalGreeting(region, userLang)
+    const data = await aiService.getRegionalGreeting(region, userLang, niche)
 
     // Strip internal flag before sending to client
     const { _isFallback, ...responseData } = data
@@ -22,7 +24,15 @@ const getGreeting = async (req, res, next) => {
 // Generates fresh topics for today and upserts into cache.
 // Never throws — errors are swallowed so they don't affect the response.
 const refreshInBackground = (niche, language, today, region = 'India') => {
-  aiService.getTrendingTopicsLive(niche, language, region)
+  trendEngineV2.getTrendsV2(region, niche)
+    .then(topics => {
+      if (!topics || topics.length === 0) throw new Error('V2 returned empty')
+      return topics
+    })
+    .catch((err) => {
+      console.warn('[trending] V2 background refresh failed, falling back to V1:', err.message)
+      return aiService.getTrendingTopicsLive(niche, language, region)
+    })
     .then(topics =>
       prisma.trendingCache.upsert({
         where  : { niche_language_date: { niche, language, date: today } },
@@ -68,7 +78,15 @@ const get = async (req, res, next) => {
     }
 
     // 3. No cache at all (or forced refresh) — must wait for AI
-    const topics = await aiService.getTrendingTopicsLive(niche, language, region)
+    let topics = []
+    try {
+      topics = await trendEngineV2.getTrendsV2(region, niche)
+      if (!topics || topics.length === 0) throw new Error('V2 returned empty topics')
+    } catch (err) {
+      console.warn('[trending] V2 failed, falling back to V1:', err.message)
+      topics = await aiService.getTrendingTopicsLive(niche, language, region)
+    }
+
     await prisma.trendingCache.upsert({
       where : { niche_language_date: { niche, language, date: today } },
       create: { niche, language, topics: JSON.stringify(topics), date: today },
