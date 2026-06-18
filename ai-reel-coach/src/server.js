@@ -2,6 +2,7 @@ require('dotenv').config({ override: true });
 const app    = require('./app');
 const prisma = require('./config/prisma');
 const aiService = require('./services/aiService');
+const trendEngineV2 = require('./services/trendsV2/trendEngineV2');
 
 const PORT = process.env.PORT || 4000;
 
@@ -33,7 +34,15 @@ async function warmTrendingCache() {
         if (exists) continue
 
         console.log(`[cache-warm] generating ${niche}/${language}…`)
-        const topics = await aiService.getTrendingTopics(niche, language)
+        let topics = []
+        try {
+          topics = await trendEngineV2.getTrendsV2('India', niche)
+          if (!topics || topics.length === 0) throw new Error('V2 returned empty')
+        } catch (err) {
+          console.warn(`[cache-warm] V2 failed, falling back to V1: ${err.message}`)
+          topics = await aiService.getTrendingTopicsLive(niche, language, 'India')
+        }
+
         await prisma.trendingCache.upsert({
           where  : { niche_language_date: { niche, language, date: today } },
           create : { niche, language, topics: JSON.stringify(topics), date: today },
