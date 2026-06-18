@@ -21,8 +21,8 @@ const PLANS = [
       { text: '10 AI scripts / month',             ok: true },
       { text: '10 captions / month',               ok: true },
       { text: '10 Coach messages / month',         ok: true },
-      { text: '5 recordings / month',              ok: true },
       { text: '5 content remixes / month',         ok: true },
+      { text: 'Unlimited recordings',              ok: true },
     ],
   },
   {

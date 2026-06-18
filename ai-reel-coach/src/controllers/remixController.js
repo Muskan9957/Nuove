@@ -1,5 +1,6 @@
 const prisma    = require('../config/prisma');
 const aiService = require('../services/aiService');
+const planService = require('../services/planService');
 const { updateStreak } = require('../services/badgeService');
 
 // ─── POST /api/remix/generate ─────────────────────────────────────
@@ -37,6 +38,8 @@ const generate = async (req, res, next) => {
       }),
       updateStreak(req.user.id)
     ]);
+
+    planService.incrementFeature(req.user.id, 'remix').catch(() => {});
 
     return res.json({
       message : 'Content remixed successfully!',

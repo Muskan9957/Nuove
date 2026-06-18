@@ -142,7 +142,7 @@ export const translations = {
     generate_copy: 'Copy Script',
     generate_copied: 'Copied!',
     generate_writing: 'Writing your script...',
-    generate_ai_writing: 'AI is writing your script',
+    generate_ai_writing: 'Hang on, we are generating your script...',
     generate_crafting: 'Crafting hook → body → CTA and scoring your hook...',
     generate_another: '↑ Generate Another Script',
     generate_view_history: 'View history →',

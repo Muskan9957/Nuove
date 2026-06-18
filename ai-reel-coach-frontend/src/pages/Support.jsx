@@ -128,7 +128,7 @@ export default function Support() {
           You can also reach out to our team directly via email for any urgent concerns.
         </p>
         <a 
-          href="mailto:support@yourdomain.com" 
+          href="mailto:support.nuove@anahatone.com" 
           style={{
             display: 'inline-block',
             padding: '8px 24px',
@@ -142,7 +142,7 @@ export default function Support() {
             transition: 'background 0.2s'
           }}
         >
-          support@yourdomain.com
+          support.nuove@anahatone.com
         </a>
       </div>
 

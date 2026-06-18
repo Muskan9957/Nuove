@@ -44,6 +44,7 @@ export const api = {
   register:      (body)          => req('POST', '/auth/register', body),
   verifyEmail:   (token)         => req('GET', `/auth/verify-email?token=${token}`),
   checkVerification: (email)     => req('GET', `/auth/verification-status?email=${encodeURIComponent(email)}`),
+  verifyCode:    (email, code)   => req('POST', '/auth/verify-code', { email, code }),
   login:         (body)          => req('POST', '/auth/login', body),
   getMe:         ()              => req('GET',  '/auth/me'),
   forgotPassword:(email)         => req('POST', '/auth/forgot-password', { email }),
@@ -142,6 +143,19 @@ export const api = {
   generateAvatar:  (style)    => req('POST',  '/user/generate-avatar', { style }),
   saveAvatar:      (url)      => req('PATCH', '/user/avatar', { url }),
   pingStreak:      ()         => req('POST',  '/user/streak/ping'),
+  deleteAccount:   ()         => req('DELETE', '/user/account'),
+  exportMyData:    async () => {
+    const res = await fetch(`${BASE}/user/export`, {
+      headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+    })
+    if (!res.ok) throw new Error('Could not export data')
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = 'nuove-my-data.json'
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  },
 
   // Creator Voice (premium personalisation)
   getVoiceProfile:    ()          => req('GET',    '/user/voice'),

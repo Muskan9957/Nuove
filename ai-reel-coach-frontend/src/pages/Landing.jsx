@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useLang } from '../i18n.jsx'
@@ -524,7 +524,7 @@ function FeatureCarousel() {
 /* ─── Auth Modal ─────────────────────────────────────────────────── */
 function AuthModal({ open, onClose, defaultMode = 'login' }) {
   const { t } = useLang()
-  const { login, register } = useAuth()
+  const { login, register, refreshUser } = useAuth()
   const toast    = useToast()
   const navigate = useNavigate()
 
@@ -535,7 +535,25 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
   const [loading, setLoading] = useState(false)
   const [showPass, setShow]   = useState(false)
   const [verifySent, setVerifySent]     = useState(false)
-  const [autoVerified, setAutoVerified] = useState(false)
+  const [code, setCode]                 = useState('')
+  const [verifying, setVerifying]       = useState(false)
+
+  const handleVerifyCode = async e => {
+    e.preventDefault()
+    if (code.trim().length !== 6) return
+    setVerifying(true)
+    try {
+      const data = await api.verifyCode(email, code.trim())
+      localStorage.setItem('arc_token', data.token)
+      localStorage.removeItem('vs_onboarded')
+      await refreshUser()
+      navigate('/onboarding')
+    } catch (err) {
+      toast(err.message || 'Invalid code. Please try again.', 'error')
+    } finally {
+      setVerifying(false)
+    }
+  }
 
   useEffect(() => { if (open) setMode(defaultMode) }, [defaultMode, open])
   useEffect(() => {
@@ -544,35 +562,25 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
     return () => window.removeEventListener('keydown', h)
   }, [open, onClose])
 
-  // Poll for verification while the "check inbox" screen is up — the moment the
-  // user clicks the link in their mail, sign them in here and go to the dashboard.
-  useEffect(() => {
-    if (!verifySent || autoVerified) return
-    let active = true
-    const id = setInterval(async () => {
-      try {
-        const { verified } = await api.checkVerification(email)
-        if (verified && active) {
-          clearInterval(id)
-          setAutoVerified(true)
-          try { await login(email, password); navigate('/dashboard') }
-          catch { toast('Email verified! Please sign in.', 'success'); setVerifySent(false); setMode('login') }
-        }
-      } catch { /* keep polling */ }
-    }, 3000)
-    return () => { active = false; clearInterval(id) }
-  }, [verifySent, autoVerified, email, password])
-
   const submit = async e => {
     e.preventDefault(); setLoading(true)
     try {
-      if (mode === 'login') { await login(email, password); toast(t('landing_auth_welcome'), 'success'); navigate('/dashboard') }
-      else {
+      if (mode === 'login') {
+        const data = await login(email, password)
+        if (data?.needsVerification) { setVerifySent(true) }
+        else { toast(t('landing_auth_welcome'), 'success'); navigate('/dashboard') }
+      } else {
         const data = await register(email, password, name)
         if (data?.needsVerification) { setVerifySent(true) }
         else { toast(t('landing_auth_created'), 'success'); navigate('/dashboard') }
       }
-    } catch (err) { toast(err.message, 'error') }
+    } catch (err) {
+      if (err.data?.needsVerification) {
+        setVerifySent(true)
+      } else {
+        toast(err.message, 'error')
+      }
+    }
     finally { setLoading(false) }
   }
 
@@ -591,30 +599,34 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
 
         {verifySent && (
           <div style={{ textAlign: 'center', padding: '12px 4px' }}>
-            <div style={{ fontSize: '2.6rem', marginBottom: 12 }}>{autoVerified ? '🎉' : '📬'}</div>
+            <div style={{ fontSize: '2.6rem', marginBottom: 12 }}>📬</div>
             <h2 style={{ margin: '0 0 8px', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '1.5rem', color: 'var(--text)' }}>
-              {autoVerified ? 'Email verified!' : 'Check your inbox'}
+              Enter your code
             </h2>
-            {autoVerified ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Signing you in…</p>
-            ) : (
-              <>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 22 }}>
-                  We've sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Open it and you'll be signed in here automatically.
-                </p>
-                {inboxUrlFor(email) && (
-                  <a href={inboxUrlFor(email)} target="_blank" rel="noopener noreferrer"
-                     style={{ display: 'block', height: 46, lineHeight: '46px', borderRadius: 8, background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', marginBottom: 14 }}>
-                    Open your email →
-                  </a>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-faint)', fontSize: '0.8rem', marginBottom: 16 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 1.2s ease infinite' }} />
-                  Waiting for you to verify…
-                </div>
-                <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: 0 }}>Didn't get it? Check your spam folder.</p>
-              </>
-            )}
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 22 }}>
+              We've sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Enter it below to verify your account.
+            </p>
+            <form onSubmit={handleVerifyCode}>
+              <input
+                className="input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                autoFocus
+                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5em', fontWeight: 700, paddingLeft: '0.5em' }}
+              />
+              <button type="submit" disabled={verifying || code.length !== 6}
+                style={{ marginTop: 14, width: '100%', height: 46, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontSize: '0.95rem', fontWeight: 600, cursor: (verifying || code.length !== 6) ? 'not-allowed' : 'pointer', opacity: (verifying || code.length !== 6) ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+                {verifying ? 'Verifying…' : 'Verify & Continue →'}
+              </button>
+            </form>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: '16px 0 0' }}>Didn't get it? Check your spam folder.</p>
+            <button onClick={() => { setVerifySent(false); setCode(''); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+              Back to sign in
+            </button>
           </div>
         )}
 
@@ -747,20 +759,7 @@ export default function Landing() {
             <p className="lp-up" style={{ animationDelay: '0.3s', fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(0.95rem,1.6vw,1.1rem)', color: 'rgba(255,255,255,0.62)', lineHeight: 1.7, margin: '0 auto 40px', maxWidth: 460 }}>
               {t('landing_hero_sub')}
             </p>
-            <div className="lp-up" style={{ animationDelay: '0.4s', display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button id="hero-start-btn" onClick={() => openModal('register')}
-                style={{ padding: '13px 32px', borderRadius: 8, border: 'none', background: '#fff', color: '#111', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.18s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f0f0f0'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(0)' }}>
-                {t('landing_hero_btn')}
-              </button>
-              <button id="hero-signin-link" onClick={() => openModal('login')}
-                style={{ padding: '13px 24px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.18s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.6)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)' }}>
-                {t('landing_hero_signin')}
-              </button>
-            </div>
+
           </div>
 
           {/* Scroll hint */}

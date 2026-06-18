@@ -43,6 +43,21 @@ model User {
   templates        Template[]
   weeklyReports    WeeklyReport[]
   chatMessages     ChatMessage[]
+  usageCounters    UsageCounter[]
+}
+
+// Per-feature monthly usage (captions, coach, remix, …). Scripts keep using
+// User.generationsUsed for backward compatibility.
+model UsageCounter {
+  id          String   @id @default(cuid())
+  userId      String
+  feature     String   // 'captions' | 'coach' | 'remix'
+  count       Int      @default(0)
+  periodStart DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feature])
 }
 
 model Script {

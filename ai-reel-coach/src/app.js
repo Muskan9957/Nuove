@@ -30,21 +30,22 @@ app.set('trust proxy', 1);
 
 // ─── Security & Logging ───────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
+const IS_PROD = process.env.NODE_ENV === 'production';
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL,
-  'http://localhost:3000',
-  'http://localhost:5173',
   'https://nuove.in',
   'https://www.nuove.in',
   'https://nuove.vercel.app',
+  // localhost dev origins only outside production
+  ...(IS_PROD ? [] : ['http://localhost:3000', 'http://localhost:5173']),
 ].filter(Boolean)
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (mobile, curl) or matching origins
-    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return cb(null, true)
-    // Allow all vercel.app preview deployments
-    if (origin && origin.endsWith('.vercel.app')) return cb(null, true)
+    // Allow requests with no origin (mobile apps, curl) or an exact allowlist match
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+    // Allow Vercel preview deployments only outside production
+    if (!IS_PROD && origin.endsWith('.vercel.app')) return cb(null, true)
     cb(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,
@@ -53,9 +54,10 @@ app.use(morgan('dev'));
 app.use(passport.initialize());
 
 // ─── Body Parsing ─────────────────────────────────────────────────
-// Raw body needed for Stripe webhook signature verification
+// Raw body needed for Razorpay webhook signature verification
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json());
+// 10mb to accommodate base64 image uploads (Reel Ready)
+app.use(express.json({ limit: '10mb' }));
 
 // ─── Health Check ─────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
