@@ -1,4 +1,5 @@
 require('dotenv').config({ override: true });
+require('./config/sentry');   // init error monitoring before anything else
 const app    = require('./app');
 const prisma = require('./config/prisma');
 const aiService = require('./services/aiService');

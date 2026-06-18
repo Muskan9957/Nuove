@@ -14,6 +14,7 @@
     "@anthropic-ai/sdk": "^0.24.3",
     "@fal-ai/serverless-client": "^0.15.0",
     "@prisma/client": "^5.14.0",
+    "@sentry/node": "^8.55.2",
     "axios": "^1.15.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
