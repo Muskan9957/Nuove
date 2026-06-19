@@ -4,8 +4,9 @@ const router  = express.Router()
 const { protect: auth } = require('../middleware/auth')
 
 // ─── ElevenLabs TTS ───────────────────────────────────────────────
-// "Adam" — built-in premade voice, available on ALL ElevenLabs plans
-const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'
+// "Rachel" — clear, energetic voice (21m00Tcm4TlvDq8ikWAM)
+// "Adam"   — deep, slow voice (pNInz6obpgDQGcFmaJgB)
+const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
 
 router.post('/', auth, async (req, res) => {
   const { text } = req.body
@@ -19,7 +20,7 @@ router.post('/', auth, async (req, res) => {
       `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
       {
         text: text.slice(0, 2500),
-        model_id: 'eleven_multilingual_v2',
+        model_id: 'eleven_turbo_v2_5',
         voice_settings: {
           stability:        0.50,
           similarity_boost: 0.75,

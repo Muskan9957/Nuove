@@ -25,11 +25,15 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         });
 
         if (user) {
-          // Update googleId if they previously registered with email
-          if (!user.googleId) {
+          // Update googleId and verify email if they previously registered with email
+          if (!user.googleId || !user.emailVerified) {
             user = await prisma.user.update({
               where: { id: user.id },
-              data : { googleId: profile.id, avatar: avatar || user.avatar },
+              data : { 
+                googleId: profile.id, 
+                avatar: avatar || user.avatar,
+                emailVerified: true
+              },
             });
           }
         } else {
@@ -40,6 +44,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               name   : name || email.split('@')[0],
               googleId: profile.id,
               avatar,
+              emailVerified: true,
             },
           });
         }
@@ -74,13 +79,18 @@ if (process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET) {
           if (existing) {
             user = await prisma.user.update({
               where: { id: existing.id },
-              data : { twitterId: profile.id, avatar: avatar || existing.avatar },
+              data : { twitterId: profile.id, avatar: avatar || existing.avatar, emailVerified: true },
             });
           } else {
             user = await prisma.user.create({
-              data: { email, name, twitterId: profile.id, avatar },
+              data: { email, name, twitterId: profile.id, avatar, emailVerified: true },
             });
           }
+        } else if (!user.emailVerified) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerified: true }
+          });
         }
         return done(null, user);
       } catch (err) {
@@ -110,13 +120,20 @@ if (process.env.INSTAGRAM_CLIENT_ID && process.env.INSTAGRAM_CLIENT_SECRET) {
         });
 
         if (user) {
-          // Update avatar if changed
+          // Update avatar and mark emailVerified if not already
+          const updateData = {};
           if (avatar && user.avatar !== avatar) {
-            user = await prisma.user.update({ where: { id: user.id }, data: { avatar } });
+            updateData.avatar = avatar;
+          }
+          if (!user.emailVerified) {
+            updateData.emailVerified = true;
+          }
+          if (Object.keys(updateData).length > 0) {
+            user = await prisma.user.update({ where: { id: user.id }, data: updateData });
           }
         } else {
           user = await prisma.user.create({
-            data: { email, name: name || 'Instagram User', avatar },
+            data: { email, name: name || 'Instagram User', avatar, emailVerified: true },
           });
         }
         return done(null, user);

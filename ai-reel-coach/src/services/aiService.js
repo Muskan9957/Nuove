@@ -1,6 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
-const { enrichSongs } = require('./spotifyService');
-const { getTrendingTitles } = require('./youtubeService');
+const trendsService = require('./trendsService');
 
 const MODEL       = 'claude-sonnet-4-6';           // Quality model for creative tasks
 const MODEL_FAST  = 'claude-haiku-4-5-20251001';   // Fast model for scoring/rewriting
@@ -508,79 +507,141 @@ Each topic should be:
 - Optimized for short-form video (60-90 seconds)
 - Likely to get high engagement
 
-Return ONLY a JSON array of 10 strings. No extra text. Example:
-["Topic 1", "Topic 2", ...]
-`
-  const raw = await ask(prompt, 600)
-  try {
-    const match = raw.match(/\[[\s\S]*\]/)
-    if (!match) throw new Error('No JSON array')
-    return JSON.parse(match[0])
-  } catch {
-    const fallbackTopics = {
-      hi: ['30 दिनों में 1000 फॉलोअर्स कैसे पाए','नए क्रिएटर्स की सबसे बड़ी गलती','मेरी कंटेंट क्रिएशन रूटीन','वीडियो पर व्यूज़ क्यों नहीं आते','हुक फॉर्मूला जो हमेशा काम करता है','रोज़ काम आने वाले कंटेंट टूल्स','एक दिन में 30 वीडियो कैसे रिकॉर्ड करें','मेरी एडिटिंग वर्कफ़्लो','क्वालिटी से ज़्यादा कंसिस्टेंसी क्यों ज़रूरी है','वायरल होने की असली सच्चाई'],
-      es: ['Cómo gané 1000 seguidores en 30 días','El mayor error de los nuevos creadores','Mi rutina honesta de creación de contenido','Por qué tus videos no tienen vistas','La fórmula de gancho que siempre funciona','Herramientas de contenido que uso a diario','Cómo grabar 30 videos en un día','Mi flujo de edición revelado','Por qué la consistencia supera a la calidad','La verdad sobre hacerse viral'],
-      fr: ['Comment j\'ai gagné 1000 abonnés en 30 jours','La plus grande erreur des nouveaux créateurs','Ma routine honnête de création de contenu','Pourquoi vos vidéos n\'ont pas de vues','La formule d\'accroche qui fonctionne toujours','Outils de contenu que j\'utilise quotidiennement','Comment enregistrer 30 vidéos en une journée','Mon flux de montage révélé','Pourquoi la régularité bat la qualité','La vérité sur devenir viral'],
-      pt: ['Como conquistei 1000 seguidores em 30 dias','O maior erro dos novos criadores','Minha rotina honesta de criação de conteúdo','Por que seus vídeos não têm visualizações','A fórmula de gancho que sempre funciona','Ferramentas de conteúdo que uso diariamente','Como gravar 30 vídeos em um dia','Meu fluxo de edição revelado','Por que consistência supera qualidade','A verdade sobre se tornar viral'],
-      de: ['Wie ich in 30 Tagen 1000 Follower gewann','Der größte Fehler neuer Creator','Meine ehrliche Content-Creation-Routine','Warum deine Videos keine Aufrufe bekommen','Die Hook-Formel, die immer funktioniert','Content-Tools, die ich täglich nutze','Wie man 30 Videos an einem Tag aufnimmt','Mein Bearbeitungs-Workflow enthüllt','Warum Konsistenz Qualität schlägt','Die Wahrheit über virales werden'],
-      ar: ['كيف حصلت على 1000 متابع في 30 يوماً','أكبر خطأ يرتكبه المبدعون الجدد','روتيني الصادق في إنشاء المحتوى','لماذا مقاطع الفيديو الخاصة بك لا تحصل على مشاهدات','صيغة الخطاف التي تعمل دائماً','أدوات المحتوى التي أستخدمها يومياً','كيفية تسجيل 30 مقطعاً في يوم واحد','سير عمل التحرير الخاص بي','لماذا الاستمرارية تتفوق على الجودة','الحقيقة حول الانتشار الفيروسي'],
-      id: ['Cara mendapat 1000 followers dalam 30 hari','Kesalahan terbesar kreator baru','Rutina pembuatan konten saya yang jujur','Kenapa video kamu tidak dapat views','Formula hook yang selalu berhasil','Tools konten yang saya gunakan setiap hari','Cara merekam 30 video dalam satu hari','Alur kerja editing saya terungkap','Kenapa konsistensi mengalahkan kualitas','Kebenaran tentang menjadi viral'],
-      ja: ['30日で1000フォロワーを獲得した方法','新人クリエイターの最大の失敗','私の正直なコンテンツ制作ルーティン','なぜあなたの動画に再生数がつかないのか','いつでも機能するフック公式','毎日使うコンテンツツール','1日で30本の動画を撮る方法','私の編集ワークフロー公開','なぜ継続性が質を上回るのか','バイラルになる真実'],
-      ko: ['30일 만에 팔로워 1000명 얻는 방법','신규 크리에이터의 가장 큰 실수','나의 솔직한 콘텐츠 제작 루틴','영상 조회수가 안 나오는 이유','항상 효과적인 훅 공식','매일 사용하는 콘텐츠 툴','하루에 영상 30개 찍는 방법','내 편집 워크플로우 공개','일관성이 품질을 이기는 이유','바이럴이 되는 진실'],
-    }
-    return fallbackTopics[language] || [
-      'How I gained 1000 followers in 30 days',
-      'The biggest mistake new creators make',
-      'My honest content creation routine',
-      'Why your videos get 0 views',
-      'The hook formula that always works',
-      'Content creation tools I use daily',
-      'How to batch record 30 videos in one day',
-      'My editing workflow revealed',
-      'Why consistency beats quality',
-      'The truth about going viral',
-    ]
-  }
-}
-
-// ─── Trending topics grounded in REAL YouTube data ────────────────
-// Pulls the most-viewed short-form videos for the niche/region from
-// YouTube, then asks the AI to turn them into 10 creator topic ideas.
-// Falls back to pure-AI topics when YouTube data is unavailable.
-const getTrendingTopicsLive = async (niche = 'general', language = 'en', region = 'India') => {
-  let realTitles = []
-  try {
-    realTitles = await getTrendingTitles(niche, region)
-  } catch {
-    realTitles = []
-  }
-
-  // No real data (no key / quota / error) → fall back to pure-AI topics
-  if (!realTitles.length) {
-    return getTrendingTopics(niche, language)
-  }
-
-  const langInstruction = getLangInstruction(language) || 'Respond in English.'
-  const prompt = `
-You are a viral content strategist. Below are REAL trending short-form videos on YouTube RIGHT NOW for the "${niche}" niche in ${region}:
-
-${realTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}
-
-${langInstruction}
-
-Based on what's ACTUALLY trending above, generate 10 fresh, specific topic ideas a creator in the "${niche}" niche could make today. Ride these real trends but make each idea original and optimized for a 60-90 second Reel/Short. Do not copy the titles verbatim.
-
-Return ONLY a JSON array of 10 strings. No extra text.
-["Topic 1", "Topic 2", ...]
+Return ONLY a JSON array of 10 objects. No extra text. Example:
+[
+  {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Trending"}
+]
 `
   try {
     const raw = await ask(prompt, 600)
     const match = raw.match(/\[[\s\S]*\]/)
     if (!match) throw new Error('No JSON array')
-    const topics = JSON.parse(match[0])
-    if (!Array.isArray(topics) || topics.length === 0) throw new Error('Empty')
-    return topics
+    return JSON.parse(match[0])
   } catch {
+    const fallbackTopics = {
+      hi: [
+        {title: '30 दिनों में 1000 फॉलोअर्स कैसे पाए', description: 'यह रणनीति अभी बहुत काम कर रही है।', category: 'Growth'},
+        {title: 'नए क्रिएटर्स की सबसे बड़ी गलती', description: 'लोग इन गलतियों से बचना चाहते हैं।', category: 'Tips'},
+        {title: 'मेरी कंटेंट क्रिएशन रूटीन', description: 'पर्दे के पीछे का दृश्य हमेशा लोकप्रिय होता है।', category: 'Vlog'}
+      ],
+      es: [
+        {title: 'Cómo gané 1000 seguidores en 30 días', description: 'Esta estrategia funciona muy bien ahora mismo.', category: 'Growth'},
+        {title: 'El mayor error de los nuevos creadores', description: 'La gente quiere evitar estos errores comunes.', category: 'Tips'},
+        {title: 'Mi rutina honesta de creación', description: 'El detrás de escena siempre es popular.', category: 'Vlog'}
+      ],
+      fr: [
+        {title: 'Comment j\'ai gagné 1000 abonnés en 30 jours', description: 'Cette stratégie fonctionne très bien en ce moment.', category: 'Growth'},
+        {title: 'La plus grande erreur des nouveaux créateurs', description: 'Les gens veulent éviter ces erreurs courantes.', category: 'Tips'},
+        {title: 'Ma routine honnête de création', description: 'Les coulisses sont toujours populaires.', category: 'Vlog'}
+      ],
+      pt: [
+        {title: 'Como conquistei 1000 seguidores em 30 dias', description: 'Esta estratégia funciona muito bem agora.', category: 'Growth'},
+        {title: 'O maior erro dos novos criadores', description: 'As pessoas querem evitar esses erros.', category: 'Tips'},
+        {title: 'Minha rotina honesta de criação', description: 'Os bastidores sempre são populares.', category: 'Vlog'}
+      ],
+      de: [
+        {title: 'Wie ich in 30 Tagen 1000 Follower gewann', description: 'Diese Strategie funktioniert derzeit sehr gut.', category: 'Growth'},
+        {title: 'Der größte Fehler neuer Creator', description: 'Die Leute wollen diese häufigen Fehler vermeiden.', category: 'Tips'},
+        {title: 'Meine ehrliche Content-Routine', description: 'Hinter den Kulissen ist immer beliebt.', category: 'Vlog'}
+      ],
+      ar: [
+        {title: 'كيف حصلت على 1000 متابع في 30 يوماً', description: 'هذه الاستراتيجية تعمل بشكل جيد الآن.', category: 'Growth'},
+        {title: 'أكبر خطأ يرتكبه المبدعون الجدد', description: 'يريد الناس تجنب هذه الأخطاء.', category: 'Tips'},
+        {title: 'روتيني الصادق في إنشاء المحتوى', description: 'كواليس العمل دائماً تحظى بشعبية.', category: 'Vlog'}
+      ],
+      id: [
+        {title: 'Cara mendapat 1000 followers dalam 30 hari', description: 'Strategi ini bekerja dengan sangat baik sekarang.', category: 'Growth'},
+        {title: 'Kesalahan terbesar kreator baru', description: 'Orang ingin menghindari kesalahan umum ini.', category: 'Tips'},
+        {title: 'Rutina pembuatan konten saya yang jujur', description: 'Di balik layar selalu populer.', category: 'Vlog'}
+      ],
+      ja: [
+        {title: '30日で1000フォロワーを獲得した方法', description: 'この戦略は今非常に効果的です。', category: 'Growth'},
+        {title: '新人クリエイターの最大の失敗', description: '人々はこれらの失敗を避けたいと思っています。', category: 'Tips'},
+        {title: '私の正直なコンテンツ制作ルーティン', description: '舞台裏は常に人気があります。', category: 'Vlog'}
+      ],
+      ko: [
+        {title: '30일 만에 팔로워 1000명 얻는 방법', description: '이 전략은 현재 매우 효과적입니다.', category: 'Growth'},
+        {title: '신규 크리에이터의 가장 큰 실수', description: '사람들은 이러한 실수를 피하고 싶어합니다.', category: 'Tips'},
+        {title: '나의 솔직한 콘텐츠 제작 루틴', description: '비하인드 스토리는 항상 인기가 많습니다.', category: 'Vlog'}
+      ],
+    }
+    return fallbackTopics[language] || [
+      {title: 'How I gained 1000 followers in 30 days', description: 'This strategy is working incredibly well right now.', category: 'Growth'},
+      {title: 'The biggest mistake new creators make', description: 'People want to avoid these common pitfalls.', category: 'Tips'},
+      {title: 'My honest content creation routine', description: 'Behind-the-scenes content always performs well.', category: 'Vlog'}
+    ]
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 5b. GET TRENDING TOPICS — LIVE (real web data → niche-filtered by Claude)
+// ─────────────────────────────────────────────────────────────────
+const getTrendingTopicsLive = async (niche = 'general', language = 'en', region = 'India') => {
+  const langInstruction = getLangInstruction(language) || 'Respond in English.'
+
+  // ── 1. Fetch real-time data from all sources in parallel ─────────
+  const [googleTrends, youtubeTrending] = await Promise.all([
+    trendsService.fetchGoogleTrends(region),
+    trendsService.fetchYouTubeTrending(region, niche),
+  ])
+
+  const hasLiveData = googleTrends.length > 0 || youtubeTrending.length > 0
+
+  // ── 2. If no live data, fall back to AI-only ──────────────────────
+  if (!hasLiveData) {
+    console.warn('[aiService] No live trend data — falling back to AI-only generation')
+    return getTrendingTopics(niche, language)
+  }
+
+  // ── 3. Build context strings for Claude ───────────────────────────
+  const googleContext = googleTrends.length
+    ? `GOOGLE TRENDS (what people in ${region} are searching RIGHT NOW):\n` +
+      googleTrends.slice(0, 15).map((t, i) => `${i + 1}. "${t.title}"${t.traffic ? ` (~${t.traffic} searches)` : ''}`).join('\n')
+    : ''
+
+  const youtubeContext = youtubeTrending.length
+    ? `\n\nYOUTUBE TRENDING (viral videos in ${region} right now):\n` +
+      youtubeTrending.slice(0, 15).map((v, i) => `${i + 1}. "${v.title}" by ${v.channel}`).join('\n')
+    : ''
+
+  // ── 4. Ask Claude to filter + format for the niche ────────────────
+  const prompt = `You are a viral content strategist for short-form video creators.
+
+${langInstruction}
+
+Here is REAL live trending data from ${region} as of right now:
+${googleContext}${youtubeContext}
+
+Your task: Pick the 6 topics from this real data that a "${niche}" content creator could make a viral Reel or Short about.
+
+For each topic:
+- If it's directly relevant to the niche, use it as-is
+- If it's indirectly relevant (e.g. a celebrity fitness story), angle it for the niche
+- If not enough niche-relevant topics, generate 1-2 niche-specific ideas inspired by the current cultural moment
+
+Return ONLY valid JSON — no markdown, no code blocks:
+[
+  {
+    "title": "Specific, compelling video topic (max 12 words)",
+    "description": "Why this is trending and why a ${niche} creator should make this now — 1 actionable sentence",
+    "category": "One of: AI & Technology, Gaming, Business & Finance, Fitness, Photography, Filmmaking, Geopolitics, Travel, Food, Sports, Music, Movies & Entertainment",
+    "source": "google" or "youtube" or "ai",
+    "hook": "A punchy 1-sentence hook for this video (starts strong, creates curiosity)"
+  }
+]
+
+IMPORTANT: Return exactly 6 objects. Prioritize topics with the most search traffic / views.`
+
+  try {
+    const raw = await ask(prompt, 1000, MODEL_FAST)
+    const match = raw.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error('No JSON array')
+    const parsed = JSON.parse(match[0])
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty array')
+    return parsed.slice(0, 6)
+  } catch (err) {
+    console.error('[aiService] getTrendingTopicsLive parse failed:', err.message)
+    // Last resort: fall back to old method
     return getTrendingTopics(niche, language)
   }
 }
@@ -622,30 +683,31 @@ Be like a friend, not a corporate report. Keep it short.
 const getRegionalGreeting = async (region = 'India', language = 'en') => {
   const langInstruction = getLangInstruction(language)
   const prompt = `You are a sharp, professional content strategist briefing an Indian creator on today's social media landscape.
-${langInstruction ? '\n' + langInstruction + ' Write the greeting sentence and trend descriptions in that language, but keep JSON keys and category names in English.\n' : '\nWrite in clean, concise English. Be warm but not overly casual — think smart friend, not cheerleader.\n'}
-Focus on topics Indian audiences actually engage with — Bollywood, cricket, Indian startups, festivals, food, finance, pop culture, etc.
+${langInstruction ? '\n' + langInstruction + ' Write the greeting sentence and trend descriptions in that language, but keep JSON keys and category names in English.\n' : '\nWrite in clean, concise English. Be warm but not overly casual. Think smart friend, not cheerleader.\n'}
+Focus on topics Indian audiences actually engage with: Bollywood, cricket, Indian startups, festivals, food, finance, pop culture, etc.
+IMPORTANT: Do not use em dashes (the long dash) anywhere in your response. Use commas, colons, or full stops instead.
 
 Return ONLY valid JSON (no markdown, no code blocks):
 {
-  "greeting": "One crisp sentence (max 20 words) about what's happening in India's creator space today — insightful, not generic",
+  "greeting": "One crisp sentence (max 20 words) about what's happening in India's creator space today. Make it insightful, not generic.",
   "trends": [
-    {"title": "Specific trend name", "description": "Why this matters for creators — 1 sentence, actionable", "category": "Entertainment"},
-    {"title": "Specific trend name", "description": "Why this matters for creators — 1 sentence, actionable", "category": "Business"},
-    {"title": "Specific trend name", "description": "Why this matters for creators — 1 sentence, actionable", "category": "Lifestyle"}
+    {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Entertainment"},
+    {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Business"},
+    {"title": "Specific trend name", "description": "Why this matters for creators, in one actionable sentence.", "category": "Lifestyle"}
   ]
 }
 
-Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, Fashion, Business, Health, Bollywood`
+Categories: AI & Technology, Gaming, Business & Finance, Fitness, Photography, Filmmaking, Geopolitics, Travel, Food, Sports, Music, Movies & Entertainment`
 
-  const raw = await ask(prompt, 600, MODEL_FAST)
   try {
+    const raw = await ask(prompt, 600, MODEL_FAST)
     const jsonMatch = raw.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error('No JSON')
     return JSON.parse(jsonMatch[0])
   } catch {
     const fallbacks = {
       hi: {
-        greeting: `${region} का सोशल मीडिया आज बज़ रहा है — चलो कुछ वायरल बनाते हैं!`,
+        greeting: `${region} का सोशल मीडिया आज बज़ रहा है। चलो कुछ वायरल बनाते हैं!`,
         trends: [
           { title: 'शॉर्ट-फॉर्म वीडियो ट्रेंड', description: 'Reels और Shorts अभी फीड पर छाए हुए हैं।', category: 'Content' },
           { title: 'क्रिएटर इकोनॉमी की वृद्धि', description: 'ब्रांड्स अब माइक्रो-इन्फ्लुएंसर्स में ज़्यादा निवेश कर रहे हैं।', category: 'Business' },
@@ -653,7 +715,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       es: {
-        greeting: `¡Las redes sociales de ${region} están en llamas hoy — creemos algo viral!`,
+        greeting: `¡Las redes sociales de ${region} están en llamas hoy. ¡Creemos algo viral!`,
         trends: [
           { title: 'Tendencias de video corto', description: 'Los Reels y Shorts dominan los feeds ahora mismo.', category: 'Content' },
           { title: 'Economía de creadores', description: 'Las marcas invierten cada vez más en micro-influencers.', category: 'Business' },
@@ -661,7 +723,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       fr: {
-        greeting: `Les réseaux sociaux de ${region} sont en effervescence aujourd'hui — créons quelque chose de viral !`,
+        greeting: `Les réseaux sociaux de ${region} sont en effervescence aujourd'hui. Créons quelque chose de viral !`,
         trends: [
           { title: 'Tendances vidéo courte', description: 'Les Reels et Shorts dominent les fils d\'actualité en ce moment.', category: 'Content' },
           { title: 'Économie des créateurs', description: 'Les marques investissent de plus en plus dans les micro-influenceurs.', category: 'Business' },
@@ -669,7 +731,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       pt: {
-        greeting: `As redes sociais de ${region} estão agitadas hoje — vamos criar algo viral!`,
+        greeting: `As redes sociais de ${region} estão agitadas hoje. Vamos criar algo viral!`,
         trends: [
           { title: 'Tendências de vídeo curto', description: 'Reels e Shorts estão dominando os feeds agora.', category: 'Content' },
           { title: 'Economia de criadores', description: 'As marcas estão investindo cada vez mais em micro-influenciadores.', category: 'Business' },
@@ -677,7 +739,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       de: {
-        greeting: `Die sozialen Medien von ${region} sind heute im Trend — lass uns etwas Virales erstellen!`,
+        greeting: `Die sozialen Medien von ${region} sind heute im Trend. Lass uns etwas Virales erstellen!`,
         trends: [
           { title: 'Kurzvideotrends', description: 'Reels und Shorts dominieren gerade die Feeds.', category: 'Content' },
           { title: 'Creator-Wirtschaft', description: 'Marken investieren mehr denn je in Mikro-Influencer.', category: 'Business' },
@@ -685,7 +747,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       ar: {
-        greeting: `وسائل التواصل الاجتماعي في ${region} تشتعل اليوم — لنصنع شيئاً يتداوله الجميع!`,
+        greeting: `وسائل التواصل الاجتماعي في ${region} تشتعل اليوم. لنصنع شيئاً يتداوله الجميع!`,
         trends: [
           { title: 'اتجاهات الفيديو القصير', description: 'ريلز وشورتس يهيمنان على الخلاصات الآن.', category: 'Content' },
           { title: 'اقتصاد المبدعين', description: 'تستثمر العلامات التجارية أكثر في المؤثرين الصغار.', category: 'Business' },
@@ -693,7 +755,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       id: {
-        greeting: `Media sosial ${region} sedang ramai hari ini — mari buat konten yang viral!`,
+        greeting: `Media sosial ${region} sedang ramai hari ini. Mari buat konten yang viral!`,
         trends: [
           { title: 'Tren video pendek', description: 'Reels dan Shorts mendominasi feed saat ini.', category: 'Content' },
           { title: 'Ekonomi kreator', description: 'Brand semakin banyak berinvestasi ke micro-influencer.', category: 'Business' },
@@ -701,7 +763,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       ja: {
-        greeting: `${region}のソーシャルメディアが今日も盛り上がっています — バイラルなコンテンツを作りましょう！`,
+        greeting: `${region}のソーシャルメディアが今日も盛り上がっています。バイラルなコンテンツを作りましょう！`,
         trends: [
           { title: 'ショート動画トレンド', description: 'リールとショーツが今フィードを席巻しています。', category: 'Content' },
           { title: 'クリエイターエコノミー', description: 'ブランドがマイクロインフルエンサーへの投資を増やしています。', category: 'Business' },
@@ -709,7 +771,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
         ],
       },
       ko: {
-        greeting: `${region}의 소셜 미디어가 오늘도 뜨겁습니다 — 바이럴 콘텐츠를 만들어봅시다!`,
+        greeting: `${region}의 소셜 미디어가 오늘도 뜨겁습니다. 바이럴 콘텐츠를 만들어봅시다!`,
         trends: [
           { title: '숏폼 비디오 트렌드', description: '릴스와 쇼츠가 지금 피드를 장악하고 있습니다.', category: 'Content' },
           { title: '크리에이터 이코노미', description: '브랜드들이 마이크로 인플루언서에 더 많이 투자하고 있습니다.', category: 'Business' },
@@ -718,7 +780,7 @@ Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, F
       },
     }
     const fb = fallbacks[language] || {
-      greeting: `Welcome back! ${region}'s social media is buzzing today — let's create something viral!`,
+      greeting: `Welcome back! ${region}'s social media is buzzing today. Let's create something viral!`,
       trends: [
         { title: 'Short-form video trends', description: 'Reels and Shorts are dominating feeds right now.', category: 'Content' },
         { title: 'Creator economy growth', description: 'More brands are investing in micro-influencers.', category: 'Business' },
@@ -865,7 +927,7 @@ const coachChat = async ({ message, history = [], userContext, language = 'en' }
   const langInstruction = getLangInstruction(language)
   const langSuffix = langInstruction ? ` ${langInstruction} Always respond in that language.` : ''
 
-  const systemPrompt = `You are a sharp, expert content coach for Indian short-form video creators on Instagram Reels and YouTube Shorts. ${contextStr} Always tailor advice specifically to the creator's niche and goals when provided. Be direct, practical, and specific. No fluff, no generic advice. Give actionable tips they can use today. Keep replies under 200 words unless a longer explanation is genuinely needed. FORMATTING RULE: DO NOT use markdown headers (#) or bullet points (-, *). Make the text look natural and conversational like a text message. Use emojis liberally (at least one per response), bold, and italics where appropriate, but avoid a robotic or heavily formatted appearance.${langSuffix}`;
+  const systemPrompt = `You are a sharp, expert content coach for Indian short-form video creators on Instagram Reels and YouTube Shorts. ${contextStr} Always tailor advice specifically to the creator's niche and goals when provided. Be direct, practical, and specific. No fluff, no generic advice. Give actionable tips they can use today. Keep replies under 200 words unless a longer explanation is genuinely needed.${langSuffix}`;
 
   // Keep last 10 messages of history
   const trimmedHistory = (history || []).slice(-10);
@@ -1027,32 +1089,31 @@ Return ONLY valid JSON, no markdown, no code blocks:
     if (!match) throw new Error('No JSON')
     const parsed = JSON.parse(match[0])
     if (!Array.isArray(parsed.songs) || parsed.songs.length === 0) throw new Error('Empty songs')
-    parsed.songs = await enrichSongs(parsed.songs)
     return parsed
   } catch {
     // Fallback is region-aware
     const isIndia = audience === 'India' || language === 'hi'
     if (isIndia) {
       return {
-        songs: await enrichSongs([
+        songs: [
           { title: 'Tum Hi Ho', artist: 'Arijit Singh', bpm: 68, energy: 'medium', mood: 'emotional, soulful', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Tum+Hi+Ho+Arijit+Singh' },
           { title: 'Kesariya', artist: 'Arijit Singh', bpm: 112, energy: 'high', mood: 'romantic, uplifting', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Kesariya+Arijit+Singh' },
           { title: 'Pasoori', artist: 'Ali Sethi & Shae Gill', bpm: 95, energy: 'medium', mood: 'dreamy, vibrant', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Pasoori+Ali+Sethi' },
           { title: 'Hindi Motivational Background', artist: 'Various', bpm: 120, energy: 'high', mood: 'powerful, uplifting', royaltyFree: true, library: 'Hoopr.ai', searchUrl: 'https://hoopr.ai/playlists/motivational' },
           { title: 'Desi Beats Instrumental', artist: 'Various', bpm: 110, energy: 'high', mood: 'energetic, desi', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/indian/' },
           { title: 'Bollywood Background Score', artist: 'Various', bpm: 100, energy: 'medium', mood: 'cinematic, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
-        ])
+        ]
       }
     }
     return {
-      songs: await enrichSongs([
+      songs: [
         { title: 'Blinding Lights', artist: 'The Weeknd', bpm: 171, energy: 'high', mood: 'urgent, driving', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Blinding+Lights+The+Weeknd' },
         { title: 'Levitating', artist: 'Dua Lipa', bpm: 103, energy: 'high', mood: 'euphoric, fun', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Levitating+Dua+Lipa' },
         { title: 'STAY', artist: 'The Kid LAROI & Justin Bieber', bpm: 170, energy: 'high', mood: 'emotional, intense', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=STAY+The+Kid+LAROI+Justin+Bieber' },
         { title: 'Inspiring Uplifting', artist: 'Various', bpm: 120, energy: 'medium', mood: 'motivational', royaltyFree: true, library: 'Pixabay', searchUrl: 'https://pixabay.com/music/search/motivational/' },
         { title: 'Energetic Sport', artist: 'Various', bpm: 130, energy: 'high', mood: 'powerful, athletic', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/sport' },
         { title: 'Positive Upbeat', artist: 'Various', bpm: 108, energy: 'medium', mood: 'happy, warm', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
-      ])
+      ]
     }
   }
 }
@@ -1080,7 +1141,7 @@ Carefully analyse the image(s). Understand what is happening, the mood and energ
 Then return ONLY valid JSON — no markdown, no code fences:
 {
   "contentUnderstanding": "One sentence: what you see in the content",
-  "niche": "single niche keyword (fitness|food|travel|finance|lifestyle|comedy|fashion|tech|bollywood|education|beauty|motivation)",
+  "niche": "single niche keyword (ai & technology|gaming|business & finance|fitness|photography|filmmaking|geopolitics|travel|food|sports|music|movies & entertainment)",
   "topic": "specific short topic phrase for this content",
   "tone": "one of: motivational|educational|funny|storytelling|controversial|conversational",
   "mood": "2-3 word mood (e.g. energetic and bold)",
@@ -1170,7 +1231,6 @@ module.exports = {
   rewriteHook,
   analyzePerformance,
   getTrendingTopics,
-  getTrendingTopicsLive,
   generateWeeklyReport,
   translateContent,
   getRegionalGreeting,
@@ -1180,4 +1240,6 @@ module.exports = {
   recommendSongs,
   analyzeReelContent,
   generateMoreCaptions,
+  getTrendingTopicsLive,
 };
+

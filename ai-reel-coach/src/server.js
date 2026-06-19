@@ -3,14 +3,14 @@ require('./config/sentry');   // init error monitoring before anything else
 const app    = require('./app');
 const prisma = require('./config/prisma');
 const aiService = require('./services/aiService');
+const trendEngineV2 = require('./services/trendsV2/trendEngineV2');
 
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
   console.log(`\n🚀 AI Reel Coach API running on port ${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   Docs        : http://localhost:${PORT}/api/health`);
-  console.log(`   TTS route   : /api/tts (ElevenLabs)\n`);
+  console.log(`   Docs        : http://localhost:${PORT}/api/health\n`);
 
   // ── Warm trending cache in background ──────────────────────────
   // Runs after startup so it never delays boot. Generates today's topics
@@ -29,15 +29,23 @@ async function warmTrendingCache() {
       try {
         // Skip if today's cache already exists
         const exists = await prisma.trendingCache.findUnique({
-          where: { niche_language_date: { niche, language, date: today } },
+          where: { niche_language_region_scope_date: { niche, language, region: 'India', scope: 'local', date: today } },
         })
         if (exists) continue
 
         console.log(`[cache-warm] generating ${niche}/${language}…`)
-        const topics = await aiService.getTrendingTopics(niche, language)
+        let topics = []
+        try {
+          topics = await trendEngineV2.getTrendsV2('India', niche, 'local')
+          if (!topics || topics.length === 0) throw new Error('V2 returned empty')
+        } catch (err) {
+          console.warn(`[cache-warm] V2 failed, falling back to V1: ${err.message}`)
+          topics = await aiService.getTrendingTopicsLive(niche, language, 'India')
+        }
+
         await prisma.trendingCache.upsert({
-          where  : { niche_language_date: { niche, language, date: today } },
-          create : { niche, language, topics: JSON.stringify(topics), date: today },
+          where  : { niche_language_region_scope_date: { niche, language, region: 'India', scope: 'local', date: today } },
+          create : { niche, language, region: 'India', scope: 'local', topics: JSON.stringify(topics), date: today },
           update : { topics: JSON.stringify(topics) },
         })
         console.log(`[cache-warm] ✓ ${niche}/${language}`)

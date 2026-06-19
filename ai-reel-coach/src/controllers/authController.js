@@ -102,14 +102,26 @@ const login = async (req, res, next) => {
       return res.status(401).json({ error: 'This account uses Google sign-in. Please use the Google button to log in.' });
     }
 
-    // Email not verified yet
-    if (!user.emailVerified) {
-      return res.status(403).json({ error: 'Please verify your email before logging in. Check your inbox for the verification link.', needsVerification: true });
-    }
-
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Email not verified yet — generate a fresh token and resend email
+    if (!user.emailVerified) {
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerificationToken: verificationToken }
+      });
+      
+      const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+      sendVerificationEmail({ to: user.email, name: user.name, verifyUrl })
+        .then(() => console.log(`[LOGIN] Verification email re-sent to ${user.email}`))
+        .catch(err => console.error('[LOGIN] Failed to send verification email:', err.message));
+
+      return res.status(403).json({ error: 'Please verify your email before logging in. We have sent a new link to your inbox.', needsVerification: true });
     }
 
     const token = signToken(user);
@@ -246,7 +258,8 @@ const verifyEmail = async (req, res, next) => {
     });
 
     // Send welcome email now that they're verified
-    sendWelcome({ to: user.email, name: user.name }).catch(() => {});
+    sendWelcome({ to: user.email, name: user.name })
+      .catch(err => console.error('[VERIFY] Failed to send welcome email:', err.message));
 
     const authToken = signToken(user);
     return res.json({

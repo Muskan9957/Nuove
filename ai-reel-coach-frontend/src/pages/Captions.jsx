@@ -11,7 +11,7 @@ const STYLE_COLORS = {
   Bold:     '#7B5CF0',
 }
 
-const NICHES = ['General', 'Fitness', 'Finance', 'Food', 'Tech', 'Motivation', 'Relationships', 'Business', 'Travel', 'Beauty']
+const NICHES = ['General', 'Fitness', 'Business & Finance', 'Food', 'Tech', 'Motivation', 'Relationships', 'Travel', 'Beauty']
 const TONES  = ['Engaging', 'Funny', 'Inspirational', 'Educational', 'Bold', 'Conversational']
 
 function PulsingDots() {

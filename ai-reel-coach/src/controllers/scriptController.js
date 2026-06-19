@@ -73,9 +73,15 @@ const generateStream = async (req, res, next) => {
 
     const { topic, niche, tone, language, voiceInstruction } = req.body
 
+    const userRow = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { creatorStyle: true },
+    })
+    const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null
+
     // 2. Stream script tokens to client
     let parsedScript = null
-    for await (const event of aiService.generateScriptStream({ topic, niche, tone, language, voiceInstruction })) {
+    for await (const event of aiService.generateScriptStream({ topic, niche, tone, language, voiceInstruction, voiceProfile })) {
       if (event.type === 'chunk') {
         send(event)
       } else if (event.type === 'parsed') {
@@ -105,7 +111,7 @@ const generateStream = async (req, res, next) => {
     // 5. Send structured script — client can now render sections
     send({
       type     : 'script',
-      data     : { id: script.id, topic, hook, body, cta, fullScript },
+      data     : { id: script.id, topic, hook, body, cta, fullScript, voiceUsed: voiceProfile ? voiceProfile.summary : null },
       usage    : { used: used + 1, limit },
       newStreak,
       newBadges: newBadges.length > 0 ? newBadges : undefined,
@@ -156,11 +162,18 @@ const generate = async (req, res, next) => {
       });
     }
 
-    // 2. Generate script via AI
-    const { topic, niche, tone, language } = req.body;
-    const { hook, body, cta, fullScript } = await aiService.generateScript({ topic, niche, tone, language });
+    // 2. Load voice profile
+    const userRow = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { creatorStyle: true },
+    });
+    const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null;
 
-    // 3. Save script immediately (hookScore placeholder — scored async below)
+    // 3. Generate script via AI
+    const { topic, niche, tone, language } = req.body;
+    const { hook, body, cta, fullScript } = await aiService.generateScript({ topic, niche, tone, language, voiceProfile });
+
+    // 4. Save script immediately (hookScore placeholder — scored async below)
     const script = await prisma.script.create({
       data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
     });
@@ -175,7 +188,7 @@ const generate = async (req, res, next) => {
     // 5. Return script to user immediately — don't wait for hook scoring
     const response = {
       message: 'Script generated successfully!',
-      script : { id: script.id, topic, hook, body, cta, fullScript, hookScore: null },
+      script : { id: script.id, topic, hook, body, cta, fullScript, hookScore: null, voiceUsed: voiceProfile ? voiceProfile.summary : null },
       usage  : { used: used + 1, limit },
       newStreak,
     };

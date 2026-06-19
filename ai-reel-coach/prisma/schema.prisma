@@ -31,7 +31,8 @@ model User {
   passwordResetToken      String?
   passwordResetExpires    DateTime?
   onboarded               Boolean   @default(false)
-  emailVerified           Boolean   @default(true)
+  creatorStyle            String?   // JSON: AI-extracted voice fingerprint (premium feature)
+  emailVerified           Boolean   @default(false)
   emailVerificationToken  String?
 
   scripts          Script[]
@@ -158,9 +159,11 @@ model TrendingCache {
   id        String   @id @default(cuid())
   niche     String
   language  String   @default("en")
+  region    String   @default("India")
+  scope     String   @default("local") // local | global
   topics    String   // JSON array of topic strings
   date      String   // YYYY-MM-DD — one cache per niche per day
-  @@unique([niche, language, date])
+  @@unique([niche, language, region, scope, date])
 }
 
 model WeeklyReport {

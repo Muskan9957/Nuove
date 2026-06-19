@@ -2,6 +2,7 @@ const router  = require('express').Router()
 const { protect: auth } = require('../middleware/auth')
 const { getProfile, updateLanguage, getBadges, pingStreak } = require('../controllers/userController')
 const prisma  = require('../config/prisma')
+const aiService = require('../services/aiService')
 const razorpayService = require('../services/razorpayService')
 
 // ─── GET /api/user/export — download all of my data as JSON ───────
@@ -49,6 +50,69 @@ router.get('/profile',      auth, getProfile)
 router.patch('/language',   auth, updateLanguage)
 router.get('/badges',       auth, getBadges)
 router.post('/streak/ping', auth, pingStreak)
+
+// ─── Creator Voice (premium personalisation) ──────────────────────
+
+// GET /api/user/voice — return saved style profile
+router.get('/voice', auth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { plan: true, creatorStyle: true },
+    })
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const profile = user.creatorStyle ? JSON.parse(user.creatorStyle) : null
+    return res.json({ plan: user.plan, profile })
+  } catch (err) { next(err) }
+})
+
+// POST /api/user/voice — analyse samples and save voice profile
+router.post('/voice', auth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { plan: true },
+    })
+    // Gate to STARTER+ — FREE users see the feature but can't save
+    if (!user || user.plan === 'FREE') {
+      return res.status(403).json({
+        error  : 'Creator Voice is a premium feature.',
+        upgrade: 'Upgrade to Starter or Pro to unlock your personal voice profile.',
+      })
+    }
+
+    const { samples } = req.body   // array of 1-3 strings
+    if (!Array.isArray(samples) || samples.length === 0) {
+      return res.status(400).json({ error: 'Provide at least one content sample.' })
+    }
+    const filtered = samples.map(s => String(s).trim()).filter(s => s.length > 20)
+    if (filtered.length === 0) {
+      return res.status(400).json({ error: 'Samples are too short. Paste real captions or scripts.' })
+    }
+
+    const profile = await aiService.analyzeCreatorStyle(filtered)
+    if (!profile) return res.status(502).json({ error: 'Style analysis failed. Please try again.' })
+
+    const toSave = { ...profile, updatedAt: new Date().toISOString(), sampleCount: filtered.length }
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data : { creatorStyle: JSON.stringify(toSave) },
+    })
+
+    return res.json({ profile: toSave })
+  } catch (err) { next(err) }
+})
+
+// DELETE /api/user/voice — clear the saved profile
+router.delete('/voice', auth, async (req, res, next) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data : { creatorStyle: null },
+    })
+    return res.json({ ok: true })
+  } catch (err) { next(err) }
+})
 
 router.patch('/onboarded', auth, async (req, res, next) => {
   try {

@@ -18,7 +18,11 @@ const req = async (method, path, body) => {
   })
 
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || data.errors?.[0]?.msg || 'Something went wrong')
+  if (!res.ok) {
+    const err = new Error(data.error || data.errors?.[0]?.msg || 'Something went wrong')
+    err.data = data
+    throw err
+  }
   
   // Intercept streak updates globally
   if (data.newStreak !== undefined) {
@@ -92,14 +96,16 @@ export const api = {
   deleteCalendarEntry: (id)        => req('DELETE', `/calendar/${id}`),
 
   // Trending — region-aware, force=true bypasses cache for refresh button
-  getTrending:  (language, region = 'India', force = false) => {
-    const params = new URLSearchParams({ language, region })
+  // scope/niche/region create separate backend cache keys.
+  getTrending:  (language, region = 'India', force = false, niche, scope = 'local') => {
+    const params = new URLSearchParams({ language, region, scope })
     if (force) params.set('force', 'true')
+    if (niche) params.set('niche', niche)
     return req('GET', `/trending?${params}`)
   },
   getTrendingAudio: (region = 'India') => req('GET', `/trending/audio?region=${encodeURIComponent(region)}`),
-  getGreeting:  (region, language, bust = '') => {
-    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${bust}`)
+  getGreeting:  (region, language, bust = '', niche, scope = 'local') => {
+    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}&niche=${encodeURIComponent(niche || 'general')}&scope=${encodeURIComponent(scope)}${bust}`)
   },
 
   // Templates

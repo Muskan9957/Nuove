@@ -624,7 +624,7 @@ Return ONLY valid JSON — no markdown, no code blocks:
   {
     "title": "Specific, compelling video topic (max 12 words)",
     "description": "Why this is trending and why a ${niche} creator should make this now — 1 actionable sentence",
-    "category": "One of: Entertainment, Sports, Finance, Tech, Food, Lifestyle, Fashion, Education, Health, Business, Bollywood, Cricket, Motivation",
+    "category": "One of: AI & Technology, Gaming, Business & Finance, Fitness, Photography, Filmmaking, Geopolitics, Travel, Food, Sports, Music, Movies & Entertainment",
     "source": "google" or "youtube" or "ai",
     "hook": "A punchy 1-sentence hook for this video (starts strong, creates curiosity)"
   }
@@ -697,7 +697,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
   ]
 }
 
-Categories: Entertainment, Cricket, Finance, Tech, Food, Education, Lifestyle, Fashion, Business, Health, Bollywood`
+Categories: AI & Technology, Gaming, Business & Finance, Fitness, Photography, Filmmaking, Geopolitics, Travel, Food, Sports, Music, Movies & Entertainment`
 
   try {
     const raw = await ask(prompt, 600, MODEL_FAST)
@@ -1141,7 +1141,7 @@ Carefully analyse the image(s). Understand what is happening, the mood and energ
 Then return ONLY valid JSON — no markdown, no code fences:
 {
   "contentUnderstanding": "One sentence: what you see in the content",
-  "niche": "single niche keyword (fitness|food|travel|finance|lifestyle|comedy|fashion|tech|bollywood|education|beauty|motivation)",
+  "niche": "single niche keyword (ai & technology|gaming|business & finance|fitness|photography|filmmaking|geopolitics|travel|food|sports|music|movies & entertainment)",
   "topic": "specific short topic phrase for this content",
   "tone": "one of: motivational|educational|funny|storytelling|controversial|conversational",
   "mood": "2-3 word mood (e.g. energetic and bold)",
