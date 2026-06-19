@@ -37,7 +37,7 @@ async function askClaude(prompt) {
   }
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',   // title cleanup is simple — Haiku is ~5x cheaper than Sonnet
     max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }]
   });
