@@ -7,6 +7,7 @@ import { useTextToSpeech } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
 import { getSavedRegion } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
+import TrendDetailModal from '../components/TrendDetailModal'
 
 /* ─── Creator palette ,  Saffron Noir ─────────────────────────────── */
 const C = {
@@ -20,19 +21,36 @@ const C = {
   green:  '#10B981',
 }
 
+const NICHES = [
+  'All',
+  'AI & Technology',
+  'Gaming',
+  'Business & Finance',
+  'Fitness',
+  'Photography',
+  'Filmmaking',
+  'Geopolitics',
+  'Travel',
+  'Food',
+  'Sports',
+  'Music',
+  'Movies & Entertainment'
+]
+
 const NICHE_META = {
-  comedy:        { emoji: '😂', color: '#FF2D6F' },
-  fitness:       { emoji: '💪', color: '#FF8C00' },
-  finance:       { emoji: '💰', color: '#C4FF00' },
-  food:          { emoji: '🍜', color: '#FF8C00' },
-  fashion:       { emoji: '👗', color: '#FF2D6F' },
-  tech:          { emoji: '⚡', color: '#B36DFF' },
-  lifestyle:     { emoji: '✨', color: '#00E5A0' },
-  education:     { emoji: '📚', color: '#B36DFF' },
-  travel:        { emoji: '🗺️', color: '#FF8C00' },
-  motivation:    { emoji: '🔥', color: '#FF5F4C' },
-  business:      { emoji: '🚀', color: '#00E5A0' },
-  relationships: { emoji: '❤️', color: '#FF2D6F' },
+  'ai & technology': { emoji: '⚡', color: C.cyan },
+  'gaming': { emoji: '🎮', color: C.violet },
+  'business & finance': { emoji: '🚀', color: C.green },
+  'fitness': { emoji: '💪', color: C.lime },
+  'photography': { emoji: '📸', color: C.violet },
+  'filmmaking': { emoji: '🎬', color: C.pink },
+  'geopolitics': { emoji: '🌍', color: C.amber },
+  'travel': { emoji: '✈️', color: C.teal },
+  'food': { emoji: '🍜', color: C.amber },
+  'sports': { emoji: '⚽', color: C.pink },
+  'music': { emoji: '🎵', color: C.pink },
+  'movies & entertainment': { emoji: '🍿', color: C.pink },
+  'general': { emoji: '✨', color: C.violet },
 }
 
 const BADGE_META = {
@@ -48,11 +66,31 @@ const BADGE_META = {
 }
 
 const CATEGORY_COLORS = {
-  Entertainment: C.pink,    Finance: C.lime,    Lifestyle: C.amber,
-  Sports:        C.violet,  Business: C.teal,   Tech:      C.cyan,
-  Content:       C.pink,    Strategy: C.amber,  Health:    C.lime,
-  Fashion:       C.coral,   Bollywood: C.pink,  Cricket:   C.lime,
-  Education:     C.violet,  Food:      C.coral,
+  'AI & Technology': C.cyan,
+  'Gaming': C.violet,
+  'Business & Finance': C.green,
+  'Fitness': C.cyan,
+  'Photography': C.violet,
+  'Filmmaking': C.pink,
+  'Geopolitics': C.amber,
+  'Travel': C.teal,
+  'Food': C.amber,
+  'Sports': C.pink,
+  'Music': C.pink,
+  'Movies & Entertainment': C.pink,
+}
+
+export function normalizeFrontendNiche(n) {
+  if (!n) return 'All'
+  const lower = n.toLowerCase().trim()
+  if (lower === 'finance' || lower === 'business' || lower === 'business & startups' || lower === 'business startups') {
+    return 'Business & Finance'
+  }
+  if (lower === 'fashion' || lower === 'education' || lower === 'memes') {
+    return 'All'
+  }
+  const found = NICHES.find(v => v.toLowerCase() === lower)
+  return found || 'All'
 }
 
 function getTimeMood() {
@@ -97,6 +135,7 @@ function LiveDot() {
 function TrendingBrief({ userName }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
+  const navigate = useNavigate()
   const isLight = theme === 'light'
   const { speaking, preparing, speak, stopSpeaking, prefetch } = useTextToSpeech()
   const [played, setPlayed] = useState(false)
@@ -104,6 +143,22 @@ function TrendingBrief({ userName }) {
 
   const [scope, setScope] = useState('local')
   const scopeRef = useRef('local')
+
+  const [niche, setNiche] = useState('All')
+  const nicheRef = useRef('All')
+  const [showNicheMenu, setShowNicheMenu] = useState(false)
+  const nicheMenuRef = useRef(null)
+  const [selectedTrend, setSelectedTrend] = useState(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (nicheMenuRef.current && !nicheMenuRef.current.contains(event.target)) {
+        setShowNicheMenu(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const [greeting, setGreeting]             = useState(null)
   const [trends, setTrends]                 = useState([])
@@ -123,16 +178,20 @@ function TrendingBrief({ userName }) {
     else setLoading(true)
 
     const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
-    const niche  = scopeRef.current === 'global' ? 'global' : undefined
+    const rawNiche = nicheRef.current
+    const activeNiche = rawNiche === 'All' ? 'general' : rawNiche
+    const currentScope = scopeRef.current
+
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
 
-    const greetingPromise = api.getGreeting(region, lang, bust).catch(() => null)
-    const trendingPromise = api.getTrending(lang, region, force, niche).catch(() => null)
+    const greetingPromise = api.getGreeting(region, lang, bust, activeNiche, currentScope).catch(() => null)
+    const trendingPromise = api.getTrending(lang, region, force, activeNiche, currentScope).catch(() => null)
 
     Promise.all([greetingPromise, trendingPromise])
       .then(([greetData, trendData]) => {
+        if (scopeRef.current !== currentScope || nicheRef.current !== rawNiche) return
         if (greetData) {
           setGreeting(greetData)
         }
@@ -144,10 +203,17 @@ function TrendingBrief({ userName }) {
         if (liveTrends && liveTrends.length > 0) {
           setTrends(liveTrends)
           setTrendFetchedAt(trendData?.fetchedAt || Date.now())
+        } else {
+          setTrends([])
         }
       })
       .catch(() => {})
-      .finally(() => { setLoading(false); setRefreshing(false) })
+      .finally(() => {
+        if (scopeRef.current === currentScope && nicheRef.current === rawNiche) {
+          setLoading(false)
+          setRefreshing(false)
+        }
+      })
   }, [lang])
 
   const fetchAudio = useCallback(() => {
@@ -163,6 +229,17 @@ function TrendingBrief({ userName }) {
     if (newScope === scopeRef.current) return
     scopeRef.current = newScope
     setScope(newScope)
+    setGreeting(null)
+    setTrends([])
+    setLoading(true)
+    setRefreshing(false)
+    fetchBrief(true)
+  }
+
+  const handleNicheChange = (newNiche) => {
+    if (newNiche === nicheRef.current) return
+    nicheRef.current = newNiche
+    setNiche(newNiche)
     setGreeting(null)
     setTrends([])
     setLoading(true)
@@ -227,7 +304,7 @@ function TrendingBrief({ userName }) {
           margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
           fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
         }}>
-          {t('dash_trending_brief')}
+          {t('dash_todays_brief')}
         </h2>
         </div>
 
@@ -260,6 +337,94 @@ function TrendingBrief({ userName }) {
           </button>
         </div>
       {/* ── End Local / Global Toggle ── */}
+
+        {/* Custom Niche Dropdown */}
+        <div style={{ position: 'relative' }} ref={nicheMenuRef}>
+          <button
+            onClick={() => setShowNicheMenu(!showNicheMenu)}
+            style={{
+              background: 'var(--surface2)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid var(--border)',
+              borderRadius: 99,
+              padding: '5px 14px',
+              color: 'var(--text)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+            onMouseEnter={e => { 
+              e.currentTarget.style.borderColor = 'var(--accent)'; 
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(109,40,217,0.15)';
+            }}
+            onMouseLeave={e => { 
+              e.currentTarget.style.borderColor = 'var(--border)'; 
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+            }}
+          >
+            <span>{niche === 'All' ? '🎯 All Niches' : niche}</span>
+            <svg style={{ width: 14, height: 14, opacity: 0.6 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          
+          <div 
+            style={{
+              display: showNicheMenu ? 'block' : 'none',
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              left: 0,
+              background: 'var(--surface)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: '8px',
+              width: 220,
+              maxHeight: 300,
+              overflowY: 'auto',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
+              zIndex: 100,
+              animation: 'fadeInUp 0.2s ease forwards',
+            }}
+          >
+            {NICHES.map(n => (
+              <div
+                key={n}
+                onClick={() => {
+                  handleNicheChange(n)
+                  setShowNicheMenu(false)
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: niche === n ? 700 : 500,
+                  color: niche === n ? '#fff' : 'var(--text)',
+                  background: niche === n ? 'var(--accent)' : 'transparent',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+                onMouseEnter={e => {
+                  if (niche !== n) e.currentTarget.style.background = 'var(--surface2)'
+                }}
+                onMouseLeave={e => {
+                  if (niche !== n) e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                {n === 'All' ? '🎯' : '✨'} {n === 'All' ? 'All Niches' : n}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Date chip */}
         <span style={{
@@ -368,160 +533,155 @@ function TrendingBrief({ userName }) {
             const badge    = TREND_BADGE[i] || '📊 TRENDING'
             const srcMeta  = SOURCE_META[trend.source] || SOURCE_META.ai
             return (
-              <Link
+              <div
                 key={i}
-                to="/generate"
-                state={{ topic: trend.title }}
-                style={{ textDecoration: 'none', color: 'inherit' }}
+                onClick={() => setSelectedTrend(trend)}
+                style={{
+                  position: 'relative',
+                  padding: '18px 20px 16px',
+                  borderRadius: 16,
+                  height: '100%',
+                  background: isLight
+                    ? 'rgba(255,255,255,0.97)'
+                    : 'var(--surface-card-deep)',
+                  border: `1px solid ${color}28`,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+                  boxShadow: isLight
+                    ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
+                    : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`,
+                  display: 'flex', flexDirection: 'column',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-3px)'
+                  e.currentTarget.style.borderColor = `${color}60`
+                  e.currentTarget.style.boxShadow = isLight
+                    ? `0 12px 32px rgba(0,0,0,0.12), 0 0 0 1px ${color}30`
+                    : `0 14px 48px rgba(0,0,0,0.70), 0 0 28px ${color}20`
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.borderColor = `${color}28`
+                  e.currentTarget.style.boxShadow = isLight
+                    ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
+                    : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
+                }}
               >
-                <div
-                  style={{
-                    position: 'relative',
-                    padding: '18px 20px 16px',
-                    borderRadius: 16,
-                    height: '100%',
-                    background: isLight
-                      ? 'rgba(255,255,255,0.97)'
-                      : 'var(--surface-card-deep)',
-                    border: `1px solid ${color}28`,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
-                    boxShadow: isLight
-                      ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
-                      : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`,
-                    display: 'flex', flexDirection: 'column',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-3px)'
-                    e.currentTarget.style.borderColor = `${color}60`
-                    e.currentTarget.style.boxShadow = isLight
-                      ? `0 12px 32px rgba(0,0,0,0.12), 0 0 0 1px ${color}30`
-                      : `0 14px 48px rgba(0,0,0,0.70), 0 0 28px ${color}20`
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.borderColor = `${color}28`
-                    e.currentTarget.style.boxShadow = isLight
-                      ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
-                      : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
-                  }}
-                >
-                  {/* Rank watermark ,  opacity on element so all hues render equally visible */}
+                {/* Rank watermark ,  opacity on element so all hues render equally visible */}
+                <span style={{
+                  position: 'absolute', right: 12, top: 8,
+                  fontFamily: 'var(--font-creator)', fontWeight: 900,
+                  fontSize: '4rem', lineHeight: 1,
+                  color,
+                  opacity: isLight ? 0.14 : 0.20,
+                  userSelect: 'none', pointerEvents: 'none',
+                  letterSpacing: '-0.05em',
+                }}>{rank}</span>
+
+                {/* Top row: badge + category chip */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {/* Freshness badge */}
                   <span style={{
-                    position: 'absolute', right: 12, top: 8,
-                    fontFamily: 'var(--font-creator)', fontWeight: 900,
-                    fontSize: '4rem', lineHeight: 1,
-                    color,
-                    opacity: isLight ? 0.14 : 0.20,
-                    userSelect: 'none', pointerEvents: 'none',
-                    letterSpacing: '-0.05em',
-                  }}>{rank}</span>
+                    fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
+                    padding: '2px 7px', borderRadius: 99, letterSpacing: '0.08em',
+                    background: `${color}20`, border: `1px solid ${color}40`, color,
+                    textTransform: 'uppercase', whiteSpace: 'nowrap',
+                  }}>{badge}</span>
 
-                  {/* Top row: badge + category chip */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                    {/* Freshness badge */}
-                    <span style={{
-                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
-                      padding: '2px 7px', borderRadius: 99, letterSpacing: '0.08em',
-                      background: `${color}20`, border: `1px solid ${color}40`, color,
-                      textTransform: 'uppercase', whiteSpace: 'nowrap',
-                    }}>{badge}</span>
-
-                    {/* Source badge ,  where this trend came from */}
-                    <span style={{
-                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                      padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
-                      background: `${srcMeta.color}15`, border: `1px solid ${srcMeta.color}35`,
-                      color: srcMeta.color, whiteSpace: 'nowrap',
-                    }}>{srcMeta.label}</span>
-                  </div>
-
-                  {/* Title */}
-                  <div style={{
-                    fontFamily: 'var(--font-creator)', fontWeight: 800,
-                    fontSize: '0.95rem', lineHeight: 1.35,
-                    letterSpacing: '-0.02em',
-                    color: 'var(--text)',
-                    marginBottom: 7, flex: 1,
-                  }}>
-                    {trend.title}
-                  </div>
-
-                  {/* Description (truncated) */}
-                  {trend.description && (
-                    <div style={{
-                      fontSize: '0.74rem', color: 'var(--text-faint)',
-                      lineHeight: 1.5, marginBottom: 10,
-                      display: '-webkit-box', WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                    }}>
-                      {trend.description}
-                    </div>
-                  )}
-
-                  {/* Hook preview */}
-                  {trend.hook && (
-                    <div style={{
-                      fontSize: '0.68rem', color: color,
-                      fontFamily: 'var(--font-mono)', fontWeight: 600,
-                      lineHeight: 1.4, marginBottom: 10,
-                      padding: '6px 10px',
-                      background: `${color}0C`,
-                      borderRadius: 8, borderLeft: `2px solid ${color}60`,
-                      display: '-webkit-box', WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                    }}>
-                      💡 {trend.hook}
-                    </div>
-                  )}
-
-                  {/* Virality bar */}
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      marginBottom: 4,
-                    }}>
-                      <span style={{
-                        fontSize: '0.55rem', fontFamily: 'var(--font-mono)',
-                        color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase',
-                      }}>Virality</span>
-                      <span style={{
-                        fontSize: '0.6rem', fontFamily: 'var(--font-mono)',
-                        fontWeight: 700, color,
-                      }}>{virality}%</span>
-                    </div>
-                    <div style={{
-                      height: 3, borderRadius: 99,
-                      background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
-                      overflow: 'hidden',
-                    }}>
-                      <div style={{
-                        height: '100%', width: `${virality}%`,
-                        background: `linear-gradient(90deg, ${color}, ${color}88)`,
-                        borderRadius: 99, transition: 'width 0.6s ease',
-                      }} />
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-                    fontWeight: 700, color, letterSpacing: '0.04em',
-                  }}>
-                    Write this script →
-                  </div>
-
-                  {/* Bottom accent */}
-                  <div style={{
-                    position: 'absolute', bottom: 0, left: 0, right: 0,
-                    height: 2,
-                    background: `linear-gradient(90deg, ${color}70, ${color}18, transparent)`,
-                    borderRadius: '0 0 16px 16px',
-                  }} />
+                  {/* Source badge ,  where this trend came from */}
+                  <span style={{
+                    fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                    padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
+                    background: `${srcMeta.color}15`, border: `1px solid ${srcMeta.color}35`,
+                    color: srcMeta.color, whiteSpace: 'nowrap',
+                  }}>{srcMeta.label}</span>
                 </div>
-              </Link>
+
+                {/* Title */}
+                <div style={{
+                  fontFamily: 'var(--font-creator)', fontWeight: 800,
+                  fontSize: '0.95rem', lineHeight: 1.35,
+                  letterSpacing: '-0.02em',
+                  color: 'var(--text)',
+                  marginBottom: 7, flex: 1,
+                }}>
+                  {trend.title}
+                </div>
+
+                {/* Description (truncated) */}
+                {trend.description && (
+                  <div style={{
+                    fontSize: '0.74rem', color: 'var(--text-faint)',
+                    lineHeight: 1.5, marginBottom: 10,
+                    display: '-webkit-box', WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                  }}>
+                    {trend.description}
+                  </div>
+                )}
+
+                {/* Hook preview */}
+                {trend.hook && (
+                  <div style={{
+                    fontSize: '0.68rem', color: color,
+                    fontFamily: 'var(--font-mono)', fontWeight: 600,
+                    lineHeight: 1.4, marginBottom: 10,
+                    padding: '6px 10px',
+                    background: `${color}0C`,
+                    borderRadius: 8, borderLeft: `2px solid ${color}60`,
+                    display: '-webkit-box', WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                  }}>
+                    💡 {trend.hook}
+                  </div>
+                )}
+
+                {/* Virality bar */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    marginBottom: 4,
+                  }}>
+                    <span style={{
+                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}>Virality</span>
+                    <span style={{
+                      fontSize: '0.6rem', fontFamily: 'var(--font-mono)',
+                      fontWeight: 700, color,
+                    }}>{virality}%</span>
+                  </div>
+                  <div style={{
+                    height: 3, borderRadius: 99,
+                    background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      height: '100%', width: `${virality}%`,
+                      background: `linear-gradient(90deg, ${color}, ${color}88)`,
+                      borderRadius: 99, transition: 'width 0.6s ease',
+                    }} />
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+                  fontWeight: 700, color, letterSpacing: '0.04em',
+                }}>
+                  Write this script →
+                </div>
+
+                {/* Bottom accent */}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  height: 2,
+                  background: `linear-gradient(90deg, ${color}70, ${color}18, transparent)`,
+                  borderRadius: '0 0 16px 16px',
+                }} />
+              </div>
             )
           })}
         </div>
@@ -604,6 +764,15 @@ function TrendingBrief({ userName }) {
           )}
         </div>
       )}
+
+      <TrendDetailModal 
+        isOpen={!!selectedTrend} 
+        trend={selectedTrend} 
+        onClose={() => setSelectedTrend(null)} 
+        onGenerateScript={(topicTitle) => {
+          handleGenerate(topicTitle)
+        }} 
+      />
     </section>
   )
 }

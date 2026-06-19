@@ -96,16 +96,16 @@ export const api = {
   deleteCalendarEntry: (id)        => req('DELETE', `/calendar/${id}`),
 
   // Trending — region-aware, force=true bypasses cache for refresh button
-  // niche='global' creates a separate cache key from local results
-  getTrending:  (language, region = 'India', force = false, niche) => {
-    const params = new URLSearchParams({ language, region })
+  // scope/niche/region create separate backend cache keys.
+  getTrending:  (language, region = 'India', force = false, niche, scope = 'local') => {
+    const params = new URLSearchParams({ language, region, scope })
     if (force) params.set('force', 'true')
     if (niche) params.set('niche', niche)
     return req('GET', `/trending?${params}`)
   },
   getTrendingAudio: (region = 'India') => req('GET', `/trending/audio?region=${encodeURIComponent(region)}`),
-  getGreeting:  (region, language, bust = '') => {
-    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${bust}`)
+  getGreeting:  (region, language, bust = '', niche, scope = 'local') => {
+    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}&niche=${encodeURIComponent(niche || 'general')}&scope=${encodeURIComponent(scope)}${bust}`)
   },
 
   // Templates

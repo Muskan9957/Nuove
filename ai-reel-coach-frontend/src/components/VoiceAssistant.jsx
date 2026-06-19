@@ -5,7 +5,7 @@ import { api } from '../api'
 // Language codes for Web Speech API
 // en → en-IN so browsers serve an Indian-English voice by default
 const LANG_CODES = {
-  en:       'en-IN',
+  en:       'en-US', // Switched to en-US because native US voices (Zira) are far more confident and energetic than native IN voices (Heera)
   es:       'es-ES',
   fr:       'fr-FR',
   pt:       'pt-BR',
@@ -84,11 +84,21 @@ export function useTextToSpeech() {
     }
     const utt   = new SpeechSynthesisUtterance(chunksRef.current[idxRef.current])
     const voices = window.speechSynthesis.getVoices()
-    const voice  = voices.find(v => v.lang === langCode)
-               || voices.find(v => v.lang.startsWith(langCode.split('-')[0]))
+    
+    // Try to find a high-quality voice (Google or Microsoft Natural)
+    // We prioritize Female voices as they generally sound less robotic in built-in TTS engines
+    let voice = voices.find(v => v.lang === langCode && (v.name.includes('Google') || v.name.includes('Natural')) && v.name.toLowerCase().includes('female'))
+             || voices.find(v => v.lang === langCode && (v.name.includes('Google') || v.name.includes('Natural')))
+             || voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('female')) // Prefer any female local voice
+             || voices.find(v => v.lang === langCode) // Fallback to generic local voice (e.g. Microsoft Ravi/Heera)
+             || voices.find(v => v.lang.startsWith(langCode.split('-')[0]) && (v.name.includes('Google') || v.name.includes('Natural')))
+             || voices.find(v => v.lang.startsWith(langCode.split('-')[0]))
+             
     if (voice) { utt.voice = voice; utt.lang = voice.lang }
-    else        { utt.lang = langCode.startsWith('hi') ? 'hi-IN' : 'en-US' }
-    utt.rate = 1.05; utt.pitch = 1.0; utt.volume = 1.0
+    else       { utt.lang = langCode.startsWith('hi') ? 'hi-IN' : 'en-US' }
+    
+    // Make it more energetic: higher pitch, standard rate
+    utt.rate = 1.0; utt.pitch = 1.1; utt.volume = 1.0
     utt.onend   = () => { if (!cancelRef.current) { idxRef.current++; wsFallback(langCode) } }
     utt.onerror = (e) => {
       if (e.error === 'interrupted' || e.error === 'canceled') return

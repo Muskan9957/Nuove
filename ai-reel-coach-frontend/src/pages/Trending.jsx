@@ -4,18 +4,35 @@ import { api } from '../api'
 import { useLang } from '../i18n.jsx'
 import { useToast } from '../components/Toast'
 import { getSavedRegion } from '../utils/detectRegion'
+import TrendDetailModal from '../components/TrendDetailModal'
 
 // ─── Frontend topic cache ──────────────────────────────────────────
 // Keyed by "lang". Stored in localStorage with a 30-min TTL.
 // Returns topics instantly on repeat visits; refreshes silently in bg.
 const CACHE_TTL_MS = 30 * 60 * 1000  // 30 minutes
 
-// Cache key includes scope so local/global results are stored separately
-function cacheKey(lang, scope) { return `vc_trending_${lang}_${scope}` }
+// Cache key includes scope and niche so local/global results are stored separately
+const NICHES = [
+  'All',
+  'AI & Technology',
+  'Gaming',
+  'Business & Finance',
+  'Fitness',
+  'Photography',
+  'Filmmaking',
+  'Geopolitics',
+  'Travel',
+  'Food',
+  'Sports',
+  'Music',
+  'Movies & Entertainment'
+]
 
-function readCache(lang, scope) {
+function cacheKey(lang, scope, niche) { return `vc_trending_${lang}_${scope}_${niche}` }
+
+function readCache(lang, scope, niche) {
   try {
-    const raw = localStorage.getItem(cacheKey(lang, scope))
+    const raw = localStorage.getItem(cacheKey(lang, scope, niche))
     if (!raw) return null
     const { topics, ts } = JSON.parse(raw)
     if (Date.now() - ts > CACHE_TTL_MS) return null
@@ -23,9 +40,9 @@ function readCache(lang, scope) {
   } catch { return null }
 }
 
-function writeCache(lang, scope, topics) {
+function writeCache(lang, scope, niche, topics) {
   try {
-    localStorage.setItem(cacheKey(lang, scope), JSON.stringify({ topics, ts: Date.now() }))
+    localStorage.setItem(cacheKey(lang, scope, niche), JSON.stringify({ topics, ts: Date.now() }))
   } catch {}
 }
 
@@ -56,18 +73,34 @@ export default function Trending() {
   const navigate     = useNavigate()
   const toast        = useToast()
 
-  const [topics,     setTopics]     = useState(() => readCache(lang, 'local') || [])
-  const [loading,    setLoading]    = useState(() => !readCache(lang, 'local'))
+  const [niche, setNiche] = useState('All')
+  const nicheRef = useRef('All')
+  const [showNicheMenu, setShowNicheMenu] = useState(false)
+  const nicheMenuRef = useRef(null)
+
+  const [topics,     setTopics]     = useState(() => readCache(lang, 'local', 'All') || [])
+  const [loading,    setLoading]    = useState(() => !readCache(lang, 'local', 'All'))
   const [refreshing, setRefreshing] = useState(false)
   const [saved,      setSaved]      = useState(new Set())
   const [saving,     setSaving]     = useState(null)
+  const [selectedTrend, setSelectedTrend] = useState(null)
   const abortRef = useRef(null)
 
   // ── Local / Global scope toggle
   const [scope, setScope] = useState('local')  // 'local' | 'global'
   const scopeRef          = useRef('local')     // always-fresh for fetchTopics closure
 
-  const fetchTopics = useCallback(async ({ silent = false } = {}) => {
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (nicheMenuRef.current && !nicheMenuRef.current.contains(event.target)) {
+        setShowNicheMenu(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const fetchTopics = useCallback(async ({ silent = false, force = false } = {}) => {
     if (abortRef.current) abortRef.current.abort()
     abortRef.current = new AbortController()
 
@@ -75,14 +108,19 @@ export default function Trending() {
     else        setLoading(true)
 
     const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
-    const niche  = scopeRef.current === 'global' ? 'global' : undefined
+    const rawNiche = nicheRef.current
+    const activeNiche = rawNiche === 'All' ? (scopeRef.current === 'global' ? 'global' : undefined) : rawNiche
     const currentScope = scopeRef.current
 
     try {
-      const data = await api.getTrending(lang, region, false, niche)
+      const data = await api.getTrending(lang, region, force, activeNiche)
       const fresh = data.topics || []
+
+      // only update if user hasn't switched away
+      if (scopeRef.current !== currentScope || nicheRef.current !== rawNiche) return
+
       setTopics(fresh)
-      writeCache(lang, currentScope, fresh)
+      writeCache(lang, currentScope, rawNiche, fresh)
     } catch (err) {
       if (err?.name === 'AbortError') return
       if (!silent) {
@@ -100,7 +138,24 @@ export default function Trending() {
     scopeRef.current = newScope
     setScope(newScope)
     setSaved(new Set())
-    const cached = readCache(lang, newScope)
+    const cached = readCache(lang, newScope, nicheRef.current)
+    if (cached) {
+      setTopics(cached)
+      setLoading(false)
+      fetchTopics({ silent: true })
+    } else {
+      setTopics([])
+      setLoading(true)
+      fetchTopics()
+    }
+  }
+
+  const handleNicheChange = (newNiche) => {
+    if (newNiche === nicheRef.current) return
+    nicheRef.current = newNiche
+    setNiche(newNiche)
+    setSaved(new Set())
+    const cached = readCache(lang, scopeRef.current, newNiche)
     if (cached) {
       setTopics(cached)
       setLoading(false)
@@ -113,7 +168,7 @@ export default function Trending() {
   }
 
   useEffect(() => {
-    const cached = readCache(lang, scopeRef.current)
+    const cached = readCache(lang, scopeRef.current, nicheRef.current)
     if (cached) {
       setTopics(cached)
       setLoading(false)
@@ -198,15 +253,83 @@ export default function Trending() {
           </button>
         </div>
 
+        {/* Custom Niche Dropdown */}
+        <div style={{ position: 'relative' }} ref={nicheMenuRef}>
+          <button
+            onClick={() => setShowNicheMenu(!showNicheMenu)}
+            style={{
+              background: 'var(--surface2)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid var(--border)',
+              padding: '6px 14px',
+              borderRadius: 99,
+              color: 'var(--text)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.15s'
+            }}
+          >
+            <span>{niche === 'All' ? '🌍 All Niches' : niche}</span>
+            <svg style={{ width: 14, height: 14, opacity: 0.6 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          
+          <div 
+            style={{
+              display: showNicheMenu ? 'block' : 'none',
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              left: 0,
+              zIndex: 100,
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 6,
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+              minWidth: 200,
+              maxHeight: 300,
+              overflowY: 'auto'
+            }}
+          >
+            {NICHES.map(n => (
+              <div
+                key={n}
+                onClick={() => {
+                  handleNicheChange(n)
+                  setShowNicheMenu(false)
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: niche === n ? 700 : 500,
+                  color: niche === n ? '#fff' : 'var(--text)',
+                  background: niche === n ? 'var(--accent)' : 'transparent',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                {n === 'All' ? '🌍' : '🔥'} {n === 'All' ? 'All Niches' : n}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Right: updating + Refresh button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
           {refreshing && (
             <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
               updating…
             </span>
           )}
           <button
-            onClick={() => fetchTopics()}
+            onClick={() => fetchTopics({ force: true })}
             disabled={loading || refreshing}
             className="btn btn-ghost btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
@@ -235,7 +358,7 @@ export default function Trending() {
                     No trending topics found
                   </p>
                   <p>Try refreshing.</p>
-                  <button onClick={fetchTopics} className="btn btn-primary btn-sm" style={{ marginTop: 16 }}>
+                  <button onClick={() => fetchTopics({ force: true })} className="btn btn-primary btn-sm" style={{ marginTop: 16 }}>
                     Try Again
                   </button>
                 </div>
@@ -243,21 +366,32 @@ export default function Trending() {
             )
             : topics.map((topic, i) => {
               const topicText = typeof topic === 'string' ? topic : topic.text || topic.title || JSON.stringify(topic)
+              const description = typeof topic === 'string' ? '' : topic.description || ''
               const isSaved   = saved.has(i)
               return (
-                <div key={i} className="card card-sm" style={tStyles.topicCard}>
+                <div 
+                  key={i} 
+                  className="card card-sm" 
+                  style={{...tStyles.topicCard, cursor: 'pointer'}}
+                  onClick={() => setSelectedTrend(typeof topic === 'string' ? { title: topic } : topic)}
+                >
                   <div style={tStyles.topicRank}>#{i + 1}</div>
                   <div style={tStyles.topicText}>{topicText}</div>
+                  {description && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {description}
+                    </div>
+                  )}
                   <div style={tStyles.cardActions}>
                     <button
-                      onClick={() => handleGenerate(topicText)}
+                      onClick={(e) => { e.stopPropagation(); handleGenerate(topicText); }}
                       className="btn btn-primary btn-sm"
                       style={{ flex: 1, justifyContent: 'center' }}
                     >
                       Generate Script →
                     </button>
                     <button
-                      onClick={() => handleBookmark(topicText, i)}
+                      onClick={(e) => { e.stopPropagation(); handleBookmark(topicText, i); }}
                       disabled={isSaved || saving === i}
                       title={isSaved ? 'Saved' : 'Save as template'}
                       style={{
@@ -284,6 +418,15 @@ export default function Trending() {
             })
         }
       </div>
+
+      <TrendDetailModal 
+        isOpen={!!selectedTrend} 
+        trend={selectedTrend} 
+        onClose={() => setSelectedTrend(null)} 
+        onGenerateScript={(topicTitle) => {
+          handleGenerate(topicTitle)
+        }} 
+      />
     </div>
   )
 }

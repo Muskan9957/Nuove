@@ -21,6 +21,7 @@ const creatorScoreRoutes = require('./routes/creatorScore');
 const coachRoutes       = require('./routes/coach');
 const hookLibraryRoutes = require('./routes/hookLibrary');
 const ttsRoutes         = require('./routes/tts');
+const trendsV2DebugRoutes = require('./routes/trendsV2Debug');
 const errorHandler      = require('./middleware/errorHandler');
 
 const app = express();
@@ -87,6 +88,7 @@ app.use('/api/score',       creatorScoreRoutes);
 app.use('/api/coach',       coachRoutes);
 app.use('/api/hooks',       hookLibraryRoutes);
 app.use('/api/tts',         ttsRoutes);
+app.use('/api/trends-v2-debug', trendsV2DebugRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────────
 app.use((req, res) => {
