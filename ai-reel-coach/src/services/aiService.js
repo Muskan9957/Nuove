@@ -938,7 +938,7 @@ const coachChat = async ({ message, history = [], userContext, language = 'en' }
   ];
 
   const response = await client.messages.create({
-    model     : MODEL,
+    model     : MODEL_FAST,   // Haiku — coaching advice is conversational, ~3-5x cheaper than Sonnet
     max_tokens: 600,
     system    : systemPrompt,
     messages,
@@ -1207,7 +1207,7 @@ Return ONLY valid JSON — no markdown, no code fences:
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const response = await client.messages.create({
-    model     : FAST_MODEL,
+    model     : MODEL_FAST,
     max_tokens: 900,
     messages  : [{ role: 'user', content: prompt }],
   })
