@@ -1,0 +1,33 @@
+name: Daily DB Backup
+
+# Free automated backup — runs on GitHub's servers, no Railway Pro needed.
+# Dumps the production Postgres daily and stores it as a downloadable artifact.
+#
+# Setup (one time): add a repo secret named DATABASE_URL_BACKUP with the value of
+# Railway → Postgres → Variables → DATABASE_PUBLIC_URL
+# (Repo → Settings → Secrets and variables → Actions → New repository secret)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'      # every day at 02:00 UTC (07:30 IST)
+  workflow_dispatch: {}        # lets you run it manually any time
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump database
+        run: |
+          TS=$(date -u +%Y-%m-%d_%H%M)
+          # pg_dump from a pinned Postgres image (newer client can dump same/older servers).
+          # If Railway upgrades Postgres beyond 17, bump this tag.
+          docker run --rm -e PGURL="${{ secrets.DATABASE_URL_BACKUP }}" postgres:17-alpine \
+            sh -c 'pg_dump --no-owner --no-acl "$PGURL"' | gzip > "nuove-db-$TS.sql.gz"
+          ls -lh nuove-db-*.sql.gz
+
+      - name: Upload backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: nuove-db-*.sql.gz
+          retention-days: 30      # keep each backup for 30 days
