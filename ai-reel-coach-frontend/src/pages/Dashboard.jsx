@@ -294,14 +294,15 @@ function TrendingBrief({ userName }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 16, flexWrap: 'wrap', gap: 10
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h2 style={{
           margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
           fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
         }}>
           {t('dash_todays_brief')}
         </h2>
-        </div>
+
+        {/* Controls — toggle, niche, refresh & listen all on the same level */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
 
         {/* Local / Global Toggle */}
         <div style={{
@@ -421,36 +422,6 @@ function TrendingBrief({ userName }) {
           </div>
         </div>
 
-        {/* Date chip */}
-        <span style={{
-          fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
-          color: 'var(--text-faint)', letterSpacing: '0.06em',
-        }}>{today}</span>
-
-        {/* Source chips ,  live platforms used */}
-        {!loading && trends.length > 0 && (
-          [...new Set(trends.map(tr => tr.source).filter(Boolean))].map(src => {
-            const meta = SOURCE_META[src] || SOURCE_META.ai
-            return (
-              <span key={src} style={{
-                fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                padding: '2px 8px', borderRadius: 99, letterSpacing: '0.06em',
-                background: `${meta.color}18`, border: `1px solid ${meta.color}35`,
-                color: meta.color, whiteSpace: 'nowrap',
-              }}>{meta.label}</span>
-            )
-          })
-        )}
-        {/* Freshness stamp */}
-        {ago && !loading && (
-          <span style={{
-            fontSize: '0.58rem', fontFamily: 'var(--font-mono)',
-            color: 'var(--text-faint)', letterSpacing: '0.04em',
-          }}>Updated {ago}</span>
-        )}
-
-        <div style={{ flex: 1 }} />
-
         {/* Refresh button */}
         <button
           onClick={() => fetchBrief(true)}
@@ -491,6 +462,7 @@ function TrendingBrief({ userName }) {
         >
           {preparing ? 'Loading...' : (speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen'))}
         </button>
+        </div>
       </div>
 
       {/* ── Trend cards ── */}
@@ -1070,15 +1042,6 @@ export default function Dashboard() {
           {t('dash_overview')}
         </p>
       </div>
-
-      {/* ─── Stats strip ──────────────────────────────────────────── */}
-      <StatsStrip
-        scripts={scripts.length}
-        logs={logs.length}
-        badges={badges.length}
-        streak={streak}
-        isLight={isLight}
-      />
 
       {/* ─── Streak ───────────────────────────────────────────────── */}
       <StreakBanner streak={streak} isLight={isLight} />

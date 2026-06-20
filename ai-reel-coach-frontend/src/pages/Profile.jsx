@@ -192,6 +192,8 @@ export default function Profile() {
   const toast              = useToast()
   const [liveStreak, setLiveStreak] = useState(null)
   const [totalScripts, setTotalScripts] = useState(0)
+  const [totalLogs, setTotalLogs]       = useState(0)
+  const [totalBadges, setTotalBadges]   = useState(0)
 
   useEffect(() => {
     api.getUserProfile().then(p => {
@@ -201,6 +203,14 @@ export default function Profile() {
 
     api.getScripts().then(s => {
       if (s?.scripts) setTotalScripts(s.scripts.length)
+    }).catch(() => {})
+
+    api.perfHistory().then(p => {
+      if (p?.logs) setTotalLogs(p.logs.length)
+    }).catch(() => {})
+
+    api.getBadges().then(b => {
+      if (b?.badges) setTotalBadges(b.badges.length)
     }).catch(() => {})
 
     // Listen for real-time streak updates from other pages
@@ -403,10 +413,12 @@ export default function Profile() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(108px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Day Streak',       value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Generate, score or analyse daily' },
-          { label: 'Scripts Written',  value: totalScripts,   sub: 'Total all time' },
+          { label: 'Day Streak',       value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Active daily' },
+          { label: 'Scripts Written',  value: totalScripts,   sub: 'All time' },
+          { label: 'Videos Analysed',  value: totalLogs,      sub: 'All time' },
+          { label: 'Badges Earned',    value: totalBadges,    sub: 'Achievements' },
           { label: 'Member Since',     value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
         ].map(s => (
           <div key={s.label} style={{
