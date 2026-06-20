@@ -851,12 +851,13 @@ function StatsStrip({ scripts, logs, badges, streak, isLight }) {
 function QuickActions() {
   const { t } = useLang()
   const actions = [
-    { to: '/generate', emoji: '✍️', title: t('nav_generate'), sub: 'New script',      color: C.cyan },
-    { to: '/record',   emoji: '🎬', title: t('nav_record'),   sub: 'Teleprompter',    color: C.pink },
-    { to: '/captions', emoji: '💬', title: t('nav_captions'), sub: 'Captions & tags', color: C.teal },
+    { to: '/generate', emoji: '✍️', title: t('nav_generate'), sub: 'New script',      color: C.cyan   },
+    { to: '/record',   emoji: '🎬', title: t('nav_record'),   sub: 'Teleprompter',    color: C.pink   },
+    { to: '/captions', emoji: '💬', title: t('nav_captions'), sub: 'Captions & tags', color: C.teal   },
+    { to: '/coach',    emoji: '🧠', title: t('nav_coach'),    sub: 'Get advice',      color: C.violet },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 28 }}>
       {actions.map(a => (
         <Link key={a.to} to={a.to} style={{ textDecoration: 'none' }}>
           <div
