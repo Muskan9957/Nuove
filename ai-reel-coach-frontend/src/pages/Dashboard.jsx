@@ -1038,9 +1038,6 @@ export default function Dashboard() {
         <h1 className="page-title" style={{ display: 'inline-block', verticalAlign: 'middle', marginTop: 0, marginBottom: 8 }}>
           {t('dash_greeting_' + mood.key)}, {firstName}
         </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: 560, lineHeight: 1.6, margin: 0 }}>
-          {t('dash_overview')}
-        </p>
       </div>
 
       {/* ─── Streak ───────────────────────────────────────────────── */}
