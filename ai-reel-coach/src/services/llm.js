@@ -40,7 +40,9 @@ async function complete(prompt, { system = '', history = [], maxTokens = 1024, t
     const model = gemini().getGenerativeModel({
       model: MODELS.gemini[tier] || MODELS.gemini.default,
       ...(system ? { systemInstruction: system } : {}),
-      generationConfig: { maxOutputTokens: maxTokens },
+      // thinkingBudget:0 disables 2.5's "thinking" tokens — cheaper, faster, and
+      // prevents short maxOutputTokens limits from being eaten by reasoning.
+      generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
     });
     // Flatten any history into the prompt — robust against Gemini's strict
     // role-alternation rules for multi-turn chats.
