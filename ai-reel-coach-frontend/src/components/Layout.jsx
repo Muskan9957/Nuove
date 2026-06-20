@@ -549,7 +549,6 @@ export default function Layout({ children }) {
             {[
               { section: 'Studio', items: [
                 { to: '/scripts',     icon: IconScripts,     label: t('nav_scripts')     },
-                { to: '/creator-dna', icon: VoiceIcon,       label: t('nav_my_voice')  },
               ]},
               { section: 'Content', items: [
                 { to: '/crosspost',   icon: RemixIcon,       label: t('nav_remix')       },
