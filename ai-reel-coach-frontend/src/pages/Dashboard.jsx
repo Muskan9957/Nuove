@@ -102,9 +102,6 @@ function getTimeMood() {
   return             { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
 }
 
-/* "Freshness" badge driven by rank */
-const TREND_BADGE = ['🔥 HOT', '⚡ RISING', '✨ NEW']
-
 function timeAgo(ts) {
   if (!ts) return null
   const diff = Math.floor((Date.now() - ts) / 60000)
@@ -112,20 +109,6 @@ function timeAgo(ts) {
   if (diff < 60) return `${diff}m ago`
   const h = Math.floor(diff / 60)
   return `${h}h ago`
-}
-
-/* ─── Pulsing LIVE dot ────────────────────────────────────────────── */
-function LiveDot() {
-  return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 10, height: 10 }}>
-      <span style={{
-        position: 'absolute', width: 18, height: 18, borderRadius: '50%',
-        background: '#FF2D6F', opacity: 0,
-        animation: 'livePulse 1.8s ease-out infinite',
-      }} />
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF2D6F', flexShrink: 0 }} />
-    </span>
-  )
 }
 
 /* ─── Today's Brief ,  editorial redesign ─────────────────────────── */
@@ -312,20 +295,6 @@ function TrendingBrief({ userName }) {
         marginBottom: 16, flexWrap: 'wrap', gap: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* LIVE badge */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '4px 10px', borderRadius: 99,
-          background: 'rgba(255,45,111,0.10)',
-          border: '1px solid rgba(255,45,111,0.28)',
-        }}>
-          <LiveDot />
-          <span style={{
-            fontSize: '0.64rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            color: C.pink, textTransform: 'uppercase', letterSpacing: '0.12em',
-          }}>Live</span>
-        </div>
-
         <h2 style={{
           margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
           fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
@@ -524,19 +493,6 @@ function TrendingBrief({ userName }) {
         </button>
       </div>
 
-      {/* ── AI context line ── */}
-      {!loading && greeting?.greeting && (
-        <p style={{
-          fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.65,
-          margin: '0 0 20px',
-          paddingLeft: 14,
-          borderLeft: `3px solid ${isLight ? 'rgba(200,80,0,0.25)' : 'rgba(255,140,0,0.28)'}`,
-          opacity: refreshing ? 0.5 : 1, transition: 'opacity 0.3s'
-        }}>
-          {greeting.greeting}
-        </p>
-      )}
-
       {/* ── Trend cards ── */}
       {loading ? (
         <div className="brief-trend-grid">
@@ -554,7 +510,6 @@ function TrendingBrief({ userName }) {
             const FALLBACK_COLORS = [C.green, C.violet, C.pink]
             const color    = CATEGORY_COLORS[trend.category] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
             const rank     = String(i + 1).padStart(2, '0')
-            const badge    = TREND_BADGE[i] || '📊 TRENDING'
             const srcMeta  = SOURCE_META[trend.source] || SOURCE_META.ai
             return (
               <div
@@ -603,16 +558,8 @@ function TrendingBrief({ userName }) {
                   letterSpacing: '-0.05em',
                 }}>{rank}</span>
 
-                {/* Top row: badge + category chip */}
+                {/* Top row: source chip */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                  {/* Freshness badge */}
-                  <span style={{
-                    fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
-                    padding: '2px 7px', borderRadius: 99, letterSpacing: '0.08em',
-                    background: `${color}20`, border: `1px solid ${color}40`, color,
-                    textTransform: 'uppercase', whiteSpace: 'nowrap',
-                  }}>{badge}</span>
-
                   {/* Source badge ,  where this trend came from */}
                   <span style={{
                     fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
