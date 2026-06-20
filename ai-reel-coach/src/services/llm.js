@@ -12,8 +12,8 @@ const PROVIDER = (process.env.LLM_PROVIDER ||
 // model per provider + tier ('default' = quality, 'fast' = cheap)
 const MODELS = {
   gemini: {
-    default: process.env.GEMINI_MODEL      || 'gemini-2.0-flash',
-    fast:    process.env.GEMINI_MODEL_FAST || 'gemini-2.0-flash',
+    default: process.env.GEMINI_MODEL      || 'gemini-2.5-flash',
+    fast:    process.env.GEMINI_MODEL_FAST || 'gemini-2.5-flash',
   },
   anthropic: {
     default: 'claude-sonnet-4-6',
