@@ -102,9 +102,6 @@ function getTimeMood() {
   return             { key: 'evening',   emoji: '🌙', label: 'late-night creator', color: C.violet }
 }
 
-/* Virality heat ,  3 cards: rank 1 = 94%, 2 = 78%, 3 = 61% */
-const VIRALITY = [94, 78, 61]
-
 /* "Freshness" badge driven by rank */
 const TREND_BADGE = ['🔥 HOT', '⚡ RISING', '✨ NEW']
 
@@ -174,9 +171,6 @@ function TrendingBrief({ userName }) {
   }
 
   const fetchBrief = useCallback((force = false) => {
-    if (force) setRefreshing(true)
-    else setLoading(true)
-
     const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
     const rawNiche = nicheRef.current
     const activeNiche = rawNiche === 'All' ? 'general' : rawNiche
@@ -185,35 +179,67 @@ function TrendingBrief({ userName }) {
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
+    const cacheKey = `brief_${currentScope}_${activeNiche}_${lang}`
+
+    const isCurrent = () => scopeRef.current === currentScope && nicheRef.current === rawNiche
+    const writeCache = (patch) => {
+      try {
+        const prev = JSON.parse(localStorage.getItem(cacheKey) || 'null') || {}
+        localStorage.setItem(cacheKey, JSON.stringify({ ...prev, ...patch, date: today }))
+      } catch {}
+    }
+
+    // ── Instant paint from cache so repeat visits feel immediate ──
+    let hadCache = false
+    if (!force) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null')
+        if (cached && cached.date === today && cached.trends?.length) {
+          setGreeting(cached.greeting || null)
+          setTrends(cached.trends)
+          setTrendFetchedAt(cached.fetchedAt || null)
+          setLoading(false)
+          hadCache = true
+        }
+      } catch {}
+    }
+
+    if (force) setRefreshing(true)
+    else if (!hadCache) setLoading(true)
 
     const greetingPromise = api.getGreeting(region, lang, bust, activeNiche, currentScope).catch(() => null)
     const trendingPromise = api.getTrending(lang, region, force, activeNiche, currentScope).catch(() => null)
 
-    Promise.all([greetingPromise, trendingPromise])
-      .then(([greetData, trendData]) => {
-        if (scopeRef.current !== currentScope || nicheRef.current !== rawNiche) return
-        if (greetData) {
-          setGreeting(greetData)
-        }
-        
-        const liveTrends = trendData?.topics?.length
-          ? trendData.topics
-          : (trendData?.trends?.length ? trendData.trends : greetData?.trends)
+    // ── Trends: render the moment they arrive — don't wait on the AI greeting ──
+    trendingPromise.then(trendData => {
+      if (!isCurrent()) return
+      const liveTrends = trendData?.topics?.length
+        ? trendData.topics
+        : (trendData?.trends?.length ? trendData.trends : null)
+      if (liveTrends && liveTrends.length > 0) {
+        const fetchedAt = trendData?.fetchedAt || Date.now()
+        setTrends(liveTrends)
+        setTrendFetchedAt(fetchedAt)
+        writeCache({ trends: liveTrends, fetchedAt })
+      } else if (!hadCache) {
+        setTrends([])
+      }
+      setLoading(false)
+      setRefreshing(false)
+    })
 
-        if (liveTrends && liveTrends.length > 0) {
-          setTrends(liveTrends)
-          setTrendFetchedAt(trendData?.fetchedAt || Date.now())
-        } else {
-          setTrends([])
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (scopeRef.current === currentScope && nicheRef.current === rawNiche) {
-          setLoading(false)
-          setRefreshing(false)
-        }
-      })
+    // ── Greeting: fills in independently; can backfill trends if needed ──
+    greetingPromise.then(greetData => {
+      if (!isCurrent() || !greetData) return
+      setGreeting(greetData)
+      writeCache({ greeting: greetData })
+      if (greetData.trends?.length) {
+        setTrends(prev => (prev && prev.length ? prev : greetData.trends))
+      }
+    }).finally(() => {
+      // Safety net: never leave the spinner stuck if trends errored out
+      if (isCurrent()) { setLoading(false); setRefreshing(false) }
+    })
   }, [lang])
 
   const fetchAudio = useCallback(() => {
@@ -513,14 +539,13 @@ function TrendingBrief({ userName }) {
 
       {/* ── Trend cards ── */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+        <div className="brief-trend-grid">
           {[0,1,2].map(i => (
             <div key={i} className="shimmer" style={{ height: 160, borderRadius: 16 }} />
           ))}
         </div>
       ) : trends.length ? (
-        <div style={{ 
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14,
+        <div className="brief-trend-grid" style={{
           opacity: refreshing ? 0.5 : 1, pointerEvents: refreshing ? 'none' : 'auto', transition: 'opacity 0.3s'
         }}>
           {trends.slice(0, 3).map((trendItem, i) => {
@@ -529,7 +554,6 @@ function TrendingBrief({ userName }) {
             const FALLBACK_COLORS = [C.green, C.violet, C.pink]
             const color    = CATEGORY_COLORS[trend.category] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
             const rank     = String(i + 1).padStart(2, '0')
-            const virality = VIRALITY[i] || 38
             const badge    = TREND_BADGE[i] || '📊 TRENDING'
             const srcMeta  = SOURCE_META[trend.source] || SOURCE_META.ai
             return (
@@ -636,34 +660,6 @@ function TrendingBrief({ userName }) {
                     💡 {trend.hook}
                   </div>
                 )}
-
-                {/* Virality bar */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    marginBottom: 4,
-                  }}>
-                    <span style={{
-                      fontSize: '0.55rem', fontFamily: 'var(--font-mono)',
-                      color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase',
-                    }}>Virality</span>
-                    <span style={{
-                      fontSize: '0.6rem', fontFamily: 'var(--font-mono)',
-                      fontWeight: 700, color,
-                    }}>{virality}%</span>
-                  </div>
-                  <div style={{
-                    height: 3, borderRadius: 99,
-                    background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      height: '100%', width: `${virality}%`,
-                      background: `linear-gradient(90deg, ${color}, ${color}88)`,
-                      borderRadius: 99, transition: 'width 0.6s ease',
-                    }} />
-                  </div>
-                </div>
 
                 {/* CTA */}
                 <div style={{
