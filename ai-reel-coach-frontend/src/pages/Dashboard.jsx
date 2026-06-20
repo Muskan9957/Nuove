@@ -1101,11 +1101,11 @@ export default function Dashboard() {
       {/* ─── Streak ───────────────────────────────────────────────── */}
       <StreakBanner streak={streak} isLight={isLight} />
 
-      {/* ─── Trending brief ───────────────────────────────────────── */}
-      <TrendingBrief userName={firstName} />
-
       {/* ─── Quick actions: Generate / Record / Captions ──────────── */}
       <QuickActions />
+
+      {/* ─── Trending brief ───────────────────────────────────────── */}
+      <TrendingBrief userName={firstName} />
 
       {/* ─── Badges shelf ─────────────────────────────────────────── */}
       <BadgesShelf badges={badges} isLight={isLight} onOpenModal={() => setShowBadgeModal(true)} />
