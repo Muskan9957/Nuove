@@ -1020,24 +1020,25 @@ export default function Dashboard() {
 
       {/* ─── Greeting ─────────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '4px 12px', borderRadius: 99,
-          background: `${mood.color}12`,
-          border: `1px solid ${mood.color}35`,
-          marginRight: 18,
-          verticalAlign: 'middle',
-        }}>
-          <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
-          <span style={{
-            fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-            color: mood.color, textTransform: 'uppercase', letterSpacing: '0.1em',
-          }}>{mood.label}</span>
-        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'nowrap' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '4px 12px', borderRadius: 99,
+            background: `${mood.color}12`,
+            border: `1px solid ${mood.color}35`,
+            flexShrink: 0, whiteSpace: 'nowrap',
+          }}>
+            <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
+            <span style={{
+              fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
+              color: mood.color, textTransform: 'uppercase', letterSpacing: '0.1em',
+            }}>{mood.label}</span>
+          </div>
 
-        <h1 className="page-title" style={{ display: 'inline-block', verticalAlign: 'middle', marginTop: 0, marginBottom: 8 }}>
-          {t('dash_greeting_' + mood.key)}, {firstName}
-        </h1>
+          <h1 className="page-title" style={{ margin: 0, minWidth: 0 }}>
+            {t('dash_greeting_' + mood.key)}, {firstName}
+          </h1>
+        </div>
       </div>
 
       {/* ─── Streak ───────────────────────────────────────────────── */}
