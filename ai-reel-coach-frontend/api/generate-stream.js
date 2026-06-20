@@ -1,6 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk'
+// Vercel Edge function — streams a short-form video script to the client.
+// Uses Gemini (gemini-2.5-flash) via REST so it stays edge-compatible and in
+// sync with the backend's LLM provider. NOTE: requires GEMINI_API_KEY in the
+// Vercel project env. We intentionally do NOT use the Anthropic SDK here — the
+// whole app runs on Gemini now.
 
 export const config = { runtime: 'edge', maxDuration: 30 }
+
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+const GEMINI_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 const LANG = {
   hi      : 'IMPORTANT: Write ALL content entirely in Hindi (Devanagari script).',
@@ -82,16 +89,56 @@ CTA:
 Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown. ${wc.min}–${wc.max} spoken words total. Write like talking to a friend. No hashtags, no emojis.`
 }
 
-// Generate visual direction + music vibe suggestions via a fast Haiku call
+// ── Stream tokens from Gemini (SSE) — yields text deltas ─────────────
+async function* streamGemini({ prompt, maxTokens, apiKey }) {
+  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`
+  const res = await fetch(url, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({
+      contents        : [{ role: 'user', parts: [{ text: prompt }] }],
+      // thinkingBudget:0 disables 2.5's "thinking" tokens — cheaper, faster, and
+      // keeps the short maxOutputTokens budget for the actual script.
+      generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  })
+
+  if (!res.ok || !res.body) {
+    const errText = await res.text().catch(() => '')
+    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 200)}`)
+  }
+
+  const reader  = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // SSE frames are separated by blank lines
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const payload = trimmed.slice(5).trim()
+      if (!payload || payload === '[DONE]') continue
+      try {
+        const json = JSON.parse(payload)
+        const text = json?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || ''
+        if (text) yield text
+      } catch { /* partial JSON across chunks — ignore, next read completes it */ }
+    }
+  }
+}
+
+// Generate visual direction + music vibe suggestions (non-streaming Gemini call)
 async function generateExtras(topic, hook, body, tone, apiKey) {
   try {
-    const client = new Anthropic({ apiKey })
-    const res = await client.messages.create({
-      model     : 'claude-haiku-4-5-20251001',
-      max_tokens: 450,
-      messages  : [{
-        role   : 'user',
-        content: `You are a video production consultant. Based on this short-form video script, suggest a visual direction and background music.
+    const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`
+    const prompt = `You are a video production consultant. Based on this short-form video script, suggest a visual direction and background music.
 
 Topic: ${topic}
 Tone: ${tone || 'conversational'}
@@ -114,10 +161,18 @@ Return ONLY this JSON with no extra text:
     "searchQuery": "exact royalty-free music search term",
     "tip": "one practical tip for using background music in this video"
   }
-}`,
-      }],
+}`
+    const res = await fetch(url, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({
+        contents        : [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 600, thinkingConfig: { thinkingBudget: 0 } },
+      }),
     })
-    const text = res.content[0].text.trim()
+    if (!res.ok) return null
+    const data = await res.json()
+    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || ''
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return null
     return JSON.parse(jsonMatch[0])
@@ -146,10 +201,10 @@ export default async function handler(req) {
     })
   }
 
-  const RAILWAY     = process.env.RAILWAY_API_URL
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
+  const RAILWAY    = process.env.RAILWAY_API_URL
+  const GEMINI_KEY = process.env.GEMINI_API_KEY
 
-  if (!RAILWAY || !ANTHROPIC_KEY) {
+  if (!RAILWAY || !GEMINI_KEY) {
     return new Response(JSON.stringify({ error: 'misconfigured' }), {
       status: 500, headers: { 'Content-Type': 'application/json' },
     })
@@ -165,28 +220,20 @@ export default async function handler(req) {
 
   ;(async () => {
     try {
-      // ── 1. Stream script from Anthropic immediately ──────────────
-      const client  = new Anthropic({ apiKey: ANTHROPIC_KEY })
-      const wc      = durationToWords(duration)
-      const maxTok  = Math.min(1200, Math.max(500, Math.round(wc.max * 1.5)))
-      const prompt  = buildPrompt({ topic, niche, tone, language, voiceInstruction, duration })
-
-      const stream = client.messages.stream({
-        model     : 'claude-haiku-4-5-20251001',
-        max_tokens: maxTok,
-        messages  : [{ role: 'user', content: prompt }],
-      })
+      // ── 1. Stream script from Gemini immediately ─────────────────
+      const wc     = durationToWords(duration)
+      const maxTok = Math.min(1200, Math.max(500, Math.round(wc.max * 1.5)))
+      const prompt = buildPrompt({ topic, niche, tone, language, voiceInstruction, duration })
 
       let fullText = ''
-      for await (const event of stream) {
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta' &&
-          event.delta.text
-        ) {
-          fullText += event.delta.text
-          await send({ type: 'chunk', text: event.delta.text })
-        }
+      for await (const text of streamGemini({ prompt, maxTokens: maxTok, apiKey: GEMINI_KEY })) {
+        fullText += text
+        await send({ type: 'chunk', text })
+      }
+
+      if (!fullText.trim()) {
+        await send({ type: 'error', message: 'Script generation failed. Please try again.' })
+        return
       }
 
       // ── 2. Parse sections ────────────────────────────────────────
@@ -198,7 +245,7 @@ export default async function handler(req) {
         headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
         body   : JSON.stringify({ topic, niche, tone, language, hook, body: bodyText, cta, fullScript: fullText }),
       })
-      const extrasPromise = generateExtras(topic, hook, bodyText, tone, ANTHROPIC_KEY)
+      const extrasPromise = generateExtras(topic, hook, bodyText, tone, GEMINI_KEY)
 
       // ── 4. Send script event as soon as save completes ───────────
       const saveRes  = await savePromise
