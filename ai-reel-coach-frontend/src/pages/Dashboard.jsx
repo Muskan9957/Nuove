@@ -847,6 +847,59 @@ function StatsStrip({ scripts, logs, badges, streak, isLight }) {
   )
 }
 
+/* ─── Quick action launchers (Generate / Record / Captions) ───────── */
+function QuickActions() {
+  const { t } = useLang()
+  const actions = [
+    { to: '/generate', emoji: '✍️', title: t('nav_generate'), sub: 'New script',      color: C.cyan },
+    { to: '/record',   emoji: '🎬', title: t('nav_record'),   sub: 'Teleprompter',    color: C.pink },
+    { to: '/captions', emoji: '💬', title: t('nav_captions'), sub: 'Captions & tags', color: C.teal },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+      {actions.map(a => (
+        <Link key={a.to} to={a.to} style={{ textDecoration: 'none' }}>
+          <div
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9,
+              padding: '20px 12px 16px', borderRadius: 16, height: '100%',
+              background: 'var(--surface-card)',
+              border: `1px solid ${a.color}30`,
+              boxShadow: '0 2px 14px rgba(0,0,0,0.04)',
+              transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform   = 'translateY(-3px)'
+              e.currentTarget.style.borderColor = `${a.color}70`
+              e.currentTarget.style.boxShadow   = `0 10px 30px ${a.color}22`
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform   = 'translateY(0)'
+              e.currentTarget.style.borderColor = `${a.color}30`
+              e.currentTarget.style.boxShadow   = '0 2px 14px rgba(0,0,0,0.04)'
+            }}
+          >
+            <div style={{
+              width: 46, height: 46, borderRadius: 13,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.45rem',
+              background: `${a.color}16`, border: `1px solid ${a.color}30`,
+            }}>{a.emoji}</div>
+            <div style={{
+              fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '0.92rem',
+              color: 'var(--text)', letterSpacing: '-0.01em',
+            }}>{a.title}</div>
+            <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.3 }}>
+              {a.sub}
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
 /* ─── Badges shelf ────────────────────────────────────────────────── */
 function BadgesShelf({ badges, isLight, onOpenModal }) {
   const { t } = useLang()
@@ -1049,6 +1102,9 @@ export default function Dashboard() {
 
       {/* ─── Trending brief ───────────────────────────────────────── */}
       <TrendingBrief userName={firstName} />
+
+      {/* ─── Quick actions: Generate / Record / Captions ──────────── */}
+      <QuickActions />
 
       {/* ─── Badges shelf ─────────────────────────────────────────── */}
       <BadgesShelf badges={badges} isLight={isLight} onOpenModal={() => setShowBadgeModal(true)} />
