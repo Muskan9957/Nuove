@@ -295,8 +295,11 @@ function TrendingBrief({ userName }) {
         marginBottom: 16, flexWrap: 'wrap', gap: 10
       }}>
         <h2 style={{
-          margin: 0, fontSize: '1.05rem', fontFamily: 'var(--font-creator)',
-          fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)',
+          margin: 0, fontSize: '1.6rem',
+          fontFamily: '"Dancing Script", cursive', fontWeight: 700,
+          letterSpacing: '0.01em', lineHeight: 1.1,
+          background: 'linear-gradient(135deg, #00D4FF 0%, #FF2D8B 50%, #FFB800 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>
           {t('dash_todays_brief')}
         </h2>
