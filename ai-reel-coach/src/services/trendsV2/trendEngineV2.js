@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const Anthropic = require('@anthropic-ai/sdk');
+const llm = require('../llm');   // provider-agnostic LLM (Gemini/Claude)
 
 const googleTrendProvider = require('./providers/googleTrendProvider');
 const youtubeTrendProvider = require('./providers/youtubeTrendProvider');
@@ -31,23 +31,14 @@ function generateId(title) {
 }
 
 async function askClaude(prompt) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY is not defined in the environment.');
-  }
-  const client = new Anthropic({ apiKey });
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',   // title cleanup is simple — Haiku is ~5x cheaper than Sonnet
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: prompt }]
-  });
-  const content = response.content[0].text;
+  // Routes to the configured provider (Gemini/Claude). 'fast' tier — title cleanup is simple.
+  const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
   try {
     const jsonStr = content.substring(content.indexOf('['), content.lastIndexOf(']') + 1);
     return JSON.parse(jsonStr);
   } catch (e) {
-    console.error('Claude output that failed to parse:', content);
-    throw new Error('Failed to parse Claude response as JSON');
+    console.error('LLM output that failed to parse:', content);
+    throw new Error('Failed to parse LLM response as JSON');
   }
 }
 
