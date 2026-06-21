@@ -4,6 +4,148 @@ const aiService      = require('../services/aiService');
 const planService    = require('../services/planService');
 const { checkAndAwardBadges, updateStreak } = require('../services/badgeService');
 
+// ─── GET /api/scripts/check-quota ────────────────────────────────
+const checkQuota = async (req, res, next) => {
+  try {
+    const { allowed, used, limit } = await planService.checkGenerationLimit(req.user.id)
+    if (!allowed) {
+      return res.status(403).json({
+        error: `You've used all ${limit} generations this month. Upgrade to continue.`,
+        used, limit,
+      })
+    }
+    return res.json({ allowed: true, used, limit })
+  } catch (err) { next(err) }
+}
+
+// ─── POST /api/scripts/save (called by Vercel Edge after streaming) ─
+const save = async (req, res, next) => {
+  try {
+    const { topic, niche, tone, language, hook, body, cta, fullScript } = req.body
+    const { used, limit } = await planService.checkGenerationLimit(req.user.id)
+
+    const script = await prisma.script.create({
+      data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
+    })
+
+    const [_, newStreak] = await Promise.all([planService.incrementGenerations(req.user.id), updateStreak(req.user.id)])
+    const newBadges = await checkAndAwardBadges(req.user.id)
+
+    // Score hook in background
+    aiService.scoreHook(hook, language)
+      .then(async (d) => {
+        await Promise.all([
+          prisma.script.update({ where: { id: script.id }, data: { hookScore: d.score } }),
+          prisma.hookScore.create({
+            data: { userId: req.user.id, scriptId: script.id, hookText: hook, score: d.score, grade: d.grade, status: d.status, reasons: JSON.stringify(d.reasons) },
+          }),
+        ])
+      })
+      .catch(() => {})
+
+    return res.status(201).json({
+      id      : script.id,
+      used    : used + 1,
+      limit,
+      newStreak,
+      newBadges: newBadges.length > 0 ? newBadges : undefined,
+    })
+  } catch (err) { next(err) }
+}
+
+// ─── POST /api/scripts/generate-stream (SSE) ─────────────────────
+const generateStream = async (req, res, next) => {
+  res.setHeader('Content-Type',  'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection',    'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no') // disable nginx buffering
+  res.flushHeaders()
+
+  const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`)
+
+  try {
+    // 1. Plan limit check
+    const { allowed, used, limit } = await planService.checkGenerationLimit(req.user.id)
+    if (!allowed) {
+      send({ type: 'error', message: `You've used all ${limit} generations this month. Upgrade to continue.` })
+      return res.end()
+    }
+
+    const { topic, niche, tone, language, voiceInstruction } = req.body
+
+    const userRow = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { creatorStyle: true },
+    })
+    const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null
+
+    // 2. Stream script tokens to client
+    let parsedScript = null
+    for await (const event of aiService.generateScriptStream({ topic, niche, tone, language, voiceInstruction, voiceProfile })) {
+      if (event.type === 'chunk') {
+        send(event)
+      } else if (event.type === 'parsed') {
+        parsedScript = event
+      }
+    }
+
+    if (!parsedScript) {
+      send({ type: 'error', message: 'Script generation failed. Please try again.' })
+      return res.end()
+    }
+
+    const { hook, body, cta, fullScript } = parsedScript
+
+    // 3. Save script (placeholder hookScore=0, updated async below)
+    const script = await prisma.script.create({
+      data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
+    })
+
+    // 4. Usage + streak in parallel
+    const [_, newStreak] = await Promise.all([
+      planService.incrementGenerations(req.user.id),
+      updateStreak(req.user.id),
+    ])
+    const newBadges = await checkAndAwardBadges(req.user.id)
+
+    // 5. Send structured script — client can now render sections
+    send({
+      type     : 'script',
+      data     : { id: script.id, topic, hook, body, cta, fullScript, voiceUsed: voiceProfile ? voiceProfile.summary : null },
+      usage    : { used: used + 1, limit },
+      newStreak,
+      newBadges: newBadges.length > 0 ? newBadges : undefined,
+    })
+
+    // 6. Score hook in background — don't block, send when ready
+    aiService.scoreHook(hook, language)
+      .then(async (hookScoreData) => {
+        send({ type: 'hookScore', data: hookScoreData })
+
+        await Promise.all([
+          prisma.script.update({ where: { id: script.id }, data: { hookScore: hookScoreData.score } }),
+          prisma.hookScore.create({
+            data: {
+              userId  : req.user.id,
+              scriptId: script.id,
+              hookText: hook,
+              score   : hookScoreData.score,
+              grade   : hookScoreData.grade,
+              status  : hookScoreData.status,
+              reasons : JSON.stringify(hookScoreData.reasons),
+            },
+          }),
+        ])
+      })
+      .catch(() => {})
+      .finally(() => res.end())
+
+  } catch (err) {
+    send({ type: 'error', message: err.message || 'Something went wrong' })
+    res.end()
+  }
+}
+
 // ─── POST /api/scripts/generate ──────────────────────────────────
 const generate = async (req, res, next) => {
   try {
@@ -20,144 +162,60 @@ const generate = async (req, res, next) => {
       });
     }
 
-    // 2. Load voice profile (premium users only — null for FREE)
+    // 2. Load voice profile
     const userRow = await prisma.user.findUnique({
       where : { id: req.user.id },
       select: { creatorStyle: true },
     });
     const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null;
 
-    // 3. Generate script via AI (voice profile injected into prompt when present)
-    const { topic, niche, tone, language, audience, duration } = req.body;
-    const { hook, body, cta, fullScript } = await aiService.generateScript({ topic, niche, tone, language, audience, voiceProfile, duration });
+    // 3. Generate script via AI
+    const { topic, niche, tone, language } = req.body;
+    const { hook, body, cta, fullScript } = await aiService.generateScript({ topic, niche, tone, language, voiceProfile });
 
-    // 4. Viral edit + score hook + generate visual/music — all in parallel
-    const [edited, hookScoreData, visualMusic] = await Promise.all([
-      aiService.viralEdit({ hook, body, cta }, { language }),
-      aiService.scoreHook(hook, language),
-      aiService.generateVisualMusic({ topic, niche, hook, audience }),
-    ]);
-
-    // Use the viral-edited versions for everything downstream
-    const finalHook = edited.hook || hook;
-    const finalBody = edited.body || body;
-    const finalCta  = edited.cta  || cta;
-
-    // 5. Save script to database
+    // 4. Save script immediately (hookScore placeholder — scored async below)
     const script = await prisma.script.create({
-      data: {
-        userId: req.user.id,
-        topic,
-        niche : niche || null,
-        tone  : tone  || null,
-        hook  : finalHook,
-        body  : finalBody,
-        cta   : finalCta,
-        fullScript,
-        hookScore: hookScoreData.score,
-      },
+      data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
     });
 
-    // 5. Save hook score record (needs script.id — can't fully parallelize with step 4)
-    await prisma.hookScore.create({
-      data: {
-        userId  : req.user.id,
-        scriptId: script.id,
-        hookText: hook,
-        score   : hookScoreData.score,
-        grade   : hookScoreData.grade,
-        status  : hookScoreData.status,
-        reasons : JSON.stringify(hookScoreData.reasons),
-      },
-    });
-
-    // 6 & 7. Increment usage + update streak in parallel — they don't depend on each other
+    // 4. Usage + streak in parallel
     const [_, newStreak] = await Promise.all([
       planService.incrementGenerations(req.user.id),
       updateStreak(req.user.id),
     ]);
     const newBadges = await checkAndAwardBadges(req.user.id);
 
+    // 5. Return script to user immediately — don't wait for hook scoring
     const response = {
       message: 'Script generated successfully!',
-      script : {
-        id             : script.id,
-        topic,
-        hook           : finalHook,
-        body           : finalBody,
-        cta            : finalCta,
-        fullScript,
-        viralEditNote  : edited.changes || null,
-        voiceUsed      : voiceProfile ? voiceProfile.summary : null,
-        hookScore      : hookScoreData,
-        visual         : visualMusic?.visual || null,
-        music          : visualMusic?.music  || null,
-      },
-      usage: { used: used + 1, limit },
+      script : { id: script.id, topic, hook, body, cta, fullScript, hookScore: null, voiceUsed: voiceProfile ? voiceProfile.summary : null },
+      usage  : { used: used + 1, limit },
       newStreak,
     };
+    if (newBadges.length > 0) response.newBadges = newBadges;
+    res.status(201).json(response);
 
-    if (newBadges.length > 0) {
-      response.newBadges = newBadges;
-    }
+    // 6. Score hook in background — saves to DB, doesn't block the user
+    aiService.scoreHook(hook, language)
+      .then(async (hookScoreData) => {
+        await Promise.all([
+          prisma.script.update({ where: { id: script.id }, data: { hookScore: hookScoreData.score } }),
+          prisma.hookScore.create({
+            data: {
+              userId  : req.user.id,
+              scriptId: script.id,
+              hookText: hook,
+              score   : hookScoreData.score,
+              grade   : hookScoreData.grade,
+              status  : hookScoreData.status,
+              reasons : JSON.stringify(hookScoreData.reasons),
+            },
+          }),
+        ]);
+      })
+      .catch(() => {});
 
-    return res.status(201).json(response);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ─── POST /api/scripts/retake ─────────────────────────────────────
-// Fresh script on the same topic — does NOT consume the monthly quota.
-// The 5-per-topic cap is enforced on the client; this endpoint just
-// generates and scores without touching generationsUsed.
-const retake = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-    const { topic, niche, tone, language, audience, duration } = req.body;
-    const { hook, body, cta, fullScript } = await aiService.generateScript({ topic, niche, tone, language, audience, duration });
-    const [hookScoreData, visualMusic] = await Promise.all([
-      aiService.scoreHook(hook, language),
-      aiService.generateVisualMusic({ topic, niche, hook, audience }),
-    ]);
-
-    return res.json({
-      script: {
-        hook, body, cta, fullScript,
-        hookScore    : hookScoreData,
-        visual       : visualMusic?.visual || null,
-        music        : visualMusic?.music  || null,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ─── POST /api/scripts/refine ─────────────────────────────────────
-// Iterates on an existing script without consuming the generation quota.
-const refine = async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-    const { hook, body, cta, instruction, language, audience, topic } = req.body;
-    const refined = await aiService.refineScript({ hook, body, cta, instruction, language, audience, topic });
-
-    // Re-score the new hook so the UI can show grade change
-    const hookScoreData = await aiService.scoreHook(refined.hook, language);
-
-    return res.json({
-      script: {
-        hook     : refined.hook,
-        body     : refined.body,
-        cta      : refined.cta,
-        fullScript: refined.fullScript,
-        hookScore: hookScoreData,
-      },
-    });
+    return;
   } catch (err) {
     next(err);
   }
@@ -196,16 +254,4 @@ const getOne = async (req, res, next) => {
   }
 };
 
-// ─── POST /api/scripts/songs ─────────────────────────────────────
-const songs = async (req, res, next) => {
-  try {
-    const { hook, body, cta, topic, niche, tone, genre, mood, bpm, audience } = req.body;
-    if (!hook || !topic) return res.status(400).json({ error: 'hook and topic are required.' });
-    const result = await aiService.recommendSongs({ hook, body: body || '', cta: cta || '', topic, niche, tone, genre, mood, bpm, audience });
-    return res.json(result);
-  } catch (err) {
-    next(err);
-  }
-};
-
-module.exports = { generate, retake, refine, getAll, getOne, songs };
+module.exports = { checkQuota, save, generateStream, generate, getAll, getOne };

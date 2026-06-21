@@ -41,12 +41,21 @@ const ALLOWED_ORIGINS = [
   ...(IS_PROD ? [] : ['http://localhost:3000', 'http://localhost:5173']),
 ].filter(Boolean)
 
+const isDevOrigin = (origin) => {
+  if (!origin) return false;
+  // Allow localhost/127.0.0.1, local IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x), or ngrok tunnels
+  const regex = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|.*\.ngrok-free\.app|.*\.ngrok\.io|.*\.ngrok-free\.dev)(:\d+)?$/;
+  return regex.test(origin);
+};
+
 app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (mobile apps, curl) or an exact allowlist match
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
     // Allow Vercel preview deployments only outside production
     if (!IS_PROD && origin.endsWith('.vercel.app')) return cb(null, true)
+    // Allow local development IPs & ngrok tunnels outside production
+    if (!IS_PROD && isDevOrigin(origin)) return cb(null, true)
     cb(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,

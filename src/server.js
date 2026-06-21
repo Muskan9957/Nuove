@@ -1,4 +1,5 @@
 require('dotenv').config({ override: true });
+require('./config/sentry');   // init error monitoring before anything else
 const app    = require('./app');
 const prisma = require('./config/prisma');
 const aiService = require('./services/aiService');
@@ -17,8 +18,11 @@ app.listen(PORT, () => {
   warmTrendingCache()
 });
 
-const WARM_NICHES    = ['general','fitness','finance','food','tech','lifestyle','fashion','travel']
-const WARM_LANGUAGES = ['en', 'hi']
+// Trimmed to stay well within the Gemini free tier — only the few most-used
+// niches are pre-warmed (3 calls per boot vs 16). Everything else generates
+// on first request and is then cached, so users still get instant results.
+const WARM_NICHES    = ['general', 'fitness', 'finance']
+const WARM_LANGUAGES = ['en']
 
 async function warmTrendingCache() {
   const today = new Date().toISOString().slice(0, 10)

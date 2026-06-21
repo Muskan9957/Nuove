@@ -6,8 +6,9 @@ const getResend = () => {
   return new Resend(process.env.RESEND_API_KEY);
 };
 
-const FROM = process.env.EMAIL_FROM || 'Viral Studio <noreply@viralstudio.in>';
-const APP  = 'Viral Studio';
+const FROM     = process.env.EMAIL_FROM || 'Nuove <noreply@nuove.in>';
+const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support.nuove@anahatone.com';
+const APP      = 'Nuove';
 
 // ─── Shared HTML wrapper ─────────────────────────────────────────────
 const layout = (content) => `
@@ -25,17 +26,7 @@ const layout = (content) => `
 
         <!-- Logo -->
         <tr><td style="padding-bottom:32px;text-align:center;">
-          <table cellpadding="0" cellspacing="0" style="display:inline-table;">
-            <tr>
-              <td style="background:linear-gradient(135deg,#FF5F1F,#FF3CAC);border-radius:12px;padding:10px 14px;vertical-align:middle;">
-                <span style="color:#fff;font-size:18px;font-weight:900;letter-spacing:-0.5px;">▶</span>
-              </td>
-              <td style="padding-left:10px;vertical-align:middle;">
-                <div style="color:#F0F0F8;font-size:20px;font-weight:800;letter-spacing:-0.5px;">${APP}</div>
-                <div style="color:#3A3A5C;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-top:1px;">Content Intelligence</div>
-              </td>
-            </tr>
-          </table>
+          <img src="https://www.nuove.in/email-logo.png" alt="${APP}" width="300" height="80" style="display:inline-block;width:300px;height:80px;border:0;outline:none;"/>
         </td></tr>
 
         <!-- Card -->
@@ -46,7 +37,7 @@ const layout = (content) => `
         <!-- Footer -->
         <tr><td style="padding:24px 0;text-align:center;">
           <p style="color:#3A3A5C;font-size:12px;margin:0;">
-            © ${new Date().getFullYear()} ${APP} · Built for Indian Creators 🇮🇳
+            © ${new Date().getFullYear()} ${APP}
           </p>
           <p style="color:#3A3A5C;font-size:11px;margin:6px 0 0;">
             If you didn't request this email, you can safely ignore it.
@@ -67,7 +58,7 @@ const passwordResetHtml = ({ name, resetUrl }) => layout(`
     <div style="font-size:36px;margin-bottom:12px;">🔐</div>
     <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Reset your password</h1>
     <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
-      Hey ${name || 'Creator'}, we got a request to reset your Viral Studio password.
+      Hey ${name || 'Creator'}, we got a request to reset your ${APP} password.
     </p>
   </div>
 
@@ -103,7 +94,7 @@ const welcomeHtml = ({ name }) => layout(`
   <!-- Header band -->
   <div style="background:linear-gradient(135deg,rgba(255,95,31,0.15),rgba(255,60,172,0.10));padding:36px 40px 28px;border-bottom:1px solid rgba(255,255,255,0.06);">
     <div style="font-size:36px;margin-bottom:12px;">🚀</div>
-    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Welcome to Viral Studio!</h1>
+    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Welcome to ${APP}!</h1>
     <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
       Hey ${name || 'Creator'}, your account is ready. Let's make your first viral script.
     </p>
@@ -114,10 +105,11 @@ const welcomeHtml = ({ name }) => layout(`
     <!-- Feature bullets -->
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:28px;">
       ${[
-        ['⚡', 'AI Script Generator', 'Write hooks, body, and CTA in seconds'],
-        ['🎯', 'Hook Scorer',         'Know if your hook will grab attention'],
-        ['🤖', 'AI Coach',            'Get personalised advice for your niche'],
-        ['📈', 'Trending Topics',     'India-specific trends updated daily'],
+        ['⚡', 'Script Generator', 'Hooks, body & CTA in seconds'],
+        ['💬', 'Creator Advisor',  'Personalised AI coaching, on demand'],
+        ['🎥', 'Record',           'Built-in teleprompter to record on the spot'],
+        ['📈', 'Trending Topics',  'Real, current trends to ride today'],
+        ['✍️', 'Captions',         'Scroll-stopping captions & hashtags'],
       ].map(([emoji, title, sub]) => `
         <tr>
           <td style="padding:10px 0;vertical-align:top;">
@@ -154,7 +146,8 @@ const sendPasswordReset = async ({ to, name, resetUrl }) => {
     return;
   }
   await resend.emails.send({
-    from   : FROM,
+    from    : FROM,
+    replyTo : REPLY_TO,
     to,
     subject: `Reset your ${APP} password`,
     html   : passwordResetHtml({ name, resetUrl }),
@@ -168,11 +161,47 @@ const sendWelcome = async ({ to, name }) => {
     return;
   }
   await resend.emails.send({
-    from   : FROM,
+    from    : FROM,
+    replyTo : REPLY_TO,
     to,
     subject: `Welcome to ${APP} 🚀`,
     html   : welcomeHtml({ name }),
   });
 };
 
-module.exports = { sendPasswordReset, sendWelcome };
+// ─── Verification Email (6-digit code) ────────────────────────────────
+const verificationHtml = ({ name, code }) => layout(`
+  <div style="background:linear-gradient(135deg,rgba(255,95,31,0.15),rgba(255,60,172,0.10));padding:36px 40px 28px;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:36px;margin-bottom:12px;">✉️</div>
+    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Verify your email</h1>
+    <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
+      Hey ${name || 'Creator'}, enter this code on the Nuove screen to activate your account.
+    </p>
+  </div>
+  <div style="padding:32px 40px;">
+    <p style="color:#6B6B90;font-size:14px;line-height:1.7;margin:0 0 20px;">
+      Your verification code:
+    </p>
+    <div style="background:#161626;border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+      <span style="color:#F0F0F8;font-size:34px;font-weight:800;letter-spacing:10px;font-family:'Courier New',monospace;">${code}</span>
+    </div>
+    <p style="color:#3A3A5C;font-size:13px;margin:0;">This code is valid for one use. Didn't sign up? You can safely ignore this email.</p>
+  </div>
+`);
+
+const sendVerificationEmail = async ({ to, name, code }) => {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[EMAIL SKIPPED] Verification code for ${to}: ${code}`);
+    return;
+  }
+  await resend.emails.send({
+    from    : FROM,
+    replyTo : REPLY_TO,
+    to,
+    subject: `Your ${APP} verification code: ${code}`,
+    html   : verificationHtml({ name, code }),
+  });
+};
+
+module.exports = { sendPasswordReset, sendWelcome, sendVerificationEmail };

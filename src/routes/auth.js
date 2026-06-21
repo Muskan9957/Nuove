@@ -11,7 +11,9 @@ router.post(
   apiLimiter,
   [
     body('email').isEmail().withMessage('Please enter a valid email.'),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
+    body('password')
+      .isStrongPassword({ minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 })
+      .withMessage('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.'),
     body('name').optional().trim().isLength({ max: 60 }),
   ],
   controller.register
@@ -48,5 +50,14 @@ router.post('/reset-password',
   ],
   controller.resetPassword
 );
+
+// GET /api/auth/verify-email?token=xxx  (legacy link-based)
+router.get('/verify-email', controller.verifyEmail);
+
+// POST /api/auth/verify-code  { email, code }  (OTP entered on the signup screen)
+router.post('/verify-code', apiLimiter, controller.verifyCode);
+
+// GET /api/auth/verification-status?email=xxx  (polled by "check inbox" screen)
+router.get('/verification-status', controller.verificationStatus);
 
 module.exports = router;

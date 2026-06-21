@@ -1,50 +1,36 @@
 const express = require('express')
-const axios   = require('axios')
+const { EdgeTTS } = require('node-edge-tts')
+const fs      = require('fs').promises
+const os      = require('os')
+const path    = require('path')
 const router  = express.Router()
 const { protect: auth } = require('../middleware/auth')
-
-// ─── ElevenLabs TTS ───────────────────────────────────────────────
-// "Rachel" — clear, energetic voice (21m00Tcm4TlvDq8ikWAM)
-// "Adam"   — deep, slow voice (pNInz6obpgDQGcFmaJgB)
-const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
 
 router.post('/', auth, async (req, res) => {
   const { text } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'text required' })
 
-  const apiKey = process.env.ELEVENLABS_API_KEY
-  if (!apiKey) return res.status(503).json({ error: 'TTS_NOT_CONFIGURED' })
-
+  // ─── Try Premium Microsoft Edge Neural TTS (100% Free) ───
   try {
-    const resp = await axios.post(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
-      {
-        text: text.slice(0, 2500),
-        model_id: 'eleven_turbo_v2_5',
-        voice_settings: {
-          stability:        0.50,
-          similarity_boost: 0.75,
-          style:            0.35,
-          use_speaker_boost: true,
-        },
-      },
-      {
-        headers: {
-          'xi-api-key':   apiKey,
-          'Content-Type': 'application/json',
-          'Accept':       'audio/mpeg',
-        },
-        responseType: 'arraybuffer',
-      }
-    )
-
-    res.set('Content-Type',  'audio/mpeg')
+    const voiceId = process.env.EDGE_VOICE_ID || 'en-IN-NeerjaNeural'
+    const tts = new EdgeTTS({ 
+      voice: voiceId, 
+      lang: voiceId.substring(0, 5),
+      rate: '+10%' // +10% speed boost as requested
+    })
+    
+    const tmpFile = path.join(os.tmpdir(), `tts-${Date.now()}-${Math.random().toString(36).substring(7)}.mp3`)
+    await tts.ttsPromise(text.slice(0, 2500), tmpFile)
+    
+    const buffer = await fs.readFile(tmpFile)
+    await fs.unlink(tmpFile).catch(() => {}) // silently clean up
+    
+    res.set('Content-Type', 'audio/mpeg')
     res.set('Cache-Control', 'public, max-age=86400')
-    res.send(Buffer.from(resp.data))
+    return res.send(buffer)
   } catch (err) {
-    const msg = err.response?.data?.toString() || err.message
-    console.error('[TTS] ElevenLabs error:', msg)
-    res.status(err.response?.status || 500).json({ error: 'TTS request failed' })
+    console.error('[TTS] Edge Neural failed:', err.message)
+    res.status(500).json({ error: 'TTS request failed' })
   }
 })
 

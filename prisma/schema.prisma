@@ -28,11 +28,11 @@ model User {
   streak               Int       @default(0)
   lastActiveDate       String?
   language             String    @default("en")
-  passwordResetToken   String?
-  passwordResetExpires DateTime?
-  onboarded            Boolean   @default(false)
-  creatorStyle         String?   // JSON: AI-extracted voice fingerprint (premium feature)
-  emailVerified           Boolean   @default(true)
+  passwordResetToken      String?
+  passwordResetExpires    DateTime?
+  onboarded               Boolean   @default(false)
+  creatorStyle            String?   // JSON: AI-extracted voice fingerprint (premium feature)
+  emailVerified           Boolean   @default(false)
   emailVerificationToken  String?
 
   scripts          Script[]
@@ -43,6 +43,21 @@ model User {
   templates        Template[]
   weeklyReports    WeeklyReport[]
   chatMessages     ChatMessage[]
+  usageCounters    UsageCounter[]
+}
+
+// Per-feature monthly usage (captions, coach, remix, …). Scripts keep using
+// User.generationsUsed for backward compatibility.
+model UsageCounter {
+  id          String   @id @default(cuid())
+  userId      String
+  feature     String   // 'captions' | 'coach' | 'remix'
+  count       Int      @default(0)
+  periodStart DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feature])
 }
 
 model Script {
@@ -145,11 +160,9 @@ model TrendingCache {
   niche     String
   language  String   @default("en")
   region    String   @default("India")
-  scope     String   @default("local") // Add scope field with default "local"
-  topics    String   @db.Text
-  date      String
-  createdAt DateTime @default(now())
-
+  scope     String   @default("local") // local | global
+  topics    String   // JSON array of topic strings
+  date      String   // YYYY-MM-DD — one cache per niche per day
   @@unique([niche, language, region, scope, date])
 }
 

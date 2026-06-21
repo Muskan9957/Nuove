@@ -1,8 +1,11 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const llm = require('./llm');                       // provider-agnostic LLM (Gemini/Claude)
 const trendsService = require('./trendsService');
 
-const MODEL       = 'claude-sonnet-4-6';           // Quality model for creative tasks
-const MODEL_FAST  = 'claude-haiku-4-5-20251001';   // Fast model for scoring/rewriting
+// Markers used to pick the model TIER (quality vs fast). The actual model is
+// resolved per-provider inside ./llm.js, so switching providers is one config change.
+const MODEL       = 'claude-sonnet-4-6';           // → 'default' tier
+const MODEL_FAST  = 'claude-haiku-4-5-20251001';   // → 'fast' tier
 
 // ─── Language instruction helper ─────────────────────────────────
 // NOTE: 'en' has an EXPLICIT instruction so the AI never drifts into
@@ -63,15 +66,10 @@ const AUDIENCE_CONTEXTS = {
 
 const getAudienceContext = (audience) => AUDIENCE_CONTEXTS[audience] || AUDIENCE_CONTEXTS['Global']
 
-// ─── Helper — client created per-call so it always picks up the env var ─
+// ─── Helper — routes to the configured provider (Gemini/Claude) ─────────
 const ask = async (prompt, maxTokens = 1024, model = MODEL) => {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const response = await client.messages.create({
-    model,
-    max_tokens: maxTokens,
-    messages  : [{ role: 'user', content: prompt }],
-  });
-  return response.content[0].text.trim();
+  const tier = model === MODEL_FAST ? 'fast' : 'default';
+  return llm.complete(prompt, { maxTokens, tier });
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -912,8 +910,6 @@ Platform rules:
 // 11. COACH CHAT
 // ─────────────────────────────────────────────────────────────────
 const coachChat = async ({ message, history = [], userContext, language = 'en' }) => {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
   const statsStr = userContext
     ? `Creator stats: ${userContext.scriptsCount || 0} scripts created, avg hook score ${userContext.avgHookScore || 'N/A'}/100, current streak ${userContext.streak || 0} days, plan: ${userContext.plan || 'FREE'}${userContext.recentTopics && userContext.recentTopics.length > 0 ? `, recent topics: ${userContext.recentTopics.slice(0, 5).join(', ')}` : ''}.`
     : '';
@@ -932,19 +928,14 @@ const coachChat = async ({ message, history = [], userContext, language = 'en' }
   // Keep last 10 messages of history
   const trimmedHistory = (history || []).slice(-10);
 
-  const messages = [
-    ...trimmedHistory.map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: message },
-  ];
-
-  const response = await client.messages.create({
-    model     : MODEL,
-    max_tokens: 600,
-    system    : systemPrompt,
-    messages,
+  const reply = await llm.complete(message, {
+    system   : systemPrompt,
+    history  : trimmedHistory,
+    maxTokens: 600,
+    tier     : 'fast',   // coaching advice is conversational — cheap model is fine
   });
 
-  return { reply: response.content[0].text.trim() };
+  return { reply };
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -1205,14 +1196,7 @@ Return ONLY valid JSON — no markdown, no code fences:
   ]
 }`
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const response = await client.messages.create({
-    model     : FAST_MODEL,
-    max_tokens: 900,
-    messages  : [{ role: 'user', content: prompt }],
-  })
-
-  const raw   = response.content[0].text
+  const raw = await llm.complete(prompt, { maxTokens: 900, tier: 'fast' })
   const match = raw.match(/\{[\s\S]*\}/)
   if (!match) throw new Error('Could not parse captions response')
   const parsed = JSON.parse(match[0])

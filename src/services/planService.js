@@ -1,15 +1,10 @@
 const prisma = require('../config/prisma');
 
 const LIMITS = {
-  FREE   : 10,
-  STARTER: 50,
-  PRO    : Infinity,
+  FREE  : 10,       // 10 scripts/month
+  PRO   : Infinity, // unlimited
+  STUDIO: Infinity, // unlimited + priority AI
 };
-
-// Accounts with unlimited generations (for internal testing)
-const TEST_EMAILS = new Set([
-  'muskanmun123@gmail.com',
-]);
 
 /**
  * Checks if a user can make an AI generation.
@@ -19,13 +14,8 @@ const TEST_EMAILS = new Set([
 const checkGenerationLimit = async (userId) => {
   const user = await prisma.user.findUnique({
     where : { id: userId },
-    select: { email: true, plan: true, generationsUsed: true, generationsReset: true },
+    select: { plan: true, generationsUsed: true, generationsReset: true },
   });
-
-  // Test accounts get unlimited generations
-  if (user && TEST_EMAILS.has(user.email)) {
-    return { allowed: true, used: user.generationsUsed, limit: Infinity };
-  }
 
   if (!user) throw new Error('User not found');
 
@@ -56,4 +46,61 @@ const incrementGenerations = async (userId) => {
   });
 };
 
-module.exports = { checkGenerationLimit, incrementGenerations };
+// ─── Per-feature monthly limits (FREE tier) ──────────────────────────
+// PRO/STUDIO are unlimited. Matches the pricing page.
+const FEATURE_LIMITS = {
+  captions: { FREE: 10, PRO: Infinity, STUDIO: Infinity },
+  coach:    { FREE: 10, PRO: Infinity, STUDIO: Infinity },
+  remix:    { FREE: 5,  PRO: Infinity, STUDIO: Infinity },
+};
+
+/**
+ * Generic per-feature limit check (captions/coach/remix).
+ * Resets the per-feature counter when the calendar month rolls over.
+ * Returns { allowed, used, limit }.
+ */
+const checkFeatureLimit = async (userId, feature) => {
+  const conf = FEATURE_LIMITS[feature];
+  if (!conf) return { allowed: true, used: 0, limit: Infinity };
+
+  const user = await prisma.user.findUnique({
+    where : { id: userId },
+    select: { plan: true },
+  });
+  if (!user) throw new Error('User not found');
+
+  const limit = conf[user.plan] ?? Infinity;
+  if (limit === Infinity) return { allowed: true, used: 0, limit };
+
+  const counter = await prisma.usageCounter.findUnique({
+    where : { userId_feature: { userId, feature } },
+  });
+  if (!counter) return { allowed: true, used: 0, limit };
+
+  // Monthly reset
+  const now   = new Date();
+  const reset = new Date(counter.periodStart);
+  if (now.getMonth() !== reset.getMonth() || now.getFullYear() !== reset.getFullYear()) {
+    await prisma.usageCounter.update({
+      where: { id: counter.id },
+      data : { count: 0, periodStart: now },
+    });
+    return { allowed: true, used: 0, limit };
+  }
+
+  return { allowed: counter.count < limit, used: counter.count, limit };
+};
+
+/**
+ * Increment a feature counter after a successful generation.
+ */
+const incrementFeature = async (userId, feature) => {
+  if (!FEATURE_LIMITS[feature]) return;
+  await prisma.usageCounter.upsert({
+    where : { userId_feature: { userId, feature } },
+    create: { userId, feature, count: 1, periodStart: new Date() },
+    update: { count: { increment: 1 } },
+  });
+};
+
+module.exports = { checkGenerationLimit, incrementGenerations, checkFeatureLimit, incrementFeature, FEATURE_LIMITS };
