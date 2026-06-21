@@ -66,6 +66,8 @@ export default function Generate() {
   const [streaming, setStreaming]   = useState(false)
   const [streamText, setStreamText] = useState('')
   const [result, setResult]         = usePersistentState('arc_gen_result', null)
+  // Ref always points to latest result — prevents stale closures in async handlers
+  const latestResultRef = useRef(null)
   const [copied, setCopied]         = useState(false)
   const [micInterim, setMicInterim] = useState('')
   const [voiceProfile, setVoiceProfile] = useState(null)
@@ -129,8 +131,10 @@ export default function Generate() {
   const [rerolling, setRerolling]     = useState(false)
   const [rerollCount, setRerollCount] = usePersistentState('arc_gen_rerolls', 0)   // free retakes used (max 5 per topic)
   const MAX_RETAKES = 5
-  const refineRef   = useRef(null)
-  const prevLangRef = useRef(lang)
+  const refineRef    = useRef(null)
+  const prevLangRef  = useRef(lang)
+  // Ref always tracks latest versions array — avoids stale closures
+  const latestVersionsRef = useRef([])
 
   // ── Regenerate script in a specific language ──────────────────────
   const regenerateInLang = async (newLang, currentForm) => {
@@ -195,6 +199,10 @@ export default function Generate() {
       }
     }
   }, [location.state])
+
+  // Keep latestResultRef and latestVersionsRef in sync on every render
+  latestResultRef.current     = result
+  latestVersionsRef.current   = versions
 
   // Auto-scroll to result when it arrives
   useEffect(() => {
@@ -282,14 +290,19 @@ export default function Generate() {
               setVersions([{ ...event.data, label: 'v1 · Original' }])
               setActiveVer(0)
             } else if (event.type === 'extras') {
+              const visual = event.data?.visual || null
+              const music  = event.data?.music  || null
               setResult(prev => prev ? {
                 ...prev,
-                script: {
-                  ...prev.script,
-                  visual: event.data?.visual || null,
-                  music : event.data?.music  || null,
-                },
+                script: { ...prev.script, visual, music },
               } : prev)
+              // Also backfill visual/music onto versions[0] so retakes can inherit them
+              setVersions(prev => {
+                if (!prev || prev.length === 0) return prev
+                const updated = [...prev]
+                updated[updated.length - 1] = { ...updated[updated.length - 1], visual, music }
+                return updated
+              })
             } else if (event.type === 'error') {
               throw new Error(event.message)
             }
@@ -307,7 +320,7 @@ export default function Generate() {
     }
   }
 
-  // Re-roll ,  fresh script on same topic, FREE, capped at MAX_RETAKES per topic
+  // Re-roll — fresh script on same topic, FREE, capped at MAX_RETAKES per topic
   const reroll = async () => {
     if (!form.topic.trim()) return
     if (rerollCount >= MAX_RETAKES) {
@@ -317,11 +330,21 @@ export default function Generate() {
     setRerolling(true)
     try {
       const data = await api.retakeScript({ ...form, language: form.scriptLang })
-      const n = versions.length + 1
-      const newVer = { ...data.script, label: `Take ${n}` }
+      // Read visual/music from the ref (never stale) so they survive re-renders
+      const currentResult   = latestResultRef.current
+      const currentVersions = latestVersionsRef.current
+      const inheritedVisual = currentResult?.script?.visual || currentVersions?.[currentVersions.length - 1]?.visual || null
+      const inheritedMusic  = currentResult?.script?.music  || currentVersions?.[currentVersions.length - 1]?.music  || null
+      const n = currentVersions.length + 1
+      const newVer = {
+        ...data.script,
+        label : `Take ${n}`,
+        visual: inheritedVisual,
+        music : inheritedMusic,
+      }
       setVersions(prev => [newVer, ...prev])
       setActiveVer(0)
-      setResult(prev => ({ ...prev, script: data.script }))
+      setResult(prev => ({ ...prev, script: newVer }))
       setRerollCount(c => c + 1)
       setTimeout(() => refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
@@ -331,12 +354,14 @@ export default function Generate() {
     }
   }
 
-  // Refine ,  targeted chip tweak, no quota cost
+  // Refine — targeted chip tweak, no quota cost
   const refine = async (instruction) => {
     if (!instruction || !result?.script) return
     setRefining(true)
     try {
-      const current = versions[activeVer] || result.script
+      const currentResult   = latestResultRef.current
+      const currentVersions = latestVersionsRef.current
+      const current = currentVersions[activeVer] || currentResult?.script
       const data = await api.refineScript({
         hook       : current.hook,
         body       : current.body,
@@ -347,10 +372,18 @@ export default function Generate() {
         topic      : form.topic,
       })
       const chipLabel = instruction.length > 30 ? instruction.slice(0, 30) + '…' : instruction
-      const newVer = { ...data.script, label: `Take ${versions.length + 1} · ${chipLabel}` }
+      // Inherit visual/music from the current version (never stale via ref)
+      const inheritedVisual = current?.visual || currentResult?.script?.visual || null
+      const inheritedMusic  = current?.music  || currentResult?.script?.music  || null
+      const newVer = {
+        ...data.script,
+        label : `Take ${currentVersions.length + 1} · ${chipLabel}`,
+        visual: inheritedVisual,
+        music : inheritedMusic,
+      }
       setVersions(prev => [newVer, ...prev])
       setActiveVer(0)
-      setResult(prev => ({ ...prev, script: data.script }))
+      setResult(prev => ({ ...prev, script: newVer }))
       setTimeout(() => refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
       toast(err.message, 'error')
@@ -1027,6 +1060,12 @@ export default function Generate() {
                                         </span>
                                       )}
                                     </div>
+                                    
+                                    {song.reason && (
+                                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.35, fontStyle: 'italic', paddingRight: 8 }}>
+                                        "{song.reason}"
+                                      </div>
+                                    )}
 
                                     {/* Progress bar ,  shown only while playing */}
                                     {isPlaying && (

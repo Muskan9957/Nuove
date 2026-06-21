@@ -71,7 +71,7 @@ const generateStream = async (req, res, next) => {
       return res.end()
     }
 
-    const { topic, niche, tone, language, voiceInstruction } = req.body
+    const { topic, niche, tone, language, voiceInstruction, duration } = req.body
 
     const userRow = await prisma.user.findUnique({
       where : { id: req.user.id },
@@ -81,7 +81,7 @@ const generateStream = async (req, res, next) => {
 
     // 2. Stream script tokens to client
     let parsedScript = null
-    for await (const event of aiService.generateScriptStream({ topic, niche, tone, language, voiceInstruction, voiceProfile })) {
+    for await (const event of aiService.generateScriptStream({ topic, niche, tone, language, voiceInstruction, voiceProfile, duration })) {
       if (event.type === 'chunk') {
         send(event)
       } else if (event.type === 'parsed') {
@@ -146,7 +146,7 @@ const generateStream = async (req, res, next) => {
   }
 }
 
-// ─── POST /api/scripts/generate ──────────────────────────────────
+// ─── POST /api/scripts/generate ──────────────────────────────────────────────
 const generate = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -169,9 +169,15 @@ const generate = async (req, res, next) => {
     });
     const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null;
 
-    // 3. Generate script via AI
-    const { topic, niche, tone, language } = req.body;
-    const { hook, body, cta, fullScript } = await aiService.generateScript({ topic, niche, tone, language, voiceProfile });
+    // 3. Generate script + visual/music in parallel
+    const { topic, niche, tone, language, audience, duration } = req.body;
+    
+    // We run script generation first so we can pass the real hook to visual generation
+    const scriptResult = await aiService.generateScript({ topic, niche, tone, language, voiceProfile, duration });
+    const { hook, body, cta, fullScript } = scriptResult;
+    
+    const visualMusicData = await aiService.generateVisualMusic({ topic, niche, hook, audience: audience || 'India' })
+      .catch(() => ({ visual: null, music: null }));
 
     // 4. Save script immediately (hookScore placeholder — scored async below)
     const script = await prisma.script.create({
@@ -188,7 +194,12 @@ const generate = async (req, res, next) => {
     // 5. Return script to user immediately — don't wait for hook scoring
     const response = {
       message: 'Script generated successfully!',
-      script : { id: script.id, topic, hook, body, cta, fullScript, hookScore: null, voiceUsed: voiceProfile ? voiceProfile.summary : null },
+      script : {
+        id: script.id, topic, hook, body, cta, fullScript, hookScore: null,
+        voiceUsed: voiceProfile ? voiceProfile.summary : null,
+        visual: visualMusicData?.visual || null,
+        music : visualMusicData?.music  || null,
+      },
       usage  : { used: used + 1, limit },
       newStreak,
     };
@@ -254,7 +265,7 @@ const getOne = async (req, res, next) => {
   }
 };
 
-// ─── POST /api/scripts/retake ────────────────────────────────────
+// ─── POST /api/scripts/retake ─────────────────────────────────────────────────
 // Free re-roll on the same topic (e.g. user changed the tone). Capped on the
 // client (MAX_RETAKES per topic), so it does NOT consume a plan generation.
 const retake = async (req, res, next) => {
@@ -268,15 +279,23 @@ const retake = async (req, res, next) => {
     });
     const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null;
 
-    const { hook, body, cta, fullScript } = await aiService.generateScript({
-      topic, niche, tone, language, audience, voiceProfile, duration,
-    });
+    const [{ hook, body, cta, fullScript }, visualMusicData] = await Promise.all([
+      aiService.generateScript({ topic, niche, tone, language, audience, voiceProfile, duration }),
+      aiService.generateVisualMusic({ topic, niche, hook: '', audience: audience || 'India' })
+        .catch(() => null),
+    ]);
 
     const script = await prisma.script.create({
       data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
     });
 
-    return res.json({ script: { id: script.id, topic, hook, body, cta, fullScript } });
+    return res.json({
+      script: {
+        id: script.id, topic, hook, body, cta, fullScript,
+        visual: visualMusicData?.visual || null,
+        music : visualMusicData?.music  || null,
+      },
+    });
   } catch (err) { next(err); }
 };
 
@@ -293,4 +312,17 @@ const refine = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine };
+// ─── POST /api/scripts/songs ─────────────────────────────────────
+const recommendSongs = async (req, res, next) => {
+  try {
+    const { hook, body, cta, topic, niche, tone, genre, mood, bpm, audience, language } = req.body;
+    const aiData = await aiService.recommendSongs({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience, language });
+    const spotifyService = require('../services/spotifyService');
+    const enriched = await spotifyService.enrichSongs(aiData.songs);
+    return res.json({ songs: enriched });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine, recommendSongs };

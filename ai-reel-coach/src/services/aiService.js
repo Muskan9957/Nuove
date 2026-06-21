@@ -904,7 +904,7 @@ Platform rules:
       caption   : `${hook} ${body.substring(0, 100)}... ${cta}`,
     };
   }
-};
+}
 
 // ─────────────────────────────────────────────────────────────────
 // 11. COACH CHAT
@@ -991,20 +991,23 @@ CHANGES: [one sentence — the single biggest improvement you made and why]`
 // ─────────────────────────────────────────────────────────────────
 // Map region → primary music market language/genre
 const REGIONAL_MUSIC_CONTEXT = {
-  India: `CRITICAL — REGIONAL MUSIC RULE:
-The audience is INDIA. You MUST recommend Indian music:
-- Popular picks: Bollywood songs, Punjabi pop (AP Dhillon, Diljit, Arijit Singh, Pritam, Shankar-Ehsaan-Loy, A.R. Rahman), indie Hindi (Prateek Kuhad, Ritviz, When Chai Met Toast), or regional language hits that are currently trending
-- If the topic itself involves Bollywood, movies, celebrity, or Hindi film culture → pick only Bollywood songs, specifically from relevant films/artists
-- If the topic is fitness/gym → Punjabi high-energy beats (Diljit, Badshah, AP Dhillon)
-- If the topic is finance/business/motivational → AR Rahman, background scores, or trending Hindi motivational tracks
-- Royalty-free picks: Look for Indian/Hindi music on Pixabay, YouTube Audio Library, or Hoopr.ai (India's leading royalty-free platform for creators)
-- searchUrl for popular songs: use https://www.youtube.com/results?search_query= (YouTube is the primary platform in India)
-- DO NOT suggest Western English songs unless the topic specifically demands it (e.g. an English podcast or Western pop commentary)`,
+  India: `REGIONAL MUSIC RULE (India audience):
+- TONE is the #1 priority — always match the emotional energy of the script first
+- You CAN and SHOULD suggest global/Western artists if they perfectly match the tone (e.g. motivational gym → "Eye of the Tiger", "Lose Yourself by Eminem", "Stronger by Kanye West" are 100% valid)
+- Prefer Indian artists only when they match the tone equally well (Arijit Singh for emotional, AR Rahman for cinematic/motivational, Ritviz for calm/chill)
+- DO NOT default to Punjabi party songs (Badshah, Diljit, AP Dhillon) unless the topic is explicitly about parties, dancing, fun, or Punjabi culture
+- For fitness/gym + motivational tone: power anthems — "Eye of the Tiger", Eminem, David Guetta, Hans Zimmer, or AR Rahman orchestral
+- For finance/business/motivational: cinematic backgrounds, Linkin Park, Eminem, AR Rahman, Hans Zimmer
+- For romantic/lifestyle: Arijit Singh, Pritam, Ed Sheeran, indie pop
+- For comedy/fun/entertainment: Bollywood peppy songs, Badshah, quirky upbeat tracks
+- Royalty-free picks: Hoopr.ai (best for Indian creators), Pixabay, YouTube Audio Library
+- searchUrl for popular songs: use YouTube search`,
 
   US: `REGIONAL MUSIC RULE:
 The audience is the US. Pick music that resonates with American culture:
 - Popular: current Billboard/trending artists relevant to the niche
 - Royalty-free: Epidemic Sound, Artlist, Musicbed, YouTube Audio Library`,
+
 
   UK: `REGIONAL MUSIC RULE:
 The audience is the UK. Pick music that resonates with British culture:
@@ -1030,8 +1033,30 @@ const getRegionalMusicContext = (audience) => REGIONAL_MUSIC_CONTEXT[audience] |
 const recommendSongs = async ({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience = 'India', language = 'en' }) => {
   const regionalMusicRule = getRegionalMusicContext(audience)
 
+  // Tone-to-music guide — defines the EMOTIONAL STYLE, not a fixed artist list.
+  // The AI should freely pick ANY real artist worldwide; examples below are style references only.
+  const TONE_MUSIC_GUIDE = {
+    motivational : 'MOTIVATIONAL tone — style: POWERFUL, DRIVING, TRIUMPHANT. Cinematic power anthems, workout build-ups, triumph tracks. Style ref: "Eye of the Tiger" energy, Rocky-style anthems, orchestral builds. Aim for 1-2 Hindi/Indian tracks (AR Rahman, Shankar-Ehsaan-Loy, KK, or current Indian motivational artists) + 1 global track (can be any era/genre that fits). DO NOT pick party, dance, or casual songs.',
+    educational  : 'EDUCATIONAL tone — style: CALM, FOCUSED, CLEAR. Lo-fi, soft instrumentals, study beats, ambient. Aim for a mix of Indian lo-fi/ambient artists + global lo-fi artists. Avoid lyrics-heavy or high-energy tracks.',
+    inspirational: 'INSPIRATIONAL tone — style: WARM, UPLIFTING, HOPEFUL. Cinematic swells, feel-good anthems, emotionally positive. Include Indian artists who make uplifting music + global uplifting artists from any genre.',
+    funny        : 'FUNNY/COMEDY tone — style: QUIRKY, PLAYFUL, LIGHTHEARTED. Fun pop, peppy Bollywood, retro silly tracks, quirky instrumentals. Include both Indian fun/peppy tracks + global fun/upbeat tracks.',
+    emotional    : 'EMOTIONAL tone — style: TENDER, SOULFUL, INTIMATE. Slow ballads, soft piano, heartfelt vocals. Include Indian emotional ballads + global emotional songs. Nothing uptempo.',
+    conversational: 'CONVERSATIONAL tone — style: LIGHT, NEUTRAL, UNOBTRUSIVE. Backgrounds that never overpower speech. Include Indian light ambient/acoustic + global lo-fi/acoustic.',
+    storytelling : 'STORYTELLING tone — style: CINEMATIC, NARRATIVE, BUILDING. Orchestral builds, ambient journeys, score-like tracks. Include Indian cinematic composers + global film score-style music.',
+    controversial: 'CONTROVERSIAL/BOLD tone — style: INTENSE, DRAMATIC, CONFRONTATIONAL. Heavy beats, dark cinematic, assertive rap or orchestral. Include bold Indian tracks + global dramatic music.',
+    romantic     : 'ROMANTIC tone — style: WARM, INTIMATE, MELODIC. Acoustic love songs, soft vocals, gentle instrumentals. Include Indian romantic songs + global romantic tracks.',
+  }
+  const toneKey = (tone || '').toLowerCase().replace(/[^a-z]/g, '')
+  const toneMusicGuide = Object.entries(TONE_MUSIC_GUIDE).find(([k]) => toneKey.includes(k))?.[1]
+    || `Tone is "${tone || 'engaging'}" — pick songs whose emotional feel perfectly matches this tone. Mix Hindi/Indian and global artists freely.`
+
   const prompt = `
-You are a music supervisor who picks background tracks for viral Instagram Reels and YouTube Shorts. You have deep knowledge of regional music markets worldwide — Bollywood, K-pop, Latin pop, Afrobeats, Western pop — and know exactly which songs creators in each market actually use.
+You are a music supervisor who picks background tracks for viral Instagram Reels and YouTube Shorts.
+
+⚠️ #1 RULE — TONE COMES FIRST: Every song you pick MUST emotionally match the script's tone. Regional preference is secondary.
+
+TONE INSTRUCTION (non-negotiable):
+${toneMusicGuide}
 
 ${regionalMusicRule}
 
@@ -1049,13 +1074,17 @@ Music vibe already identified: ${genre || 'upbeat'}, ${mood || 'energetic'}, ~${
 YOUR TASK: Pick exactly 6 songs — 3 popular/well-known + 3 royalty-free/creator-safe.
 
 STRICT RULES:
-1. FOLLOW THE REGIONAL MUSIC RULE ABOVE — it is the most important instruction
-2. Read the topic carefully — if the topic mentions a specific music genre, artist, language, or culture, pick songs from that exact world
-3. Match the emotional energy of the script (hook tension → body momentum → CTA punch)
-4. BPM must align with the script's speech and edit pace
-5. Only recommend songs that actually exist and are genuinely available
-6. For royalty-free: specify the library (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library, Hoopr.ai)
-7. searchUrl: for popular songs use YouTube search; for royalty-free use the library's search page
+1. TONE IS KING — every song's emotional energy MUST match the tone above. Wrong vibe = wrong pick, no matter how popular the song.
+2. ARTIST FREEDOM — you can pick ANY artist from ANY country, language, or era. Do not limit yourself to a predefined list.
+3. LANGUAGE MIX — among the 3 popular picks, include BOTH Hindi/Indian songs AND global/English songs (aim for roughly 1-2 Indian + 1-2 global). Never pick all songs from one language.
+4. VARIETY — do NOT repeat artists. All 6 songs should be from different artists.
+5. Read the topic carefully — if it mentions a specific culture, genre, or language, lean into that.
+6. Match emotional energy: hook tension → body momentum → CTA punch.
+7. BPM must match the script's speech pace and edit rhythm.
+8. DO NOT HALLUCINATE SONGS: Only recommend real, existing songs by the real artist. If you are not 100% sure a song exists, pick a different one.
+9. For royalty-free: specify the library (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library, Hoopr.ai).
+10. searchUrl: for popular songs use YouTube search; for royalty-free use the library's search page.
+11. NEVER suggest party/dance/casual songs for serious tones (motivational, educational, inspirational).
 
 Return ONLY valid JSON, no markdown, no code blocks:
 {
@@ -1066,6 +1095,7 @@ Return ONLY valid JSON, no markdown, no code blocks:
       "bpm": 120,
       "energy": "high",
       "mood": "2-3 word mood",
+      "reason": "1 concise sentence explaining exactly why this song's specific vibe matches the script's hook and tone.",
       "royaltyFree": false,
       "library": null,
       "searchUrl": "https://www.youtube.com/results?search_query=Song+Title+Artist+Name"
@@ -1082,8 +1112,22 @@ Return ONLY valid JSON, no markdown, no code blocks:
     if (!Array.isArray(parsed.songs) || parsed.songs.length === 0) throw new Error('Empty songs')
     return parsed
   } catch {
-    // Fallback is region-aware
+    // Fallback is tone-aware — tone check runs BEFORE region check
+    const isMotivational = (tone || '').toLowerCase().includes('motiv') || (tone || '').toLowerCase().includes('inspir')
     const isIndia = audience === 'India' || language === 'hi'
+
+    if (isMotivational) {
+      return {
+        songs: [
+          { title: 'Lose Yourself', artist: 'Eminem', bpm: 86, energy: 'high', mood: 'intense, driven', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Lose+Yourself+Eminem' },
+          { title: 'Eye of the Tiger', artist: 'Survivor', bpm: 109, energy: 'high', mood: 'powerful, pumping', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Eye+of+the+Tiger+Survivor' },
+          { title: 'Stronger', artist: 'Kanye West', bpm: 104, energy: 'high', mood: 'confident, powerful', royaltyFree: false, library: null, searchUrl: 'https://www.youtube.com/results?search_query=Stronger+Kanye+West' },
+          { title: 'Gym Motivation Workout', artist: 'Various', bpm: 128, energy: 'high', mood: 'powerful, uplifting', royaltyFree: true, library: isIndia ? 'Hoopr.ai' : 'Pixabay', searchUrl: isIndia ? 'https://hoopr.ai/playlists/motivational' : 'https://pixabay.com/music/search/motivational/' },
+          { title: 'Epic Motivational', artist: 'Various', bpm: 120, energy: 'high', mood: 'cinematic, powerful', royaltyFree: true, library: 'Uppbeat', searchUrl: 'https://uppbeat.io/browse/music/motivational' },
+          { title: 'Workout Power Anthem', artist: 'Various', bpm: 130, energy: 'high', mood: 'energetic, pumping', royaltyFree: true, library: 'YouTube Audio Library', searchUrl: 'https://studio.youtube.com/channel/audio' },
+        ]
+      }
+    }
     if (isIndia) {
       return {
         songs: [
