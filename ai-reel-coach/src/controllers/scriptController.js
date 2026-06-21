@@ -254,4 +254,43 @@ const getOne = async (req, res, next) => {
   }
 };
 
-module.exports = { checkQuota, save, generateStream, generate, getAll, getOne };
+// ─── POST /api/scripts/retake ────────────────────────────────────
+// Free re-roll on the same topic (e.g. user changed the tone). Capped on the
+// client (MAX_RETAKES per topic), so it does NOT consume a plan generation.
+const retake = async (req, res, next) => {
+  try {
+    const { topic, niche, tone, language, audience, duration } = req.body;
+    if (!topic || !topic.trim()) return res.status(400).json({ error: 'Topic is required.' });
+
+    const userRow = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { creatorStyle: true },
+    });
+    const voiceProfile = userRow?.creatorStyle ? JSON.parse(userRow.creatorStyle) : null;
+
+    const { hook, body, cta, fullScript } = await aiService.generateScript({
+      topic, niche, tone, language, audience, voiceProfile, duration,
+    });
+
+    const script = await prisma.script.create({
+      data: { userId: req.user.id, topic, niche: niche || null, tone: tone || null, hook, body, cta, fullScript, hookScore: 0 },
+    });
+
+    return res.json({ script: { id: script.id, topic, hook, body, cta, fullScript } });
+  } catch (err) { next(err); }
+};
+
+// ─── POST /api/scripts/refine ────────────────────────────────────
+// Targeted tweak of an existing script (chip instruction). Free — no quota cost.
+const refine = async (req, res, next) => {
+  try {
+    const { hook, body, cta, instruction, language, audience, topic } = req.body;
+    if (!instruction || !instruction.trim()) return res.status(400).json({ error: 'Refinement instruction is required.' });
+    if (!hook && !body && !cta) return res.status(400).json({ error: 'Nothing to refine yet.' });
+
+    const refined = await aiService.refineScript({ hook, body, cta, instruction, language, audience, topic });
+    return res.json({ script: refined });
+  } catch (err) { next(err); }
+};
+
+module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine };

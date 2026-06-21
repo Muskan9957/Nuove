@@ -40,6 +40,12 @@ router.post(
   controller.generate
 );
 
+// POST /api/scripts/retake (free re-roll on the same topic — e.g. tone change)
+router.post('/retake', aiLimiter, controller.retake);
+
+// POST /api/scripts/refine (targeted refinement of an existing script)
+router.post('/refine', aiLimiter, controller.refine);
+
 // GET /api/scripts
 router.get('/', controller.getAll);
 
