@@ -482,75 +482,47 @@ function TrendingBrief({ userName }) {
           {trends.slice(0, 3).map((trendItem, i) => {
             const isObj = typeof trendItem === 'object'
             const trend = isObj ? trendItem : { title: trendItem }
-            const FALLBACK_COLORS = [C.green, C.violet, C.pink]
-            const color    = CATEGORY_COLORS[trend.category] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
-            const rank     = String(i + 1).padStart(2, '0')
-            const srcMeta  = SOURCE_META[trend.source] || SOURCE_META.ai
+            const rank    = String(i + 1).padStart(2, '0')
+            const srcMeta = SOURCE_META[trend.source] || SOURCE_META.ai
             return (
               <div
                 key={i}
                 onClick={() => setSelectedTrend(trend)}
                 style={{
-                  position: 'relative',
-                  padding: '18px 20px 16px',
+                  padding: '16px 18px',
                   borderRadius: 16,
                   height: '100%',
-                  background: isLight
-                    ? 'rgba(255,255,255,0.97)'
-                    : 'var(--surface-card-deep)',
-                  border: `1px solid ${color}28`,
-                  overflow: 'hidden',
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--border)',
                   cursor: 'pointer',
-                  transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
-                  boxShadow: isLight
-                    ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
-                    : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`,
-                  display: 'flex', flexDirection: 'column',
+                  transition: 'border-color 0.18s ease, transform 0.18s ease',
+                  display: 'flex', flexDirection: 'column', gap: 8,
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-3px)'
-                  e.currentTarget.style.borderColor = `${color}60`
-                  e.currentTarget.style.boxShadow = isLight
-                    ? `0 12px 32px rgba(0,0,0,0.12), 0 0 0 1px ${color}30`
-                    : `0 14px 48px rgba(0,0,0,0.70), 0 0 28px ${color}20`
+                  e.currentTarget.style.transform   = 'translateY(-2px)'
+                  e.currentTarget.style.borderColor = C.amber
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.borderColor = `${color}28`
-                  e.currentTarget.style.boxShadow = isLight
-                    ? `0 2px 16px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.98) inset`
-                    : `0 4px 28px rgba(0,0,0,0.60), 0 1px 0 rgba(255,195,90,0.14) inset`
+                  e.currentTarget.style.transform   = 'translateY(0)'
+                  e.currentTarget.style.borderColor = 'var(--border)'
                 }}
               >
-                {/* Rank watermark ,  opacity on element so all hues render equally visible */}
-                <span style={{
-                  position: 'absolute', right: 12, top: 8,
-                  fontFamily: 'var(--font-creator)', fontWeight: 900,
-                  fontSize: '4rem', lineHeight: 1,
-                  color,
-                  opacity: isLight ? 0.14 : 0.20,
-                  userSelect: 'none', pointerEvents: 'none',
-                  letterSpacing: '-0.05em',
-                }}>{rank}</span>
-
-                {/* Top row: source chip */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                  {/* Source badge ,  where this trend came from */}
+                {/* Rank + source */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
-                    fontSize: '0.55rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                    padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em',
-                    background: `${srcMeta.color}15`, border: `1px solid ${srcMeta.color}35`,
-                    color: srcMeta.color, whiteSpace: 'nowrap',
+                    fontFamily: 'var(--font-creator)', fontWeight: 800,
+                    fontSize: '0.95rem', color: C.amber, letterSpacing: '-0.02em',
+                  }}>{rank}</span>
+                  <span style={{
+                    fontSize: '0.58rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                    color: 'var(--text-faint)', whiteSpace: 'nowrap',
                   }}>{srcMeta.label}</span>
                 </div>
 
                 {/* Title */}
                 <div style={{
-                  fontFamily: 'var(--font-creator)', fontWeight: 800,
-                  fontSize: '0.95rem', lineHeight: 1.35,
-                  letterSpacing: '-0.02em',
-                  color: 'var(--text)',
-                  marginBottom: 7, flex: 1,
+                  fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.35,
+                  letterSpacing: '-0.01em', color: 'var(--text)', flex: 1,
                 }}>
                   {trend.title}
                 </div>
@@ -558,8 +530,7 @@ function TrendingBrief({ userName }) {
                 {/* Description (truncated) */}
                 {trend.description && (
                   <div style={{
-                    fontSize: '0.74rem', color: 'var(--text-faint)',
-                    lineHeight: 1.5, marginBottom: 10,
+                    fontSize: '0.74rem', color: 'var(--text-faint)', lineHeight: 1.5,
                     display: '-webkit-box', WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical', overflow: 'hidden',
                   }}>
@@ -567,38 +538,13 @@ function TrendingBrief({ userName }) {
                   </div>
                 )}
 
-                {/* Hook preview */}
-                {trend.hook && (
-                  <div style={{
-                    fontSize: '0.68rem', color: color,
-                    fontFamily: 'var(--font-mono)', fontWeight: 600,
-                    lineHeight: 1.4, marginBottom: 10,
-                    padding: '6px 10px',
-                    background: `${color}0C`,
-                    borderRadius: 8, borderLeft: `2px solid ${color}60`,
-                    display: '-webkit-box', WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                  }}>
-                    💡 {trend.hook}
-                  </div>
-                )}
-
                 {/* CTA */}
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-                  fontWeight: 700, color, letterSpacing: '0.04em',
+                  display: 'flex', alignItems: 'center', gap: 5, marginTop: 2,
+                  fontSize: '0.72rem', fontWeight: 700, color: C.amber,
                 }}>
                   Write this script →
                 </div>
-
-                {/* Bottom accent */}
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0,
-                  height: 2,
-                  background: `linear-gradient(90deg, ${color}70, ${color}18, transparent)`,
-                  borderRadius: '0 0 16px 16px',
-                }} />
               </div>
             )
           })}
@@ -847,56 +793,98 @@ function StatsStrip({ scripts, logs, badges, streak, isLight }) {
   )
 }
 
-/* ─── Quick action launchers (Generate / Record / Captions) ───────── */
+/* ─── Quick action launchers ─────────────────────────────────────── */
+const QA_ICON = {
+  generate: <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />,
+  record:   <><path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" /></>,
+  captions: <><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="6" y1="10" x2="13" y2="10" /><line x1="6" y1="14" x2="17" y2="14" /></>,
+  advisor:  <><path d="M9 18h6M10 22h4" /><path d="M15.1 14c.2-1 .7-1.7 1.4-2.5A4.6 4.6 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.8 1.2 1.5 1.4 2.5" /></>,
+}
+function QaIcon({ name }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      {QA_ICON[name]}
+    </svg>
+  )
+}
+
 function QuickActions() {
   const { t } = useLang()
   const actions = [
-    { to: '/generate', emoji: '✍️', title: t('nav_generate'), sub: 'New script',      color: C.cyan   },
-    { to: '/record',   emoji: '🎬', title: t('nav_record'),   sub: 'Teleprompter',    color: C.pink   },
-    { to: '/captions', emoji: '💬', title: t('nav_captions'), sub: 'Captions & tags', color: C.teal   },
-    { to: '/coach',    emoji: '🧠', title: t('nav_coach'),    sub: 'Get advice',      color: C.violet },
+    { to: '/generate', icon: 'generate', title: t('nav_generate'), sub: 'New script'      },
+    { to: '/record',   icon: 'record',   title: t('nav_record'),   sub: 'Teleprompter'    },
+    { to: '/captions', icon: 'captions', title: t('nav_captions'), sub: 'Captions & tags' },
+    { to: '/coach',    icon: 'advisor',  title: t('nav_coach'),    sub: 'Get advice'      },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 28 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 30 }}>
       {actions.map(a => (
         <Link key={a.to} to={a.to} style={{ textDecoration: 'none' }}>
           <div
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9,
-              padding: '20px 12px 16px', borderRadius: 16, height: '100%',
+              display: 'flex', flexDirection: 'column', gap: 12,
+              padding: '18px 16px', borderRadius: 16, height: '100%',
               background: 'var(--surface-card)',
-              border: `1px solid ${a.color}30`,
-              boxShadow: '0 2px 14px rgba(0,0,0,0.04)',
-              transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+              border: '1px solid var(--border)',
+              transition: 'border-color 0.18s ease, transform 0.18s ease',
               cursor: 'pointer',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.transform   = 'translateY(-3px)'
-              e.currentTarget.style.borderColor = `${a.color}70`
-              e.currentTarget.style.boxShadow   = `0 10px 30px ${a.color}22`
+              e.currentTarget.style.borderColor = C.amber
+              e.currentTarget.style.transform   = 'translateY(-2px)'
+              const ic = e.currentTarget.querySelector('.qa-ic'); if (ic) ic.style.color = C.amber
             }}
             onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border)'
               e.currentTarget.style.transform   = 'translateY(0)'
-              e.currentTarget.style.borderColor = `${a.color}30`
-              e.currentTarget.style.boxShadow   = '0 2px 14px rgba(0,0,0,0.04)'
+              const ic = e.currentTarget.querySelector('.qa-ic'); if (ic) ic.style.color = 'var(--text-muted)'
             }}
           >
-            <div style={{
-              width: 46, height: 46, borderRadius: 13,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.45rem',
-              background: `${a.color}16`, border: `1px solid ${a.color}30`,
-            }}>{a.emoji}</div>
-            <div style={{
-              fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '0.92rem',
-              color: 'var(--text)', letterSpacing: '-0.01em',
-            }}>{a.title}</div>
-            <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.3 }}>
-              {a.sub}
+            <span className="qa-ic" style={{ color: 'var(--text-muted)', transition: 'color 0.18s ease', display: 'flex' }}>
+              <QaIcon name={a.icon} />
+            </span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', marginBottom: 2, letterSpacing: '-0.01em' }}>{a.title}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>{a.sub}</div>
             </div>
           </div>
         </Link>
       ))}
+    </div>
+  )
+}
+
+/* ─── Progress strip (streak + badges) ───────────────────────────── */
+function ProgressStrip({ streak, badgeCount, onOpenBadges }) {
+  const { t } = useLang()
+  const tileStyle = (clickable) => ({
+    flex: 1, display: 'flex', alignItems: 'center', gap: 12,
+    padding: '14px 16px', borderRadius: 14,
+    background: 'var(--surface-card)', border: '1px solid var(--border)',
+    cursor: clickable ? 'pointer' : 'default',
+  })
+  return (
+    <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+      <div style={tileStyle(false)}>
+        <span style={{ color: C.amber, display: 'flex' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3s4 3.5 4 8a4 4 0 0 1-8 0c0-1.3.4-2.4 1-3.3.5 1 1.2 1.6 2 1.6 0-2.2-1-4.3 1-6.3Z" /></svg>
+        </span>
+        <div>
+          <div style={{ fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text)', lineHeight: 1 }}>{streak || 0}</div>
+          <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', marginTop: 3 }}>{t('dash_day_streak')}</div>
+        </div>
+      </div>
+      <div style={tileStyle(true)} onClick={onOpenBadges}>
+        <span style={{ color: 'var(--text-muted)', display: 'flex' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="9" r="5" /><path d="M8.5 13 7 22l5-3 5 3-1.5-9" /></svg>
+        </span>
+        <div>
+          <div style={{ fontFamily: 'var(--font-creator)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text)', lineHeight: 1 }}>{badgeCount}</div>
+          <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', marginTop: 3 }}>{t('dash_badges')}</div>
+        </div>
+        <span style={{ marginLeft: 'auto', color: 'var(--text-faint)', fontSize: '0.7rem', fontWeight: 600 }}>View →</span>
+      </div>
     </div>
   )
 }
@@ -1079,16 +1067,16 @@ export default function Dashboard() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'nowrap' }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 7,
             padding: '4px 12px', borderRadius: 99,
-            background: `${mood.color}12`,
-            border: `1px solid ${mood.color}35`,
+            background: 'var(--surface2)',
+            border: '1px solid var(--border)',
             flexShrink: 0, whiteSpace: 'nowrap',
           }}>
-            <span style={{ fontSize: '0.88rem' }}>{mood.emoji}</span>
+            <span style={{ fontSize: '0.82rem' }}>{mood.emoji}</span>
             <span style={{
-              fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-              color: mood.color, textTransform: 'uppercase', letterSpacing: '0.1em',
+              fontSize: '0.64rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+              color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em',
             }}>{mood.label}</span>
           </div>
 
@@ -1098,17 +1086,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ─── Streak ───────────────────────────────────────────────── */}
-      <StreakBanner streak={streak} isLight={isLight} />
-
-      {/* ─── Quick actions: Generate / Record / Captions ──────────── */}
+      {/* ─── Quick actions ────────────────────────────────────────── */}
       <QuickActions />
 
-      {/* ─── Trending brief ───────────────────────────────────────── */}
+      {/* ─── Trending today ───────────────────────────────────────── */}
       <TrendingBrief userName={firstName} />
 
-      {/* ─── Badges shelf ─────────────────────────────────────────── */}
-      <BadgesShelf badges={badges} isLight={isLight} onOpenModal={() => setShowBadgeModal(true)} />
+      {/* ─── Progress: streak + badges ────────────────────────────── */}
+      <ProgressStrip streak={streak} badgeCount={badges.length} onOpenBadges={() => setShowBadgeModal(true)} />
 
       {/* ─── Badge Progress Modal ─────────────────────────────────── */}
       {showBadgeModal && (
