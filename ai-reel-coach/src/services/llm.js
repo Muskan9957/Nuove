@@ -53,8 +53,10 @@ async function complete(prompt, { system = '', history = [], maxTokens = 1024, t
         .join('\n');
       finalPrompt = `${transcript}\nUser: ${prompt}`;
     }
-    const res = await model.generateContent(finalPrompt);
-    return (res.response.text() || '').trim();
+    try {
+      const res = await model.generateContent(finalPrompt);
+      return (res.response.text() || '').trim();
+    } catch (err) { throw normalizeLLMError(err); }
   }
 
   // ── Anthropic ──
@@ -62,13 +64,29 @@ async function complete(prompt, { system = '', history = [], maxTokens = 1024, t
     ...(history || []).map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content })),
     { role: 'user', content: prompt },
   ];
-  const res = await anthropic().messages.create({
-    model     : MODELS.anthropic[tier] || MODELS.anthropic.default,
-    max_tokens: maxTokens,
-    ...(system ? { system } : {}),
-    messages,
-  });
-  return (res.content[0].text || '').trim();
+  try {
+    const res = await anthropic().messages.create({
+      model     : MODELS.anthropic[tier] || MODELS.anthropic.default,
+      max_tokens: maxTokens,
+      ...(system ? { system } : {}),
+      messages,
+    });
+    return (res.content[0].text || '').trim();
+  } catch (err) { throw normalizeLLMError(err); }
+}
+
+// Turn raw provider errors into clean, user-friendly messages. Rate-limit /
+// quota errors (e.g. Gemini free-tier daily cap) get a calm "try again" note
+// instead of leaking a scary "[GoogleGenerativeAI Error] 429 ..." to the user.
+function normalizeLLMError(err) {
+  const msg = String((err && err.message) || '');
+  if (/\b429\b|too many requests|quota|rate.?limit|RESOURCE_EXHAUSTED/i.test(msg)) {
+    const e = new Error('Our AI is handling a lot of requests right now. Please try again in a minute.');
+    e.status = 429;
+    e.retryable = true;
+    return e;
+  }
+  return err;
 }
 
 module.exports = { complete, PROVIDER, MODELS };
