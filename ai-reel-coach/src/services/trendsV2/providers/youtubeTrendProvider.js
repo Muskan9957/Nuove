@@ -43,6 +43,15 @@ async function fetchTrends(region = 'India', niche = 'general') {
   const key = process.env.YOUTUBE_API_KEY
   if (!key) return []
 
+  // "Global" = a genuine blend of major regions, not just US.
+  if (region === 'Global') {
+    const regions = ['US', 'UK', 'India']
+    const results = await Promise.all(regions.map(r => fetchTrends(r, niche).catch(() => [])))
+    return dedupeSignals(results.flat())
+      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+      .slice(0, 10)
+  }
+
   const regionCode = getRegionCode(region)
   const isGeneral = !niche || niche === 'general'
 

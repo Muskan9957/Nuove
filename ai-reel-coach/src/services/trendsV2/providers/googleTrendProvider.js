@@ -88,6 +88,15 @@ function newsUrl(query, geo) {
 }
 
 async function fetchTrends(region, niche) {
+  // "Global" = a genuine blend of major regions, not just US.
+  if (region === 'Global') {
+    const regions = ['US', 'UK', 'India']
+    const results = await Promise.all(regions.map(r => fetchTrends(r, niche).catch(() => [])))
+    return dedupeSignals(results.flat())
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 10)
+  }
+
   const geo = getGeo(region)
   let queries = NICHE_QUERIES[niche] || NICHE_QUERIES.general
   

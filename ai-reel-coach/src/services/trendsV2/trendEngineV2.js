@@ -59,9 +59,6 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
       const qualityScore = calculateQualityScore(title, description, scope);
       if (qualityScore < 40) continue; // Drop signal entirely if low quality
 
-      // 2. Trend Abstraction Layer
-      const abstractTitle = abstractTrendTopic(title, niche);
-
       // 3. Calculate creator relevance score (0-100) using raw title for key matches
       const creatorRelevanceScore = calculateCreatorRelevance(title, description, niche, scope);
       if (creatorRelevanceScore <= 20) continue; // Drop heavily penalized news items
@@ -81,7 +78,6 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
       allItems.push({
         ...sanitized,
         _originalTitle: title,
-        title: abstractTitle, // Use abstract title as default
         _sourceProvider: provider,
         _creatorRelevanceScore: creatorRelevanceScore,
         _trendType: trendType,
@@ -188,13 +184,13 @@ async function getTrendsV2(region, niche, scope = 'local') {
   // Use Claude to extract the broad topic title and move specific viral video references to the description.
   if (true) { // Always enable Claude enrichment to fix the viral video clickbait issue
     try {
-      const prompt = `You are a social media trend analyzer. You will be given an array of trend objects.
-Some of these trends are derived from specific viral YouTube videos with clickbait or overly specific titles (e.g., "I BOUGHT A NEW CAMERA!", or "This video is getting viral").
-Your job is to:
-1. Change the 'title' to be the broad, generic topic being discussed (e.g., "New Camera Gear Trends", "Fitness Diet Hacks").
-2. Change the 'description' to briefly explain the trend, and you may mention that a specific video about this is currently going viral.
-Do NOT change the evidence array or any other IDs.
-Return ONLY a valid JSON array of objects with the updated 'title' and 'description' fields corresponding to the input array: ${JSON.stringify(synthesizedTrends)}`;
+      const prompt = `You are a social-media trend editor. You will be given an array of REAL trend objects sourced from live YouTube and Google Trends data.
+For EACH item, rewrite the 'title' into a clean, specific, headline-style topic (about 4-9 words) that reflects what is ACTUALLY trending right now:
+- Remove clickbait, ALL-CAPS, emojis, channel names, hashtags and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
+- KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten it into a vague category (avoid outputs like "Sports News", "Creator Strategies", "Fitness Content", "Demand For X Is Rising").
+- Set 'description' to one short, factual sentence on what the trend is and why it's a good short-form video topic right now.
+Do NOT change the evidence array or any IDs. Keep the same array order and length.
+Return ONLY a valid JSON array of objects with the updated 'title' and 'description' fields: ${JSON.stringify(synthesizedTrends)}`;
 
       const enrichedTrends = await askClaude(prompt);
       if (Array.isArray(enrichedTrends) && enrichedTrends.length > 0) {
