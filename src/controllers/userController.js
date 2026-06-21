@@ -1,7 +1,17 @@
 const prisma = require('../config/prisma')
-const { updateStreak, checkAndAwardBadges } = require('../services/badgeService')
+const { updateStreak } = require('../services/badgeService');
 
 const VALID_LANGUAGES = ['en', 'hi', 'es', 'fr', 'pt']
+
+const getCurrentStreak = (user) => {
+  if (!user || !user.lastActiveDate || !user.streak) return 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (user.lastActiveDate === today || user.lastActiveDate === yesterday) {
+    return user.streak;
+  }
+  return 0;
+};
 
 // ─── GET /api/user/profile ────────────────────────────────────────
 const getProfile = async (req, res, next) => {
@@ -28,6 +38,8 @@ const getProfile = async (req, res, next) => {
     })
 
     if (!user) return res.status(404).json({ error: 'User not found.' })
+
+    user.streak = getCurrentStreak(user);
 
     return res.json({ user })
   } catch (err) {
@@ -72,14 +84,13 @@ const getBadges = async (req, res, next) => {
   }
 }
 
-// ─── POST /api/user/streak/ping ───────────────────────────────────
+// ─── POST /api/user/streak/ping ─────────────────────────────────────
 const pingStreak = async (req, res, next) => {
   try {
-    const newStreak = await updateStreak(req.user.id)
-    const newBadges = await checkAndAwardBadges(req.user.id)
-    return res.json({ newStreak, newBadges })
+    const newStreak = await updateStreak(req.user.id);
+    return res.json({ newStreak });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 

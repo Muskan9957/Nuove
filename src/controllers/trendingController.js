@@ -20,9 +20,17 @@ const getGreeting = async (req, res, next) => {
     const niche    = key.niche
     const scope    = key.scope
 
-    const data = await aiService.getRegionalGreeting(region, userLang, niche)
+    // AI greeting — fall back to a simple message if AI is unavailable (e.g. out of
+    // credits) so the brief still loads its real trends instead of failing entirely.
+    let data
+    try {
+      data = await aiService.getRegionalGreeting(region, userLang, niche)
+    } catch (err) {
+      console.warn('[trending] AI greeting unavailable, using fallback:', err.message)
+      data = { greeting: "Here's what's trending for creators right now.", trends: [] }
+    }
 
-    // Override the greeting trends with REAL niche trends from V2
+    // Override the greeting trends with REAL niche trends from V2 (works without AI)
     try {
       const realTrends = await trendEngineV2.getTrendsV2(region, niche, scope)
       if (realTrends && realTrends.length >= 3) {

@@ -9,45 +9,36 @@ const router = express.Router();
 // All script routes require login
 router.use(protect);
 
-// POST /api/scripts/generate
-router.post(
-  '/generate',
-  aiLimiter,
-  [
-    body('topic').trim().notEmpty().withMessage('Topic is required.').isLength({ max: 1000 }).withMessage('Topic must be under 1000 characters.'),
-    body('niche').optional().trim().isLength({ max: 100 }),
-    body('tone').optional().trim().isIn(['educational', 'funny', 'motivational', 'storytelling', 'controversial', 'conversational'])
-      .withMessage('Tone must be one of: educational, funny, motivational, storytelling, controversial, conversational'),
-  ],
-  controller.generate
-);
+// GET /api/scripts/check-quota
+router.get('/check-quota', controller.checkQuota);
 
-// POST /api/scripts/retake  — fresh script on same topic, free (max 5 per topic, tracked client-side)
+// POST /api/scripts/save (Vercel Edge posts here after streaming)
+router.post('/save', controller.save);
+
+// POST /api/scripts/generate-stream (SSE)
 router.post(
-  '/retake',
+  '/generate-stream',
   aiLimiter,
   [
     body('topic').trim().notEmpty().withMessage('Topic is required.').isLength({ max: 1000 }),
     body('niche').optional().trim().isLength({ max: 100 }),
     body('tone').optional().trim().isIn(['educational', 'funny', 'motivational', 'storytelling', 'controversial', 'conversational']),
   ],
-  controller.retake
+  controller.generateStream
 );
 
-// POST /api/scripts/refine  — iterate/refine an existing script (does NOT count against generation quota)
+// POST /api/scripts/generate
 router.post(
-  '/refine',
+  '/generate',
+  aiLimiter,
   [
-    body('hook').trim().notEmpty().withMessage('hook is required'),
-    body('body').trim().notEmpty().withMessage('body is required'),
-    body('cta').trim().notEmpty().withMessage('cta is required'),
-    body('instruction').trim().notEmpty().withMessage('Refinement instruction is required').isLength({ max: 500 }),
+    body('topic').trim().notEmpty().withMessage('Topic is required.').isLength({ max: 200 }),
+    body('niche').optional().trim().isLength({ max: 100 }),
+    body('tone').optional().trim().isIn(['educational', 'funny', 'motivational', 'storytelling', 'controversial', 'conversational'])
+      .withMessage('Tone must be one of: educational, funny, motivational, storytelling, controversial, conversational'),
   ],
-  controller.refine
+  controller.generate
 );
-
-// POST /api/scripts/songs — AI-curated song picks for a generated script
-router.post('/songs', aiLimiter, controller.songs);
 
 // GET /api/scripts
 router.get('/', controller.getAll);

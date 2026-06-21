@@ -1,9 +1,50 @@
-const router     = require('express').Router()
-const axios      = require('axios')
+const router  = require('express').Router()
 const { protect: auth } = require('../middleware/auth')
 const { getProfile, updateLanguage, getBadges, pingStreak } = require('../controllers/userController')
-const prisma     = require('../config/prisma')
-const aiService  = require('../services/aiService')
+const prisma  = require('../config/prisma')
+const aiService = require('../services/aiService')
+const razorpayService = require('../services/razorpayService')
+
+// ─── GET /api/user/export — download all of my data as JSON ───────
+router.get('/export', auth, async (req, res, next) => {
+  try {
+    const data = await prisma.user.findUnique({
+      where  : { id: req.user.id },
+      include: {
+        scripts        : true,
+        chatMessages   : true,
+        calendarEntries: true,
+        templates      : true,
+        performanceLogs: true,
+        badges         : true,
+      },
+    })
+    if (!data) return res.status(404).json({ error: 'User not found.' })
+    // Strip secrets before exporting
+    const { passwordHash, emailVerificationToken, passwordResetToken, passwordResetExpires, ...safe } = data
+    res.setHeader('Content-Disposition', 'attachment; filename="nuove-my-data.json"')
+    res.setHeader('Content-Type', 'application/json')
+    return res.send(JSON.stringify(safe, null, 2))
+  } catch (err) { next(err) }
+})
+
+// ─── DELETE /api/user/account — permanently delete my account ─────
+router.delete('/account', auth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where : { id: req.user.id },
+      select: { stripeSubId: true, plan: true },
+    })
+    // Cancel any active paid subscription first (best-effort — don't block deletion)
+    if (user?.stripeSubId && user.plan !== 'FREE') {
+      try { await razorpayService.cancelSubscription(user.stripeSubId, false) }
+      catch (e) { console.error('[delete-account] subscription cancel failed:', e.message) }
+    }
+    // Cascade-deletes scripts, chats, templates, usage counters, etc.
+    await prisma.user.delete({ where: { id: req.user.id } })
+    return res.json({ ok: true, message: 'Your account and all associated data have been permanently deleted.' })
+  } catch (err) { next(err) }
+})
 
 router.get('/profile',      auth, getProfile)
 router.patch('/language',   auth, updateLanguage)
@@ -95,26 +136,43 @@ const AVATAR_STYLES = {
 router.post('/generate-avatar', auth, async (req, res, next) => {
   try {
     const { style = 'cyberpunk' } = req.body
-
-    const STYLE_MAP = {
-      cyberpunk:   'bottts',
-      anime:       'adventurer',
-      fantasy:     'personas',
-      neon:        'rings',
-      minimal:     'shapes',
-      cosmic:      'identicon',
-      pixel:       'pixel-art',
-      watercolor:  'lorelei',
+    if (!process.env.FAL_API_KEY) {
+      console.error('FAL_API_KEY not set')
+      return res.status(503).json({ error: 'Avatar generation not configured.' })
     }
 
-    const dicebearStyle = STYLE_MAP[style] || 'bottts'
-    const seed = Math.random().toString(36).substring(2, 12)
-    const imageUrl = `https://api.dicebear.com/8.x/${dicebearStyle}/png?seed=${seed}&size=256`
+    const stylePrompt = AVATAR_STYLES[style] || AVATAR_STYLES.cyberpunk
+    const prompt = `${stylePrompt}, square avatar portrait, centered composition, high quality digital art, no text, no watermark`
+
+    console.log('fal.ai: calling with style=', style)
+
+    const axios = require('axios')
+    const falRes = await axios.post(
+      'https://fal.run/fal-ai/flux/schnell',
+      { prompt, image_size: 'square_hd', num_inference_steps: 4, num_images: 1 },
+      {
+        headers: {
+          'Authorization': `Key ${process.env.FAL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      }
+    )
+
+    console.log('fal.ai: HTTP', falRes.status, JSON.stringify(falRes.data).slice(0, 300))
+
+    const imageUrl = falRes.data?.images?.[0]?.url
+    if (!imageUrl) {
+      console.error('fal.ai: no image url in response:', JSON.stringify(falRes.data))
+      return res.status(502).json({ error: 'No image returned from fal.ai.' })
+    }
 
     res.json({ url: imageUrl })
   } catch (err) {
-    console.error('Avatar error:', err.message)
-    res.status(502).json({ error: 'Avatar generation failed.' })
+    const status = err.response?.status
+    const data   = err.response?.data
+    console.error('fal.ai error: HTTP', status, JSON.stringify(data) || err.message)
+    res.status(502).json({ error: `Avatar generation failed (${status || err.message}). Check Railway logs.` })
   }
 })
 
