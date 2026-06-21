@@ -148,9 +148,12 @@ function TrendingBrief({ userName }) {
   const [loading, setLoading]               = useState(true)
 
   const SOURCE_META = {
-    google:  { label: '🔍 Google Trends', color: '#4285F4' },
-    youtube: { label: '📺 YouTube',        color: '#FF0000' },
-    ai:      { label: '✨ AI Pick',         color: C.violet  },
+    google:    { label: '🔍 Google Trends' },
+    youtube:   { label: '📺 YouTube' },
+    twitter:   { label: '𝕏 Trending' },
+    instagram: { label: '📸 Instagram' },
+    spotify:   { label: '🎵 Spotify' },
+    news:      { label: '📰 News' },
   }
 
   const fetchBrief = useCallback((force = false) => {
@@ -483,7 +486,9 @@ function TrendingBrief({ userName }) {
             const isObj = typeof trendItem === 'object'
             const trend = isObj ? trendItem : { title: trendItem }
             const rank    = String(i + 1).padStart(2, '0')
-            const srcMeta = SOURCE_META[trend.source] || SOURCE_META.ai
+            const srcMeta = trend.source && trend.source !== 'ai'
+              ? (SOURCE_META[trend.source] || { label: trend.source })
+              : null
             return (
               <div
                 key={i}
@@ -513,10 +518,12 @@ function TrendingBrief({ userName }) {
                     fontFamily: 'var(--font-creator)', fontWeight: 800,
                     fontSize: '0.95rem', color: C.amber, letterSpacing: '-0.02em',
                   }}>{rank}</span>
-                  <span style={{
-                    fontSize: '0.58rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
-                    color: 'var(--text-faint)', whiteSpace: 'nowrap',
-                  }}>{srcMeta.label}</span>
+                  {srcMeta && (
+                    <span style={{
+                      fontSize: '0.58rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                      color: 'var(--text-faint)', whiteSpace: 'nowrap',
+                    }}>{srcMeta.label}</span>
+                  )}
                 </div>
 
                 {/* Title */}
