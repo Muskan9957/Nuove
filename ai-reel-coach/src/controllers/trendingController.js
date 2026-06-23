@@ -30,18 +30,27 @@ const getGreeting = async (req, res, next) => {
       data = { greeting: "Here's what's trending for creators right now.", trends: [] }
     }
 
-    // Override the greeting trends with REAL niche trends from V2 (works without AI)
+    // Use CACHED trends for the greeting. The /api/trending endpoint owns the
+    // live fetch + caching, so here we just read the latest cached topics — a
+    // fast DB read instead of running the full ~10s trend engine on every
+    // dashboard load (that was the main source of the slow brief).
     try {
-      const realTrends = await trendEngineV2.getTrendsV2(region, niche, scope)
-      if (realTrends && realTrends.length >= 3) {
-        data.trends = realTrends.slice(0, 3).map(t => ({
-          title: t.title,
-          description: t.description || 'Trending now',
-          category: t.category || niche
-        }))
+      const cached = await prisma.trendingCache.findFirst({
+        where  : { niche, region, scope },
+        orderBy: { date: 'desc' },
+      })
+      if (cached) {
+        const topics = JSON.parse(cached.topics)
+        if (Array.isArray(topics) && topics.length >= 3) {
+          data.trends = topics.slice(0, 3).map(t => ({
+            title: t.title,
+            description: t.description || 'Trending now',
+            category: t.category || niche,
+          }))
+        }
       }
     } catch (err) {
-      console.warn('[trending] V2 greeting enrichment failed:', err.message)
+      console.warn('[trending] greeting cache read failed:', err.message)
     }
 
     // Strip internal flag before sending to client

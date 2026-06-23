@@ -181,28 +181,35 @@ async function getTrendsV2(region, niche, scope = 'local') {
      return staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope);
   }
 
-  // Use Claude to extract the broad topic title and move specific viral video references to the description.
-  if (true) { // Always enable Claude enrichment to fix the viral video clickbait issue
+  // Clean up titles via the LLM. We send ONLY the titles/descriptions (tiny
+  // payload) — sending the full objects was slow and the model often corrupted
+  // the large JSON, which dropped us back to raw clickbait titles.
+  if (synthesizedTrends.length > 0) {
     try {
-      const prompt = `You are a social-media trend editor. You will be given an array of REAL trend objects sourced from live YouTube and Google Trends data.
-For EACH item, rewrite the 'title' into a clean, specific, headline-style topic (about 4-9 words) that reflects what is ACTUALLY trending right now:
-- Remove clickbait, ALL-CAPS, emojis, channel names, hashtags and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
-- KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten it into a vague category (avoid outputs like "Sports News", "Creator Strategies", "Fitness Content", "Demand For X Is Rising").
-- Set 'description' to one short, factual sentence on what the trend is and why it's a good short-form video topic right now.
-Do NOT change the evidence array or any IDs. Keep the same array order and length.
-Return ONLY a valid JSON array of objects with the updated 'title' and 'description' fields: ${JSON.stringify(synthesizedTrends)}`;
+      const slim = synthesizedTrends.map((t, i) => ({ i, title: t.title, description: t.description || '' }));
+      const prompt = `You are a social-media trend editor. Below is a JSON array of REAL trends from live YouTube and Google Trends data.
+For EACH item, rewrite "title" into a clean, specific, headline-style topic (about 4-9 words) reflecting what is ACTUALLY trending:
+- Remove clickbait, ALL-CAPS, emojis, channel names, hashtags, publisher suffixes and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
+- KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten into a vague category (avoid "Sports News", "Fitness Content", "Demand For X Is Rising").
+- Rewrite "description" to one short factual sentence on what the trend is and why it's a good short-form video topic.
+Return ONLY a JSON array, each item exactly {"i": <same index number>, "title": "...", "description": "..."} — same length and order.
+Input: ${JSON.stringify(slim)}`;
 
-      const enrichedTrends = await askClaude(prompt);
-      if (Array.isArray(enrichedTrends) && enrichedTrends.length > 0) {
-        synthesizedTrends = synthesizedTrends.map((trend, index) => ({
-          ...trend,
-          title: cleanTrendText(enrichedTrends[index]?.title) || trend.title,
-          description: cleanTrendText(enrichedTrends[index]?.description) || trend.description,
-        }));
+      const enriched = await askClaude(prompt);
+      if (Array.isArray(enriched) && enriched.length) {
+        const byIndex = {};
+        enriched.forEach((e, k) => { const idx = (e && Number.isInteger(e.i)) ? e.i : k; byIndex[idx] = e; });
+        synthesizedTrends = synthesizedTrends.map((trend, index) => {
+          const e = byIndex[index] || {};
+          return {
+            ...trend,
+            title: cleanTrendText(e.title) || trend.title,
+            description: cleanTrendText(e.description) || trend.description,
+          };
+        });
       }
     } catch (err) {
-      console.log('[TrendEngineV2] Claude description enrichment failed or skipped.');
-      console.error(err.message || err);
+      console.log('[TrendEngineV2] Trend title enrichment failed, using cleaned raw titles.');
     }
   }
 
@@ -243,6 +250,20 @@ Return ONLY a valid JSON array of objects with the updated 'title' and 'descript
       createdAt: new Date().toISOString()
     };
   });
+
+  // Floor: never show fewer than 3 cards. If live providers were sparse for this
+  // niche/scope, top up with static fallback so the brief never looks broken.
+  if (finalTrends.length < 3) {
+    try {
+      const fillers = staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope) || [];
+      for (const f of fillers) {
+        if (finalTrends.length >= 4) break;
+        if (!finalTrends.some(t => (t.title || '').toLowerCase() === (f.title || '').toLowerCase())) {
+          finalTrends.push(f);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
 
   return finalTrends;
 }

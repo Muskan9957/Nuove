@@ -18,10 +18,10 @@ app.listen(PORT, () => {
   warmTrendingCache()
 });
 
-// Trimmed to stay well within the Gemini free tier — only the few most-used
-// niches are pre-warmed (3 calls per boot vs 16). Everything else generates
-// on first request and is then cached, so users still get instant results.
-const WARM_NICHES    = ['general', 'fitness', 'finance']
+// Pre-warm the most-used niches so the first dashboard load is instant.
+// IMPORTANT: use the SAME normalized niche keys the request path resolves to
+// (e.g. 'business & finance', not 'finance') or the cache lookups never hit.
+const WARM_NICHES    = ['general', 'fitness', 'business & finance', 'gaming', 'food', 'travel', 'ai & technology']
 const WARM_LANGUAGES = ['en']
 
 async function warmTrendingCache() {
