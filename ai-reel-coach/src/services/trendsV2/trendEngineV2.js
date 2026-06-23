@@ -152,6 +152,31 @@ async function getTrendsV2(region, niche, scope = 'local') {
     'spotify': spotifyData
   };
 
+  // For Global, drop anything that is ALSO trending locally in India, so the
+  // Global tab stays distinct from Local — even for globally-viral Indian
+  // content (e.g. a Punjabi song trending in both US/UK and India).
+  if (normalizedScope === 'global') {
+    try {
+      const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      const [inYt, inGg] = await Promise.all([
+        youtubeTrendProvider.fetchTrends('India', normalizedNiche).catch(() => []),
+        googleTrendProvider.fetchTrends('India', normalizedNiche).catch(() => []),
+      ]);
+      const localItems = [...inYt, ...inGg].map(it => norm(it.title)).filter(Boolean);
+      const localWordSets = localItems.map(t => new Set(t.split(' ').filter(w => w.length > 3)));
+      const isLocal = (title) => {
+        const t = norm(title);
+        if (!t) return false;
+        if (localItems.includes(t)) return true;
+        const w = new Set(t.split(' ').filter(x => x.length > 3));
+        return localWordSets.some(ls => [...w].filter(x => ls.has(x)).length >= 2);
+      };
+      for (const prov of Object.keys(rawData)) {
+        rawData[prov] = (rawData[prov] || []).filter(it => !isLocal(it.title));
+      }
+    } catch (e) { /* if the India comparison fetch fails, keep global as-is */ }
+  }
+
   // FIX 1: Enforce Niche Priorities
   const priorityData = {};
   const allowedProviders = [...priorities.primary, ...priorities.secondary];
