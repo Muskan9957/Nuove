@@ -89,4 +89,42 @@ function normalizeLLMError(err) {
   return err;
 }
 
-module.exports = { complete, PROVIDER, MODELS };
+/**
+ * Multimodal completion (text + images). Provider-agnostic.
+ * @param {string} prompt
+ * @param {Array<{data:string, mimeType:string}>} images  base64 image data
+ * @param {object} opts { maxTokens, tier }
+ * @returns {Promise<string>}
+ */
+async function completeVision(prompt, images = [], { maxTokens = 1600, tier = 'default' } = {}) {
+  if (PROVIDER === 'gemini') {
+    const model = gemini().getGenerativeModel({
+      model: MODELS.gemini[tier] || MODELS.gemini.default,
+      generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const parts = [
+      { text: prompt },
+      ...images.map(img => ({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.data } })),
+    ];
+    try {
+      const res = await model.generateContent(parts);
+      return (res.response.text() || '').trim();
+    } catch (err) { throw normalizeLLMError(err); }
+  }
+
+  // ── Anthropic ──
+  const content = [
+    ...images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mimeType || 'image/jpeg', data: img.data } })),
+    { type: 'text', text: prompt },
+  ];
+  try {
+    const res = await anthropic().messages.create({
+      model     : MODELS.anthropic[tier] || MODELS.anthropic.default,
+      max_tokens: maxTokens,
+      messages  : [{ role: 'user', content }],
+    });
+    return (res.content[0].text || '').trim();
+  } catch (err) { throw normalizeLLMError(err); }
+}
+
+module.exports = { complete, completeVision, PROVIDER, MODELS };

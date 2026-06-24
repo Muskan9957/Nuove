@@ -1116,10 +1116,7 @@ const analyzeReelContent = async ({ imageBase64Array, mediaTypes, audience = 'In
   const audienceCtx   = getAudienceContext(audience)
   const langLabel     = { en: 'English', hi: 'Hindi', es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', ar: 'Arabic', id: 'Bahasa Indonesia', ja: 'Japanese', ko: 'Korean' }[language] || 'English'
 
-  const imageContent = imageBase64Array.map((data, i) => ({
-    type  : 'image',
-    source: { type: 'base64', media_type: mediaTypes[i] || 'image/jpeg', data },
-  }))
+  const images = imageBase64Array.map((data, i) => ({ data, mimeType: mediaTypes[i] || 'image/jpeg' }))
 
   const prompt = `You are a senior social media strategist who builds complete Instagram Reel/Short post packages for creators.
 
@@ -1153,17 +1150,7 @@ Then return ONLY valid JSON — no markdown, no code fences:
   "bestDay":  "e.g. Tuesday or Thursday"
 }`
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const response = await client.messages.create({
-    model     : MODEL,
-    max_tokens: 1600,
-    messages  : [{
-      role   : 'user',
-      content: [...imageContent, { type: 'text', text: prompt }],
-    }],
-  })
-
-  const raw   = response.content[0].text
+  const raw   = await llm.completeVision(prompt, images, { maxTokens: 1600, tier: 'default' })
   const match = raw.match(/\{[\s\S]*\}/)
   if (!match) throw new Error('Could not parse vision response')
   return JSON.parse(match[0])
