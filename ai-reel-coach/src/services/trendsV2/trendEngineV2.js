@@ -157,10 +157,12 @@ async function getTrendsV2(region, niche, scope = 'local') {
   // content (e.g. a Punjabi song trending in both US/UK and India).
   if (normalizedScope === 'global') {
     try {
+      // Exclude whatever is trending in the user's OWN country (their Local tab).
+      const localRegion = (normalizedRegion && normalizedRegion !== 'Global') ? normalizedRegion : 'India';
       const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
       const [inYt, inGg] = await Promise.all([
-        youtubeTrendProvider.fetchTrends('India', normalizedNiche).catch(() => []),
-        googleTrendProvider.fetchTrends('India', normalizedNiche).catch(() => []),
+        youtubeTrendProvider.fetchTrends(localRegion, normalizedNiche).catch(() => []),
+        googleTrendProvider.fetchTrends(localRegion, normalizedNiche).catch(() => []),
       ]);
       const localItems = [...inYt, ...inGg].map(it => norm(it.title)).filter(Boolean);
       const localWordSets = localItems.map(t => new Set(t.split(' ').filter(w => w.length > 3)));

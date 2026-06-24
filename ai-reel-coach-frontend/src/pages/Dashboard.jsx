@@ -157,7 +157,9 @@ function TrendingBrief({ userName }) {
   }
 
   const fetchBrief = useCallback((force = false) => {
-    const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
+    // Always send the user's own country; `scope` (local/global) decides whether
+    // the backend pulls their country's trends or a worldwide blend that excludes it.
+    const region = getSavedRegion() || 'India'
     const rawNiche = nicheRef.current
     const activeNiche = rawNiche === 'All' ? 'general' : rawNiche
     const currentScope = scopeRef.current
