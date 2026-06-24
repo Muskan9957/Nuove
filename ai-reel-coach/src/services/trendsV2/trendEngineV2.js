@@ -30,16 +30,30 @@ function generateId(title) {
   return 'tr_' + crypto.createHash('md5').update(title).digest('hex').substring(0, 10);
 }
 
+function extractJsonArray(content) {
+  if (!content) return null;
+  let s = String(content).trim().replace(/```(?:json)?/gi, '').replace(/```/g, '');
+  const start = s.indexOf('[');
+  const end = s.lastIndexOf(']');
+  if (start === -1 || end === -1 || end < start) return null;
+  let jsonStr = s.substring(start, end + 1).replace(/,\s*([\]}])/g, '$1'); // strip trailing commas
+  try { return JSON.parse(jsonStr); } catch { return null; }
+}
+
 async function askClaude(prompt) {
-  // Routes to the configured provider (Gemini/Claude). 'fast' tier — title cleanup is simple.
-  const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
-  try {
-    const jsonStr = content.substring(content.indexOf('['), content.lastIndexOf(']') + 1);
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.error('LLM output that failed to parse:', content);
-    throw new Error('Failed to parse LLM response as JSON');
+  // Routes to the configured provider (Gemini/Claude). Retries once on a parse
+  // failure — Gemini occasionally emits slightly-malformed JSON.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
+    const parsed = extractJsonArray(content);
+    if (Array.isArray(parsed)) return parsed;
+    if (attempt === 0) {
+      prompt += '\n\nIMPORTANT: your previous reply was not valid JSON. Reply with ONLY a valid JSON array — no markdown fences, no commentary.';
+      continue;
+    }
+    console.error('LLM output that failed to parse:', String(content).slice(0, 300));
   }
+  throw new Error('Failed to parse LLM response as JSON');
 }
 
 // Map provider signals to the final trend schema without inventing trend titles.
@@ -66,14 +80,8 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
       // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
       const trendType = classifyTrend(title, description);
 
-      // 5. Compute base raw score
+      // 5. Compute base raw score (normalized per-source below)
       const baseScore = sanitized.sourceScore || sanitized.viewCount || sanitized.value || sanitized.popularity || 0;
-
-      // 6. Adjust rank score based on relevance multiplier, trend type weight, and quality score weighting
-      const relevanceMultiplier = creatorRelevanceScore / 50.0;
-      const typeWeight = TREND_TYPE_PRIORITIES[trendType] || 1.0;
-      const qualityMultiplier = qualityScore / 100.0;
-      const adjustedRankScore = baseScore * relevanceMultiplier * typeWeight * qualityMultiplier;
 
       allItems.push({
         ...sanitized,
@@ -81,10 +89,32 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
         _sourceProvider: provider,
         _creatorRelevanceScore: creatorRelevanceScore,
         _trendType: trendType,
-        _rankScore: adjustedRankScore,
         _qualityScore: qualityScore,
+        _baseScore: baseScore,
+        _relMult: creatorRelevanceScore / 50.0,
+        _typeWeight: TREND_TYPE_PRIORITIES[trendType] || 1.0,
+        _qualMult: qualityScore / 100.0,
       });
     }
+  }
+
+  // Normalize the raw popularity score WITHIN each provider, so a top YouTube
+  // video (millions of views) doesn't automatically outrank a top local Google
+  // Trends search. This lets genuinely-local signals surface for every country
+  // instead of only globally-viral YouTube content.
+  const maxByProvider = {};
+  for (const it of allItems) {
+    maxByProvider[it._sourceProvider] = Math.max(maxByProvider[it._sourceProvider] || 0, it._baseScore || 0);
+  }
+  // Source weighting: LOCAL favours geo-specific Google Trends/News (most local);
+  // GLOBAL favours YouTube (worldwide virality).
+  const SOURCE_WEIGHT = scope === 'global'
+    ? { 'google-trends': 1.0,  youtube: 1.25, twitter: 0.9, spotify: 1.0 }
+    : { 'google-trends': 1.35, youtube: 1.0,  twitter: 0.9, spotify: 1.0 };
+  for (const it of allItems) {
+    const norm = (it._baseScore || 0) / (maxByProvider[it._sourceProvider] || 1); // 0..1 within source
+    const weight = SOURCE_WEIGHT[it._sourceProvider] || 1.0;
+    it._rankScore = (0.2 + norm) * weight * it._relMult * it._typeWeight * it._qualMult;
   }
 
   const selectedItems = dedupeSignals(allItems)
@@ -218,6 +248,7 @@ async function getTrendsV2(region, niche, scope = 'local') {
 For EACH item, rewrite "title" into a clean, specific, headline-style topic (about 4-9 words) reflecting what is ACTUALLY trending:
 - Remove clickbait, ALL-CAPS, emojis, channel names, hashtags, publisher suffixes and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
 - KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten into a vague category (avoid "Sports News", "Fitness Content", "Demand For X Is Rising").
+- If the title is NOT in English (e.g. Japanese, Korean, Arabic), TRANSLATE it into clear, natural English while keeping proper nouns.
 - Rewrite "description" to one short factual sentence on what the trend is and why it's a good short-form video topic.
 Return ONLY a JSON array, each item exactly {"i": <same index number>, "title": "...", "description": "..."} — same length and order.
 Input: ${JSON.stringify(slim)}`;

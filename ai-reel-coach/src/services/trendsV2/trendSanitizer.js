@@ -65,12 +65,15 @@ function isReadableTrendText(value) {
   const text = cleanTrendText(value)
   if (text.length < 3 || text.length > 140) return false
   if (/[�]/.test(text)) return false
-  const letters = text.match(/[A-Za-z0-9]/g)?.length || 0
-  const nonLatinLetters = text.match(/[\u0370-\u1FFF\u2C00-\uD7FF\uF900-\uFFFF]/g)?.length || 0
-  const totalLetters = letters + nonLatinLetters
-  if (totalLetters > 0 && letters / totalLetters < 0.65) return false
+  // Allow ANY script (Latin, CJK, Arabic, Devanagari, Cyrillic \u2026) so genuine
+  // local trends in Japan/Korea/Arab regions aren't dropped; they get cleaned
+  // and translated to English downstream.
+  const real = text.match(/[\p{L}\p{N}]/gu)?.length || 0
+  if (real / Math.max(text.length, 1) < 0.45) return false
   const noisy = text.match(/[^A-Za-z0-9\s.,:;!?&'"()\-–—/#@$%+]/g)?.length || 0
-  return noisy / Math.max(text.length, 1) < 0.18
+  // The real-letter ratio above is the gate. Obvious clickbait (hashtags,
+  // emoji, pipes) is handled by the quality scorer, so non-Latin scripts pass.
+  return true
 }
 
 function isNicheRelevant(value, niche) {
