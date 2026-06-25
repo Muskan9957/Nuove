@@ -110,11 +110,17 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
   // GLOBAL favours YouTube (worldwide virality).
   const SOURCE_WEIGHT = scope === 'global'
     ? { 'google-trends': 1.0,  youtube: 1.25, twitter: 0.9, spotify: 1.0 }
-    : { 'google-trends': 1.35, youtube: 1.0,  twitter: 0.9, spotify: 1.0 };
+    : { 'google-trends': 1.35, youtube: 0.7,  twitter: 0.9, spotify: 1.0 };
   for (const it of allItems) {
     const norm = (it._baseScore || 0) / (maxByProvider[it._sourceProvider] || 1); // 0..1 within source
     const weight = SOURCE_WEIGHT[it._sourceProvider] || 1.0;
-    it._rankScore = (0.2 + norm) * weight * it._relMult * it._typeWeight * it._qualMult;
+    // For LOCAL, the geo-specific Google Trends *searches* (RSS, growth:rising)
+    // are what people in that country are actually searching right now — the
+    // most authentically-local signal. Boost them above generic "viral news"
+    // and global YouTube so the brief feels local, not global.
+    const isLocalSearch = it.sourceType === 'google-trends-rss' || it.growth === 'rising';
+    const localBonus = (scope !== 'global' && isLocalSearch) ? 1.7 : 1.0;
+    it._rankScore = (0.2 + norm) * weight * localBonus * it._relMult * it._typeWeight * it._qualMult;
   }
 
   const selectedItems = dedupeSignals(allItems)
