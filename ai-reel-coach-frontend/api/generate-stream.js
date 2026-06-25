@@ -81,12 +81,12 @@ HOOK:
 [1-2 sentences. First 3 seconds. Curiosity, bold claim, or shocking statement that stops the scroll.]
 
 BODY:
-[Punchy points or mini story. Short sentences. No filler. Match the duration target.]
+[The core content. For a ${wc.label} video this MUST be about ${wc.min}–${wc.max} spoken words — write the full length with several points, a fuller story, or step-by-step detail. Do not write a short script for a long duration. Engaging, no filler, but reach the target.]
 
 CTA:
 [One clear action for the last 5 seconds: follow, comment, save, or share.]
 
-Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown. ${wc.min}–${wc.max} spoken words total. Write like talking to a friend. No hashtags, no emojis.`
+Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The whole script MUST total about ${wc.min}–${wc.max} spoken words to fill a ${wc.label} video — this length is a hard requirement, especially the BODY. Write like talking to a friend. No hashtags, no emojis.`
 }
 
 // ── Stream tokens from Gemini (SSE) — yields text deltas ─────────────
@@ -222,7 +222,7 @@ export default async function handler(req) {
     try {
       // ── 1. Stream script from Gemini immediately ─────────────────
       const wc     = durationToWords(duration)
-      const maxTok = Math.min(1200, Math.max(500, Math.round(wc.max * 1.5)))
+      const maxTok = Math.min(4000, Math.max(800, Math.round(wc.max * 3)))
       const prompt = buildPrompt({ topic, niche, tone, language, voiceInstruction, duration })
 
       let fullText = ''

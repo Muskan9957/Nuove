@@ -143,7 +143,7 @@ Your job:
 - Maintain the same language and tone unless explicitly told otherwise
 - Keep total speaking time 60-90 seconds
 
-Return ONLY the refined script in this exact format — no commentary:
+Return ONLY the refined script in this exact format — no commentary. Keep the labels "HOOK:", "BODY:", "CTA:" exactly in English (do NOT translate the labels), even if the content is in another language:
 
 HOOK:
 [refined hook]
@@ -183,7 +183,7 @@ Ignore generic "best practice" advice above if it conflicts with the creator's e
     : ''
 
   const durationInstruction = duration
-    ? `- Target Duration: ${duration} minute${parseFloat(duration) === 1 ? '' : 's'} — calibrate the script length precisely for this. A 0.5 min script is ~75 words, 1 min ~150 words, 2 min ~300 words. Match the word count accordingly.`
+    ? `- TARGET DURATION: ${duration} minute${parseFloat(duration) === 1 ? '' : 's'} — this is a HARD requirement. Calibrate the TOTAL script to fill it at ~150 spoken words per minute (0.5 min ≈ 75 words, 1 min ≈ 150, 2 min ≈ 300, 3 min ≈ 450, 5 min ≈ 750). The BODY does the heavy lifting — expand it with enough points, detail or story to reach the target. Do NOT write a short script for a long duration.`
     : ''
 
   const prompt = `
@@ -228,13 +228,14 @@ USE these proven high-scoring patterns instead:
 Write 1-2 sentences ONLY. No setup. No preamble. Start with impact.
 
 BODY (the main value — deliver on the hook's promise):
-[3-5 punchy points or a mini story. Keep sentences short. No filler words.]
+[Deliver the main value and FILL the target duration above — write the full length (a 5-minute video needs ~750 words HERE, not a few lines): several points, deeper detail, or a fuller story. Short sentences, no filler, but do not cut it short.]
 
 CTA (call to action — last 5 seconds):
 [One clear action: follow, comment, save, or share. Make it feel natural, not forced.]
 
 ---
 Rules:
+- Write the three section labels EXACTLY as "HOOK:", "BODY:", "CTA:" in English — do NOT translate the labels — even though the hook/body/cta text itself MUST be written in the language stated above.
 - Write like you are talking to a friend, not presenting to a boardroom
 - Do NOT use hashtags, emojis, or stage directions
 - Return ONLY the script in the format above, no extra commentary
@@ -242,7 +243,9 @@ Rules:
 Script:
 `;
 
-  const raw = await ask(prompt, 1400);
+  const mins   = parseFloat(duration) || 1;
+  const maxTok = Math.min(4000, Math.max(900, Math.round(mins * 150 * 3))); // ~3 tokens/word; covers non-Latin scripts
+  const raw    = await ask(prompt, maxTok);
 
   // Parse the three sections from the response
   const hookMatch = raw.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY|$)/i);
