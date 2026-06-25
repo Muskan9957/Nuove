@@ -157,9 +157,10 @@ function TrendingBrief({ userName }) {
   }
 
   const fetchBrief = useCallback((force = false) => {
-    // Always send the user's own country; `scope` (local/global) decides whether
-    // the backend pulls their country's trends or a worldwide blend that excludes it.
-    const region = getSavedRegion() || 'India'
+    // The region is always a real country — never 'Global' (the scope toggle
+    // handles worldwide). A 'Global' or empty saved value falls back to India.
+    const saved = getSavedRegion()
+    const region = (saved && saved !== 'Global') ? saved : 'India'
     const rawNiche = nicheRef.current
     const activeNiche = rawNiche === 'All' ? 'general' : rawNiche
     const currentScope = scopeRef.current
@@ -167,7 +168,7 @@ function TrendingBrief({ userName }) {
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
-    const cacheKey = `brief_${currentScope}_${activeNiche}_${lang}`
+    const cacheKey = `brief_${region}_${currentScope}_${activeNiche}_${lang}`
 
     const isCurrent = () => scopeRef.current === currentScope && nicheRef.current === rawNiche
     const writeCache = (patch) => {
@@ -231,7 +232,8 @@ function TrendingBrief({ userName }) {
   }, [lang])
 
   const fetchAudio = useCallback(() => {
-    const region = getSavedRegion() || 'India'
+    const saved = getSavedRegion()
+    const region = (saved && saved !== 'Global') ? saved : 'India'
     setAudioLoading(true)
     api.getTrendingAudio(region)
       .then(data => setAudioTracks(data?.tracks || []))
@@ -292,7 +294,10 @@ function TrendingBrief({ userName }) {
   const displayTrends = useMemo(() => {
     const arr = Array.isArray(trends) ? trends : []
     if (arr.length <= 3) return arr
-    return arr
+    // Rotate only among the top (most relevant/local) trends, so refreshes stay
+    // varied without surfacing lower-ranked, globally-viral items.
+    const pool = arr.slice(0, 6)
+    return pool
       .map((tr, i) => ({ tr, k: ((i + 1) * pickSeed) % 9973 }))
       .sort((a, b) => a.k - b.k)
       .slice(0, 3)
