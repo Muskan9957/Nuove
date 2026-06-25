@@ -549,12 +549,18 @@ function TrendingBrief({ userName }) {
                   e.currentTarget.style.borderColor = 'var(--border)'
                 }}
               >
-                {/* Rank */}
+                {/* Rank + source */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
                     fontFamily: 'var(--font-creator)', fontWeight: 800,
                     fontSize: '0.95rem', color: C.amber, letterSpacing: '-0.02em',
                   }}>{rank}</span>
+                  {srcMeta && (
+                    <span style={{
+                      fontSize: '0.58rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                      color: 'var(--text-faint)', whiteSpace: 'nowrap',
+                    }}>{srcMeta.label}</span>
+                  )}
                 </div>
 
                 {/* Title */}
