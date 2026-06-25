@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
@@ -274,12 +274,6 @@ function TrendingBrief({ userName }) {
     return text
   }, [greeting, trends, userName, t])
 
-  // Prefetch TTS audio when greeting/trends load
-  useEffect(() => {
-    const text = getGreetingText()
-    if (text) prefetch(text)
-  }, [getGreetingText, prefetch])
-
   const playGreeting = () => {
     const text = getGreetingText()
     if (!text) return
@@ -290,6 +284,20 @@ function TrendingBrief({ userName }) {
 
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
   const ago   = timeAgo(trendFetchedAt)
+
+  // Show a fresh random 3 of the (real, cached) trends on each page load — gives
+  // variety every refresh without re-hitting the live APIs on every visit. The
+  // pick is stable within a mount (no jumping) and changes on reload.
+  const [pickSeed] = useState(() => Math.floor(Math.random() * 100000) + 1)
+  const displayTrends = useMemo(() => {
+    const arr = Array.isArray(trends) ? trends : []
+    if (arr.length <= 3) return arr
+    return arr
+      .map((tr, i) => ({ tr, k: ((i + 1) * pickSeed) % 9973 }))
+      .sort((a, b) => a.k - b.k)
+      .slice(0, 3)
+      .map(x => x.tr)
+  }, [trends, pickSeed])
 
   return (
     <section style={{ marginBottom: 32 }}>
@@ -454,22 +462,6 @@ function TrendingBrief({ userName }) {
           }}>↻</span>
         </button>
 
-        {/* Listen button */}
-        <button
-          onClick={playGreeting}
-          disabled={!greeting || preparing}
-          style={{
-            padding: '6px 14px', borderRadius: 99,
-            border: `1px solid ${speaking || preparing ? C.teal : 'var(--border)'}`,
-            background: speaking || preparing ? `${C.teal}14` : 'transparent',
-            color: speaking || preparing ? C.teal : 'var(--text-faint)',
-            cursor: greeting && !preparing ? 'pointer' : 'not-allowed',
-            fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
-            transition: 'all 0.15s',
-          }}
-        >
-          {preparing ? 'Loading...' : (speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen'))}
-        </button>
         </div>
       </div>
 
@@ -484,7 +476,7 @@ function TrendingBrief({ userName }) {
         <div className="brief-trend-grid" style={{
           opacity: refreshing ? 0.5 : 1, pointerEvents: refreshing ? 'none' : 'auto', transition: 'opacity 0.3s'
         }}>
-          {trends.slice(0, 3).map((trendItem, i) => {
+          {displayTrends.map((trendItem, i) => {
             const isObj = typeof trendItem === 'object'
             const trend = isObj ? trendItem : { title: trendItem }
             const rank    = String(i + 1).padStart(2, '0')
