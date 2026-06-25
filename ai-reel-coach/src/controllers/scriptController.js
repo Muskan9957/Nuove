@@ -293,4 +293,17 @@ const refine = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine };
+// ─── POST /api/scripts/songs ─────────────────────────────────────
+// AI background-music / song picks for a generated script. Free — no quota cost.
+const songs = async (req, res, next) => {
+  try {
+    const { hook, body, cta, topic, niche, tone, genre, mood, bpm, audience, language } = req.body;
+    if (!hook && !body && !topic) {
+      return res.status(400).json({ error: 'A script or topic is required.' });
+    }
+    const data = await aiService.recommendSongs({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience, language });
+    return res.json(data); // { songs: [...] }
+  } catch (err) { next(err); }
+};
+
+module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine, songs };
