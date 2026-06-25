@@ -27,7 +27,7 @@ const CATEGORY_COLORS = {
 }
 
 const SOURCE_META = {
-  'google-trends': { label: '🔍 Google Trends', color: '#4285F4' },
+  'google-trends': { label: '🔍 Google Trends', color: '#4285F4' },
   'google':        { label: 'Google Trends',    color: '#4285F4' },
   'youtube':       { label: 'YouTube',          color: '#FF0000' },
   'instagram':     { label: '📸 Instagram',      color: '#E1306C' },
@@ -114,22 +114,8 @@ export default function TrendDetailModal({ isOpen, onClose, trend, onGenerateScr
       >
         {/* Header */}
         <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{
-                fontSize: '0.65rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
-                padding: '4px 10px', borderRadius: 99,
-                background: `${confColor}20`, color: confColor, border: `1px solid ${confColor}40`,
-                textTransform: 'uppercase', letterSpacing: '0.05em'
-              }}>{confidence} Confidence</span>
-              <span style={{
-                fontSize: '0.65rem', fontFamily: 'var(--font-mono)', fontWeight: 800,
-                padding: '4px 10px', borderRadius: 99,
-                background: `${catColor}20`, color: catColor, border: `1px solid ${catColor}40`,
-                textTransform: 'uppercase', letterSpacing: '0.05em'
-              }}>{category}</span>
-            </div>
-            <button 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 16 }}>
+            <button
               onClick={onClose}
               style={{
                 background: 'transparent', border: 'none', color: 'var(--text-faint)',
