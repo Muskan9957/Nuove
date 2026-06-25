@@ -5,7 +5,7 @@ import { api } from '../api'
 import { useLang } from '../i18n.jsx'
 import { useTextToSpeech } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
-import { getSavedRegion } from '../utils/detectRegion'
+import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 import TrendDetailModal from '../components/TrendDetailModal'
 
@@ -124,6 +124,10 @@ function TrendingBrief({ userName }) {
   const [scope, setScope] = useState('local')
   const scopeRef = useRef('local')
 
+  const [region, setRegion] = useState(() => { const s = getSavedRegion(); return (s && s !== 'Global') ? s : 'India' })
+  const [showRegionMenu, setShowRegionMenu] = useState(false)
+  const regionMenuRef = useRef(null)
+
   const [niche, setNiche] = useState('All')
   const nicheRef = useRef('All')
   const [showNicheMenu, setShowNicheMenu] = useState(false)
@@ -134,6 +138,9 @@ function TrendingBrief({ userName }) {
     function handleClickOutside(event) {
       if (nicheMenuRef.current && !nicheMenuRef.current.contains(event.target)) {
         setShowNicheMenu(false)
+      }
+      if (regionMenuRef.current && !regionMenuRef.current.contains(event.target)) {
+        setShowRegionMenu(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -263,6 +270,20 @@ function TrendingBrief({ userName }) {
     fetchBrief(true)
   }
 
+  // Region picker — pick a country (Local for that country) or Global.
+  const handleRegionChange = (value) => {
+    setShowRegionMenu(false)
+    const goGlobal = value === 'Global'
+    if (!goGlobal) { saveRegion(value); setRegion(value) }
+    scopeRef.current = goGlobal ? 'global' : 'local'
+    setScope(scopeRef.current)
+    setGreeting(null)
+    setTrends([])
+    setLoading(true)
+    setRefreshing(false)
+    fetchBrief(true)
+  }
+
   useEffect(() => { fetchBrief(false); fetchAudio() }, [lang])
 
   // Generate text for TTS
@@ -325,35 +346,52 @@ function TrendingBrief({ userName }) {
         {/* Controls — toggle, niche, refresh & listen all on the same level */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
 
-        {/* Local / Global Toggle */}
-        <div style={{
-          display: 'flex', alignItems: 'center', background: 'var(--surface2)',
-          borderRadius: 99, padding: 4, border: '1px solid var(--border)',
-        }}>
+        {/* Region + scope picker — shows the current country, click to change */}
+        <div style={{ position: 'relative' }} ref={regionMenuRef}>
           <button
-            onClick={() => handleScopeChange('local')}
+            onClick={() => setShowRegionMenu(v => !v)}
+            title="Choose your region"
             style={{
-              padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s',
-              background: scope === 'local' ? 'var(--accent)' : 'transparent',
-              color: scope === 'local' ? '#fff' : 'var(--text-muted)',
+              background: 'var(--surface2)', border: '1px solid var(--border)',
+              borderRadius: 99, padding: '5px 12px', color: 'var(--text)',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
             }}
           >
-            📍 Local
+            <span style={{ whiteSpace: 'nowrap' }}>{scope === 'global'
+              ? (REGIONS.find(r => r.value === 'Global')?.label || '🌐 Global')
+              : (REGIONS.find(r => r.value === region)?.label || `📍 ${region}`)}</span>
+            <svg style={{ width: 13, height: 13, opacity: 0.6 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
           </button>
-          <button
-            onClick={() => handleScopeChange('global')}
-            style={{
-              padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s',
-              background: scope === 'global' ? 'var(--accent)' : 'transparent',
-              color: scope === 'global' ? '#fff' : 'var(--text-muted)',
-            }}
-          >
-            🌍 Global
-          </button>
+          <div style={{
+            display: showRegionMenu ? 'block' : 'none',
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+            background: 'var(--surface)', backdropFilter: 'blur(16px)',
+            border: '1px solid var(--border)', borderRadius: 16, padding: 8,
+            width: 210, maxHeight: 320, overflowY: 'auto',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.12)', zIndex: 100,
+          }}>
+            {REGIONS.map(r => {
+              const isActive = r.value === 'Global' ? scope === 'global' : (scope === 'local' && r.value === region)
+              return (
+                <div
+                  key={r.value}
+                  onClick={() => handleRegionChange(r.value)}
+                  style={{
+                    padding: '8px 12px', borderRadius: 10, cursor: 'pointer',
+                    fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#fff' : 'var(--text)',
+                    background: isActive ? 'var(--accent)' : 'transparent',
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface2)' }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {r.label}
+                </div>
+              )
+            })}
+          </div>
         </div>
-      {/* ── End Local / Global Toggle ── */}
 
         {/* Custom Niche Dropdown */}
         <div style={{ position: 'relative' }} ref={nicheMenuRef}>
