@@ -141,22 +141,6 @@ export default function TrendDetailModal({ isOpen, onClose, trend, onGenerateScr
             {description}
           </p>
 
-          {keywords.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Keywords
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {keywords.map(kw => (
-                  <span key={kw} style={{
-                    fontSize: '0.75rem', padding: '4px 10px', borderRadius: 8,
-                    background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)'
-                  }}>{kw}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
           {sources.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -181,31 +165,6 @@ export default function TrendDetailModal({ isOpen, onClose, trend, onGenerateScr
             </div>
           )}
 
-          {evidence.length > 0 && (
-            <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Evidence
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {evidence.map((ev, i) => {
-                  const meta = SOURCE_META[ev.source] || SOURCE_META.ai
-                  return (
-                    <div key={i} style={{
-                      padding: '12px', borderRadius: 12, background: 'var(--surface2)',
-                      border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4
-                    }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {meta.label}
-                      </span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.4 }}>
-                        {ev.title}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
