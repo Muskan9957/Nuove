@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 
+// In-memory cache outside the React component lifecycle.
+// This preserves state when navigating between different React pages (SPA routing),
+// but completely clears out when the user performs a hard refresh on the browser.
+const memoryCache = new Map();
+
 export function usePersistentState(key, initialValue) {
   const [state, setState] = useState(() => {
     try {
-      const saved = sessionStorage.getItem(key);
-      if (saved !== null) {
-        return JSON.parse(saved);
+      if (memoryCache.has(key)) {
+        return memoryCache.get(key);
       }
     } catch (e) {
-      console.error('Error reading sessionStorage for', key, e);
+      console.error('Error reading memoryCache for', key, e);
     }
     return typeof initialValue === 'function' ? initialValue() : initialValue;
   });
@@ -16,12 +20,12 @@ export function usePersistentState(key, initialValue) {
   useEffect(() => {
     try {
       if (state === null || state === undefined) {
-        sessionStorage.removeItem(key);
+        memoryCache.delete(key);
       } else {
-        sessionStorage.setItem(key, JSON.stringify(state));
+        memoryCache.set(key, state);
       }
     } catch (e) {
-      console.error('Error writing sessionStorage for', key, e);
+      console.error('Error writing memoryCache for', key, e);
     }
   }, [key, state]);
 
