@@ -277,23 +277,10 @@ export default function Profile() {
     toast('Logged out successfully', 'success')
   }
 
-  const [exporting, setExporting]     = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting]       = useState(false)
   const [showDeleteWarning, setShowDeleteWarning] = useState(false)
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false)
-
-  const handleExport = async () => {
-    setExporting(true)
-    try {
-      await api.exportMyData()
-      toast('Your data has been downloaded.', 'success')
-    } catch {
-      toast('Could not export your data. Try again.', 'error')
-    } finally {
-      setExporting(false)
-    }
-  }
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm.trim().toUpperCase() !== 'DELETE') return
@@ -765,21 +752,8 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Data export + account deletion (privacy / compliance) */}
+          {/* Account deletion (privacy / compliance) */}
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18 }}>
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              style={{
-                width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
-                background: 'transparent', border: '1px solid var(--border)',
-                color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600,
-                cursor: exporting ? 'wait' : 'pointer', fontFamily: 'var(--font-body)',
-              }}
-            >
-              {exporting ? 'Preparing…' : '⬇ Export my data (JSON)'}
-            </button>
-
             <button
               onClick={() => setShowDeleteWarning(true)}
               style={{
