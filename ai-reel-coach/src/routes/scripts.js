@@ -46,8 +46,8 @@ router.post('/retake', aiLimiter, controller.retake);
 // POST /api/scripts/refine (targeted refinement of an existing script)
 router.post('/refine', aiLimiter, controller.refine);
 
-// POST /api/scripts/songs (recommend Spotify songs for a script)
-router.post('/songs', aiLimiter, controller.recommendSongs);
+// POST /api/scripts/songs (AI background-music picks for a script)
+router.post('/songs', aiLimiter, controller.songs);
 
 // GET /api/scripts
 router.get('/', controller.getAll);

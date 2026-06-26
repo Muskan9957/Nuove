@@ -3,6 +3,17 @@ import { api } from './api'
 
 const AuthCtx = createContext(null)
 
+// Per-user data cached in localStorage. Cleared on every login / signup / logout
+// so a fresh session — or a different person on the same browser — never sees the
+// previous user's script generator, dashboard, or prefs.
+const STALE_USER_KEYS = [
+  'arc_gen_form', 'arc_gen_result', 'arc_gen_versions', 'arc_gen_activeVer', 'arc_gen_rerolls', 'arc_prefill_topic',
+  'dash_scripts', 'dash_logs', 'dash_badges', 'dash_profile', 'vs_prefs',
+]
+export const clearStaleUserData = () => {
+  STALE_USER_KEYS.forEach(k => { try { localStorage.removeItem(k) } catch {} })
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
@@ -56,6 +67,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const data = await api.login({ email, password })
     localStorage.setItem('arc_token', data.token)
+    clearStaleUserData()   // fresh start — never show the previous session's data
     try {
       sessionStorage.clear()
     } catch {}
@@ -69,7 +81,7 @@ export const AuthProvider = ({ children }) => {
     if (data.needsVerification) return data
     localStorage.setItem('arc_token', data.token)
     localStorage.removeItem('vs_onboarded')
-    localStorage.removeItem('vs_prefs')
+    clearStaleUserData()
     try {
       sessionStorage.clear()
     } catch {}
@@ -90,11 +102,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('arc_token')
     localStorage.removeItem('vs_onboarded')
-    localStorage.removeItem('vs_prefs')
-    localStorage.removeItem('dash_scripts')
-    localStorage.removeItem('dash_logs')
-    localStorage.removeItem('dash_badges')
-    localStorage.removeItem('dash_profile')
+    clearStaleUserData()
     try {
       sessionStorage.clear()
     } catch {}

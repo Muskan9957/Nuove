@@ -127,7 +127,9 @@ export const api = {
 
   // AI Coach
   coachChat: (body) => req('POST', '/coach/chat', body),
-  getCoachHistory: () => req('GET', '/coach/history'),
+  listConversations:  ()   => req('GET',    '/coach/conversations'),
+  getConversation:    (id) => req('GET',    `/coach/conversations/${id}`),
+  deleteConversation: (id) => req('DELETE', `/coach/conversations/${id}`),
 
   hookAlternatives: (body) => req('POST', '/hooks/alternatives', body),
 

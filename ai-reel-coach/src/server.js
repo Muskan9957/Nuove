@@ -4,6 +4,7 @@ const app    = require('./app');
 const prisma = require('./config/prisma');
 const aiService = require('./services/aiService');
 const trendEngineV2 = require('./services/trendsV2/trendEngineV2');
+const { backfillConversations } = require('./services/backfillConversations');
 
 const PORT = process.env.PORT || 4000;
 
@@ -12,53 +13,54 @@ app.listen(PORT, () => {
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Docs        : http://localhost:${PORT}/api/health\n`);
 
+  // ── One-time: group legacy coach messages into conversations ───
+  backfillConversations()
+
   // ── Warm trending cache in background ──────────────────────────
   // Runs after startup so it never delays boot. Generates today's topics
   // for all popular niches/languages so the first user request is instant.
   warmTrendingCache()
 });
 
-// Trimmed to stay well within the Gemini free tier — only the few most-used
-// niches are pre-warmed (3 calls per boot vs 16). Everything else generates
-// on first request and is then cached, so users still get instant results.
-const WARM_NICHES    = ['general', 'fitness', 'finance']
-const WARM_LANGUAGES = ['en']
+// Pre-warm the most-used combos so the first dashboard load is instant.
+// IMPORTANT: use the SAME normalized niche/region keys the request path resolves
+// to (e.g. 'business & finance', not 'finance') or the cache lookups never hit.
+const WARM_NICHES  = ['general', 'fitness', 'business & finance', 'gaming', 'food', 'travel', 'ai & technology'] // home region (India)
+const WARM_REGIONS = ['US', 'UK', 'Global', 'Japan', 'Brazil', 'Germany']                                       // 'general' feed each
+const WARM_LANG    = 'en'
+
+async function warmOne(niche, region, scope, today) {
+  try {
+    const where = { niche_language_region_scope_date: { niche, language: WARM_LANG, region, scope, date: today } }
+    if (await prisma.trendingCache.findUnique({ where })) return // already warm today
+
+    console.log(`[cache-warm] generating ${niche} · ${region}/${scope}…`)
+    let topics = []
+    try {
+      topics = await trendEngineV2.getTrendsV2(region, niche, scope)
+      if (!topics || topics.length === 0) throw new Error('V2 returned empty')
+    } catch (err) {
+      console.warn(`[cache-warm] V2 failed (${region}/${niche}): ${err.message}`)
+      topics = await aiService.getTrendingTopicsLive(niche, WARM_LANG, region)
+    }
+
+    await prisma.trendingCache.upsert({
+      where,
+      create: { niche, language: WARM_LANG, region, scope, topics: JSON.stringify(topics), date: today },
+      update: { topics: JSON.stringify(topics) },
+    })
+    console.log(`[cache-warm] ✓ ${niche} · ${region}/${scope}`)
+    await new Promise(r => setTimeout(r, 800)) // small gap to avoid provider rate limits
+  } catch (err) {
+    console.error(`[cache-warm] failed ${niche}/${region}:`, err.message)
+  }
+}
 
 async function warmTrendingCache() {
   const today = new Date().toISOString().slice(0, 10)
-
-  for (const niche of WARM_NICHES) {
-    for (const language of WARM_LANGUAGES) {
-      try {
-        // Skip if today's cache already exists
-        const exists = await prisma.trendingCache.findUnique({
-          where: { niche_language_region_scope_date: { niche, language, region: 'India', scope: 'local', date: today } },
-        })
-        if (exists) continue
-
-        console.log(`[cache-warm] generating ${niche}/${language}…`)
-        let topics = []
-        try {
-          topics = await trendEngineV2.getTrendsV2('India', niche, 'local')
-          if (!topics || topics.length === 0) throw new Error('V2 returned empty')
-        } catch (err) {
-          console.warn(`[cache-warm] V2 failed, falling back to V1: ${err.message}`)
-          topics = await aiService.getTrendingTopicsLive(niche, language, 'India')
-        }
-
-        await prisma.trendingCache.upsert({
-          where  : { niche_language_region_scope_date: { niche, language, region: 'India', scope: 'local', date: today } },
-          create : { niche, language, region: 'India', scope: 'local', topics: JSON.stringify(topics), date: today },
-          update : { topics: JSON.stringify(topics) },
-        })
-        console.log(`[cache-warm] ✓ ${niche}/${language}`)
-
-        // Small gap between calls to avoid rate limiting
-        await new Promise(r => setTimeout(r, 800))
-      } catch (err) {
-        console.error(`[cache-warm] failed ${niche}/${language}:`, err.message)
-      }
-    }
-  }
+  // 1. Home region (India) — warm all popular niches.
+  for (const niche of WARM_NICHES) await warmOne(niche, 'India', 'local', today)
+  // 2. Other popular regions — warm the default feed (Global included).
+  for (const region of WARM_REGIONS) await warmOne('general', region, region === 'Global' ? 'global' : 'local', today)
   console.log('[cache-warm] done')
 }

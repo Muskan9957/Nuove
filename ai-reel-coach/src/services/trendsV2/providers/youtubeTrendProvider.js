@@ -1,11 +1,8 @@
 const axios = require('axios')
 const { sanitizeSignal, dedupeSignals } = require('../trendSanitizer')
 
-const REGION_CODE = {
-  India: 'IN', US: 'US', UK: 'GB',
-  'Middle East': 'AE', 'Southeast Asia': 'ID', Global: 'US',
-}
-const getRegionCode = (region) => REGION_CODE[region] || 'IN'
+const { regionConfig } = require('../regions')
+const getRegionCode = (region) => regionConfig(region).yt
 
 const NICHE_SEARCH = {
   'ai & technology':        'OpenAI OR Claude OR Gemini AI tools',
@@ -43,9 +40,10 @@ async function fetchTrends(region = 'India', niche = 'general') {
   const key = process.env.YOUTUBE_API_KEY
   if (!key) return []
 
-  // "Global" = a genuine blend of major regions, not just US.
+  // "Global" = worldwide blend, deliberately EXCLUDING India (and other
+  // South-Asian-heavy regions) so it stays distinct from the Local (India) tab.
   if (region === 'Global') {
-    const regions = ['US', 'UK', 'India']
+    const regions = ['US', 'UK']
     const results = await Promise.all(regions.map(r => fetchTrends(r, niche).catch(() => [])))
     return dedupeSignals(results.flat())
       .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -79,7 +77,7 @@ async function fetchTrends(region = 'India', niche = 'general') {
       params: {
         key, part: 'snippet', q, type: 'video',
         order: 'viewCount', maxResults: 20,
-        publishedAfter, regionCode, relevanceLanguage: 'en', safeSearch: 'none',
+        publishedAfter, regionCode, relevanceLanguage: regionConfig(region).lang, safeSearch: 'none',
       },
       timeout: 8000,
     })

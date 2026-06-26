@@ -56,7 +56,7 @@ const register = async (req, res, next) => {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, 10);
     // 6-digit one-time code — entered on the same screen, so no new tab/window opens
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
 
@@ -105,6 +105,14 @@ const login = async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Migrate slow legacy cost-12+ hashes down to cost-10 in the background so
+    // future logins are faster (bcryptjs cost-12 compares add noticeable latency).
+    if (/^\$2[aby]\$1[2-9]\$/.test(user.passwordHash)) {
+      bcrypt.hash(password, 10)
+        .then(h => prisma.user.update({ where: { id: user.id }, data: { passwordHash: h } }))
+        .catch(() => {});
     }
 
     // Email not verified yet — generate a fresh token and resend email
@@ -216,7 +224,7 @@ const resetPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     await prisma.user.update({
       where: { id: user.id },

@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
 import { useLang } from '../i18n.jsx'
 import { useTextToSpeech } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
-import { getSavedRegion } from '../utils/detectRegion'
+import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 import TrendDetailModal from '../components/TrendDetailModal'
 
@@ -124,6 +124,10 @@ function TrendingBrief({ userName }) {
   const [scope, setScope] = useState('local')
   const scopeRef = useRef('local')
 
+  const [region, setRegion] = useState(() => { const s = getSavedRegion(); return (s && s !== 'Global') ? s : 'India' })
+  const [showRegionMenu, setShowRegionMenu] = useState(false)
+  const regionMenuRef = useRef(null)
+
   const [niche, setNiche] = useState('All')
   const nicheRef = useRef('All')
   const [showNicheMenu, setShowNicheMenu] = useState(false)
@@ -134,6 +138,9 @@ function TrendingBrief({ userName }) {
     function handleClickOutside(event) {
       if (nicheMenuRef.current && !nicheMenuRef.current.contains(event.target)) {
         setShowNicheMenu(false)
+      }
+      if (regionMenuRef.current && !regionMenuRef.current.contains(event.target)) {
+        setShowRegionMenu(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -157,7 +164,10 @@ function TrendingBrief({ userName }) {
   }
 
   const fetchBrief = useCallback((force = false) => {
-    const region = scopeRef.current === 'global' ? 'Global' : (getSavedRegion() || 'India')
+    // The region is always a real country — never 'Global' (the scope toggle
+    // handles worldwide). A 'Global' or empty saved value falls back to India.
+    const saved = getSavedRegion()
+    const region = (saved && saved !== 'Global') ? saved : 'India'
     const rawNiche = nicheRef.current
     const activeNiche = rawNiche === 'All' ? 'general' : rawNiche
     const currentScope = scopeRef.current
@@ -165,7 +175,7 @@ function TrendingBrief({ userName }) {
     const ts = Date.now()
     const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD
     const bust = `&_t=${ts}&date=${today}`
-    const cacheKey = `brief_${currentScope}_${activeNiche}_${lang}`
+    const cacheKey = `brief_${region}_${currentScope}_${activeNiche}_${lang}`
 
     const isCurrent = () => scopeRef.current === currentScope && nicheRef.current === rawNiche
     const writeCache = (patch) => {
@@ -229,7 +239,8 @@ function TrendingBrief({ userName }) {
   }, [lang])
 
   const fetchAudio = useCallback(() => {
-    const region = getSavedRegion() || 'India'
+    const saved = getSavedRegion()
+    const region = (saved && saved !== 'Global') ? saved : 'India'
     setAudioLoading(true)
     api.getTrendingAudio(region)
       .then(data => setAudioTracks(data?.tracks || []))
@@ -259,6 +270,20 @@ function TrendingBrief({ userName }) {
     fetchBrief(true)
   }
 
+  // Region picker — pick a country (Local for that country) or Global.
+  const handleRegionChange = (value) => {
+    setShowRegionMenu(false)
+    const goGlobal = value === 'Global'
+    if (!goGlobal) { saveRegion(value); setRegion(value) }
+    scopeRef.current = goGlobal ? 'global' : 'local'
+    setScope(scopeRef.current)
+    setGreeting(null)
+    setTrends([])
+    setLoading(true)
+    setRefreshing(false)
+    fetchBrief(true)
+  }
+
   useEffect(() => { fetchBrief(false); fetchAudio() }, [lang])
 
   // Generate text for TTS
@@ -272,12 +297,6 @@ function TrendingBrief({ userName }) {
     return text
   }, [greeting, trends, userName, t])
 
-  // Prefetch TTS audio when greeting/trends load
-  useEffect(() => {
-    const text = getGreetingText()
-    if (text) prefetch(text)
-  }, [getGreetingText, prefetch])
-
   const playGreeting = () => {
     const text = getGreetingText()
     if (!text) return
@@ -288,6 +307,23 @@ function TrendingBrief({ userName }) {
 
   const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
   const ago   = timeAgo(trendFetchedAt)
+
+  // Show a fresh random 3 of the (real, cached) trends on each page load — gives
+  // variety every refresh without re-hitting the live APIs on every visit. The
+  // pick is stable within a mount (no jumping) and changes on reload.
+  const [pickSeed] = useState(() => Math.floor(Math.random() * 100000) + 1)
+  const displayTrends = useMemo(() => {
+    const arr = Array.isArray(trends) ? trends : []
+    if (arr.length <= 3) return arr
+    // Rotate only among the top (most relevant/local) trends, so refreshes stay
+    // varied without surfacing lower-ranked, globally-viral items.
+    const pool = arr.slice(0, 6)
+    return pool
+      .map((tr, i) => ({ tr, k: ((i + 1) * pickSeed) % 9973 }))
+      .sort((a, b) => a.k - b.k)
+      .slice(0, 3)
+      .map(x => x.tr)
+  }, [trends, pickSeed])
 
   return (
     <section style={{ marginBottom: 32 }}>
@@ -310,35 +346,52 @@ function TrendingBrief({ userName }) {
         {/* Controls — toggle, niche, refresh & listen all on the same level */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
 
-        {/* Local / Global Toggle */}
-        <div style={{
-          display: 'flex', alignItems: 'center', background: 'var(--surface2)',
-          borderRadius: 99, padding: 4, border: '1px solid var(--border)',
-        }}>
+        {/* Region + scope picker — shows the current country, click to change */}
+        <div style={{ position: 'relative' }} ref={regionMenuRef}>
           <button
-            onClick={() => handleScopeChange('local')}
+            onClick={() => setShowRegionMenu(v => !v)}
+            title="Choose your region"
             style={{
-              padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s',
-              background: scope === 'local' ? 'var(--accent)' : 'transparent',
-              color: scope === 'local' ? '#fff' : 'var(--text-muted)',
+              background: 'var(--surface2)', border: '1px solid var(--border)',
+              borderRadius: 99, padding: '5px 12px', color: 'var(--text)',
+              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
             }}
           >
-            📍 Local
+            <span style={{ whiteSpace: 'nowrap' }}>{scope === 'global'
+              ? (REGIONS.find(r => r.value === 'Global')?.label || '🌐 Global')
+              : (REGIONS.find(r => r.value === region)?.label || `📍 ${region}`)}</span>
+            <svg style={{ width: 13, height: 13, opacity: 0.6 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
           </button>
-          <button
-            onClick={() => handleScopeChange('global')}
-            style={{
-              padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.2s',
-              background: scope === 'global' ? 'var(--accent)' : 'transparent',
-              color: scope === 'global' ? '#fff' : 'var(--text-muted)',
-            }}
-          >
-            🌍 Global
-          </button>
+          <div style={{
+            display: showRegionMenu ? 'block' : 'none',
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+            background: 'var(--surface)', backdropFilter: 'blur(16px)',
+            border: '1px solid var(--border)', borderRadius: 16, padding: 8,
+            width: 210, maxHeight: 320, overflowY: 'auto',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.12)', zIndex: 100,
+          }}>
+            {REGIONS.map(r => {
+              const isActive = r.value === 'Global' ? scope === 'global' : (scope === 'local' && r.value === region)
+              return (
+                <div
+                  key={r.value}
+                  onClick={() => handleRegionChange(r.value)}
+                  style={{
+                    padding: '8px 12px', borderRadius: 10, cursor: 'pointer',
+                    fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#fff' : 'var(--text)',
+                    background: isActive ? 'var(--accent)' : 'transparent',
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface2)' }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {r.label}
+                </div>
+              )
+            })}
+          </div>
         </div>
-      {/* ── End Local / Global Toggle ── */}
 
         {/* Custom Niche Dropdown */}
         <div style={{ position: 'relative' }} ref={nicheMenuRef}>
@@ -452,22 +505,6 @@ function TrendingBrief({ userName }) {
           }}>↻</span>
         </button>
 
-        {/* Listen button */}
-        <button
-          onClick={playGreeting}
-          disabled={!greeting || preparing}
-          style={{
-            padding: '6px 14px', borderRadius: 99,
-            border: `1px solid ${speaking || preparing ? C.teal : 'var(--border)'}`,
-            background: speaking || preparing ? `${C.teal}14` : 'transparent',
-            color: speaking || preparing ? C.teal : 'var(--text-faint)',
-            cursor: greeting && !preparing ? 'pointer' : 'not-allowed',
-            fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 600,
-            transition: 'all 0.15s',
-          }}
-        >
-          {preparing ? 'Loading...' : (speaking ? t('dash_stop') : played ? t('dash_replay') : t('dash_listen'))}
-        </button>
         </div>
       </div>
 
@@ -482,7 +519,7 @@ function TrendingBrief({ userName }) {
         <div className="brief-trend-grid" style={{
           opacity: refreshing ? 0.5 : 1, pointerEvents: refreshing ? 'none' : 'auto', transition: 'opacity 0.3s'
         }}>
-          {trends.slice(0, 3).map((trendItem, i) => {
+          {displayTrends.map((trendItem, i) => {
             const isObj = typeof trendItem === 'object'
             const trend = isObj ? trendItem : { title: trendItem }
             const rank    = String(i + 1).padStart(2, '0')

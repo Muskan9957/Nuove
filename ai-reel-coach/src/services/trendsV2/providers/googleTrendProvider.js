@@ -1,19 +1,8 @@
 const axios = require('axios')
 const { cleanTrendText, sanitizeSignal, dedupeSignals } = require('../trendSanitizer')
+const { regionConfig } = require('../regions')
 
-const GEO_CODE = {
-  India: 'IN', US: 'US', UK: 'GB',
-  'Middle East': 'AE', 'Southeast Asia': 'ID', Global: 'US',
-}
-const getGeo = (region) => GEO_CODE[region] ?? 'IN'
-
-const NEWS_LOCALE = {
-  IN: { hl: 'en-IN', gl: 'IN', ceid: 'IN:en' },
-  US: { hl: 'en-US', gl: 'US', ceid: 'US:en' },
-  GB: { hl: 'en-GB', gl: 'GB', ceid: 'GB:en' },
-  AE: { hl: 'en-AE', gl: 'AE', ceid: 'AE:en' },
-  ID: { hl: 'en-ID', gl: 'ID', ceid: 'ID:en' },
-}
+const getGeo = (region) => regionConfig(region).yt
 
 const NICHE_QUERIES = {
   'ai & technology': ['OpenAI OR Claude OR Gemini OR AI tools', 'artificial intelligence technology'],
@@ -81,16 +70,16 @@ async function fetchRss(url) {
   return parseRssItems(resp.data || '', url.includes('trending/rss') ? 'google-trends-rss' : 'google-news-rss')
 }
 
-function newsUrl(query, geo) {
-  const locale = NEWS_LOCALE[geo] || NEWS_LOCALE.US
+function newsUrl(query, locale) {
   const q = `${query} when:7d`
   return `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${locale.hl}&gl=${locale.gl}&ceid=${locale.ceid}`
 }
 
 async function fetchTrends(region, niche) {
-  // "Global" = a genuine blend of major regions, not just US.
+  // "Global" = worldwide blend, deliberately EXCLUDING India (and other
+  // South-Asian-heavy regions) so it stays distinct from the Local (India) tab.
   if (region === 'Global') {
-    const regions = ['US', 'UK', 'India']
+    const regions = ['US', 'UK']
     const results = await Promise.all(regions.map(r => fetchTrends(r, niche).catch(() => [])))
     return dedupeSignals(results.flat())
       .sort((a, b) => (b.value || 0) - (a.value || 0))
@@ -98,6 +87,7 @@ async function fetchTrends(region, niche) {
   }
 
   const geo = getGeo(region)
+  const newsLocale = regionConfig(region).news
   let queries = NICHE_QUERIES[niche] || NICHE_QUERIES.general
   
   if (niche === 'travel') {
@@ -121,9 +111,9 @@ async function fetchTrends(region, niche) {
   }
   const urls = [
     `https://trends.google.com/trending/rss?geo=${geo}`,
-    ...queries.slice(0, 2).map(query => newsUrl(query, geo)),
+    ...queries.slice(0, 2).map(query => newsUrl(query, newsLocale)),
     // Inject a dedicated query that specifically hunts for viral Instagram Reels in this niche!
-    newsUrl(`(${queries[0]}) AND (Instagram OR Reels OR TikTok OR viral)`, geo)
+    newsUrl(`(${queries[0]}) AND (Instagram OR Reels OR TikTok OR viral)`, newsLocale)
   ]
 
   try {

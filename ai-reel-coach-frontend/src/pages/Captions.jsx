@@ -92,13 +92,13 @@ export default function Captions() {
 
   return (
     <div className="page-enter">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
+        <div style={{ minWidth: 0 }}>
           <h1 className="page-title" style={{ marginBottom: 4 }}>{t('captions_title')}</h1>
-          <p className="page-sub">{t('captions_sub')}</p>
+          <p className="page-sub" style={{ marginBottom: 0 }}>{t('captions_sub')}</p>
         </div>
         {result && (
-          <button onClick={handleReset} className="btn btn-ghost btn-sm">
+          <button onClick={handleReset} className="btn btn-ghost btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
             New Caption
           </button>
         )}

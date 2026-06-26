@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../store'
+import { useAuth, clearStaleUserData } from '../store'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
 import Logo from '../components/Logo'
@@ -66,6 +66,7 @@ export default function Auth() {
       const data = await api.verifyCode(email, code.trim())
       localStorage.setItem('arc_token', data.token)
       localStorage.removeItem('vs_onboarded')
+      clearStaleUserData()
       await refreshUser()
       navigate('/onboarding')
     } catch (err) {
