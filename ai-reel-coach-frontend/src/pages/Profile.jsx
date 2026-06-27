@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
@@ -276,21 +277,10 @@ export default function Profile() {
     toast('Logged out successfully', 'success')
   }
 
-  const [exporting, setExporting]     = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting]       = useState(false)
-
-  const handleExport = async () => {
-    setExporting(true)
-    try {
-      await api.exportMyData()
-      toast('Your data has been downloaded.', 'success')
-    } catch {
-      toast('Could not export your data. Try again.', 'error')
-    } finally {
-      setExporting(false)
-    }
-  }
+  const [showDeleteWarning, setShowDeleteWarning] = useState(false)
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false)
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm.trim().toUpperCase() !== 'DELETE') return
@@ -762,45 +752,19 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Data export + account deletion (privacy / compliance) */}
+          {/* Account deletion (privacy / compliance) */}
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18 }}>
             <button
-              onClick={handleExport}
-              disabled={exporting}
-              style={{
-                width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
-                background: 'transparent', border: '1px solid var(--border)',
-                color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600,
-                cursor: exporting ? 'wait' : 'pointer', fontFamily: 'var(--font-body)',
-              }}
-            >
-              {exporting ? 'Preparing…' : '⬇ Export my data (JSON)'}
-            </button>
-
-            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', marginBottom: 8 }}>
-              Permanently delete your account and all your data. This cannot be undone.
-            </p>
-            <input
-              className="input"
-              value={deleteConfirm}
-              onChange={e => setDeleteConfirm(e.target.value)}
-              placeholder='Type DELETE to confirm'
-              style={{ marginBottom: 10 }}
-            />
-            <button
-              onClick={handleDeleteAccount}
-              disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE'}
+              onClick={() => setShowDeleteWarning(true)}
               style={{
                 width: '100%', padding: '12px', borderRadius: 12,
-                background: deleteConfirm.trim().toUpperCase() === 'DELETE' ? 'rgba(255,70,70,0.15)' : 'transparent',
+                background: 'transparent',
                 border: '1px solid rgba(255,70,70,0.3)', color: '#ff6b6b',
-                fontSize: '0.85rem', fontWeight: 700,
-                opacity: (deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE') ? 0.5 : 1,
-                cursor: (deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE') ? 'not-allowed' : 'pointer',
+                fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
                 fontFamily: 'var(--font-body)',
               }}
             >
-              {deleting ? 'Deleting…' : 'Delete my account permanently'}
+              Permanently delete your account
             </button>
           </div>
         </Section>
@@ -1014,6 +978,60 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Warning Modal (Step 1) */}
+      {showDeleteWarning && createPortal(
+        <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(4,5,18,0.88)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowDeleteWarning(false) }}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border-bright)', borderRadius:24, padding:'24px', width:'100%', maxWidth:420, boxShadow:'0 32px 80px rgba(0,0,0,0.7)', textAlign:'center' }}>
+            <h2 style={{ fontFamily:'var(--font-head)', fontSize:'1.25rem', fontWeight:800, color:'var(--text)', margin:'0 0 16px' }}>Are you sure?</h2>
+            <p style={{ color:'var(--text-muted)', fontSize:'0.95rem', marginBottom:24, lineHeight:1.5 }}>
+              Deleting your account is permanent. You will immediately lose access to all your generated scripts, captions, and account data.
+            </p>
+            <div style={{ display:'flex', gap:12 }}>
+              <button onClick={() => setShowDeleteWarning(false)} className="btn btn-ghost" style={{ flex:1, padding:'12px', borderRadius:12 }}>Go Back</button>
+              <button onClick={() => { setShowDeleteWarning(false); setShowDeleteConfirmModal(true) }} className="btn btn-primary" style={{ flex:1, padding:'12px', borderRadius:12, background:'#ff4646', color:'#fff', border:'none' }}>Confirm</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal (Step 2) */}
+      {showDeleteConfirmModal && createPortal(
+        <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(4,5,18,0.88)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowDeleteConfirmModal(false) }}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border-bright)', borderRadius:24, padding:'24px', width:'100%', maxWidth:420, boxShadow:'0 32px 80px rgba(0,0,0,0.7)', textAlign:'center' }}>
+            <h2 style={{ fontFamily:'var(--font-head)', fontSize:'1.25rem', fontWeight:800, color:'#ff4646', margin:'0 0 16px' }}>Final Confirmation</h2>
+            <p style={{ color:'var(--text-muted)', fontSize:'0.9rem', marginBottom:16, lineHeight:1.5 }}>
+              Type <strong>DELETE</strong> below to permanently erase your account. This action cannot be reversed.
+            </p>
+            <input
+              className="input"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder="Type DELETE"
+              style={{ width:'100%', marginBottom: 20, textAlign:'center', fontWeight:'bold' }}
+            />
+            <div style={{ display:'flex', gap:12 }}>
+              <button onClick={() => setShowDeleteConfirmModal(false)} className="btn btn-ghost" style={{ flex:1, padding:'12px', borderRadius:12 }}>Go Back</button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE'}
+                style={{
+                  flex:1, padding:'12px', borderRadius:12,
+                  background: deleteConfirm.trim().toUpperCase() === 'DELETE' ? '#ff4646' : 'var(--surface2)',
+                  color: deleteConfirm.trim().toUpperCase() === 'DELETE' ? '#fff' : 'var(--text-faint)',
+                  border:'none', fontWeight: 700, cursor: (deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE') ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {deleting ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
