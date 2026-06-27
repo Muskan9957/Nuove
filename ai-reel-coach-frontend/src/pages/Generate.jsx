@@ -1214,7 +1214,7 @@ export default function Generate() {
 
             {/* Custom Refinement */}
             <div style={{ marginTop: 12, marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 8, fontFamily: 'var(--font-head)' }}>
+              <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)', marginBottom: 8, fontFamily: 'var(--font-head)' }}>
                 Tell us what you'd like to improve
               </label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
