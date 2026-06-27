@@ -59,7 +59,7 @@ export default function TrendDetailModal({ isOpen, onClose, trend, onGenerateScr
   if (!isOpen || !trend) return null
 
   // Safety fallback for formats
-  const title = trend.title || (typeof trend === 'string' ? trend : '')
+  const title = trend.text || trend.title || (typeof trend === 'string' ? trend : '')
   const description = trend.description || ''
   const keywords = Array.isArray(trend.keywords) ? trend.keywords : []
   const evidence = Array.isArray(trend.evidence) ? trend.evidence : []
