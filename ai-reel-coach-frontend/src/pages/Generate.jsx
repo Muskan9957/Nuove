@@ -129,6 +129,7 @@ export default function Generate() {
   const [activeVer, setActiveVer]     = usePersistentState('arc_gen_activeVer', 0)
   const [refining, setRefining]       = useState(false)
   const [rerolling, setRerolling]     = useState(false)
+  const [customRefinement, setCustomRefinement] = useState('')
   const [rerollCount, setRerollCount] = usePersistentState('arc_gen_rerolls', 0)   // free retakes used (max 5 per topic)
   const MAX_RETAKES = 5
   const refineRef    = useRef(null)
@@ -1209,6 +1210,55 @@ export default function Generate() {
                   {chip.label}
                 </button>
               ))}
+            </div>
+
+            {/* Custom Refinement */}
+            <div style={{ marginTop: 12, marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', marginBottom: 8, fontFamily: 'var(--font-head)' }}>
+                Tell us what you'd like to improve
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <textarea
+                  value={customRefinement}
+                  onChange={e => setCustomRefinement(e.target.value)}
+                  placeholder="Examples: Make the intro stronger, Add humor, Make it suitable for Instagram..."
+                  disabled={refining || rerolling}
+                  rows={2}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface2)',
+                    color: 'var(--text)',
+                    fontSize: '0.85rem',
+                    fontFamily: 'var(--font-body)',
+                    resize: 'vertical',
+                    minHeight: '42px',
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (!customRefinement.trim()) return
+                      refine(customRefinement)
+                      setCustomRefinement('')
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!customRefinement.trim()) return
+                    refine(customRefinement)
+                    setCustomRefinement('')
+                  }}
+                  disabled={!customRefinement.trim() || refining || rerolling}
+                  className="btn btn-primary"
+                  style={{ padding: '0 20px', height: '42px', borderRadius: 12, fontSize: '0.85rem', flexShrink: 0 }}
+                >
+                  Refine Script
+                </button>
+              </div>
             </div>
 
             {/* Version history */}
