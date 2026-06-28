@@ -1162,11 +1162,10 @@ export default function Generate() {
             </div>
           )}
 
-          {/* ── Tweak This Take ──────────────────────────────────── */}
           <div ref={refineRef} className="card" style={{
-            background: 'linear-gradient(145deg, rgba(123,92,240,0.20) 0%, rgba(255,61,154,0.12) 100%)',
-            border: '1px solid rgba(123,92,240,0.5)',
-            boxShadow: '0 8px 32px rgba(123,92,240,0.12)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderLeft: '4px solid #7B5CF0',
             paddingBottom: 28,
           }}>
 
@@ -1255,12 +1254,12 @@ export default function Generate() {
             </div>
 
             {/* Custom Instruction — The Power Feature */}
-            <div style={{ borderTop: '1px solid rgba(123,92,240,0.3)', paddingTop: 22 }}>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text)', marginBottom: 4, fontFamily: 'var(--font-head)' }}>
+            <div style={{ borderTop: '1px solid rgba(123,92,240,0.2)', paddingTop: 26 }}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', marginBottom: 6, fontFamily: 'var(--font-head)' }}>
                   ✍️ Tell us exactly what you want
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)' }}>Plain English works — "make the hook a question", "add a shocking stat", "make the CTA more urgent"</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)' }}>Plain English works — "make the hook a question", "add a shocking stat", "make the CTA more urgent"</div>
               </div>
               <div style={{ position: 'relative', marginBottom: 10 }}>
                 <textarea
@@ -1278,10 +1277,10 @@ export default function Generate() {
                     borderColor: customRefinement.trim() ? 'rgba(123,92,240,0.6)' : 'rgba(123,92,240,0.25)',
                     background: 'rgba(123,92,240,0.05)',
                     color: 'var(--text)',
-                    fontSize: '0.925rem',
+                    fontSize: '1rem',
                     fontFamily: 'var(--font-body)',
                     resize: 'vertical',
-                    minHeight: '80px',
+                    minHeight: '120px',
                     boxSizing: 'border-box',
                     outline: 'none',
                     transition: 'border-color 0.2s, box-shadow 0.2s',
