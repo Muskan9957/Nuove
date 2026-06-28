@@ -802,7 +802,7 @@ export default function Generate() {
                       onMouseEnter={e => { if (!hookImproving) e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.08)' }}
                     >
-                      {hookImproving ? <><span className="spinner" style={{ width: 9, height: 9, borderColor: 'rgba(0,200,255,0.2)', borderTopColor: '#00C8FF' }} /> Improving…</> : '⚡ AI Improve'}
+                      {hookImproving ? <><span className="spinner" style={{ width: 9, height: 9, borderColor: 'rgba(0,200,255,0.2)', borderTopColor: '#00C8FF' }} /> Improving…</> : '⚡ Smart Improve'}
                     </button>
                   )}
                 </div>
@@ -1164,30 +1164,31 @@ export default function Generate() {
 
           {/* ── Tweak This Take ──────────────────────────────────── */}
           <div ref={refineRef} className="card" style={{
-            background: 'linear-gradient(145deg, rgba(123,92,240,0.10) 0%, rgba(0,200,255,0.04) 100%)',
-            border: '1px solid rgba(123,92,240,0.30)',
+            background: 'linear-gradient(145deg, rgba(123,92,240,0.20) 0%, rgba(255,61,154,0.12) 100%)',
+            border: '1px solid rgba(123,92,240,0.5)',
+            boxShadow: '0 8px 32px rgba(123,92,240,0.12)',
             paddingBottom: 28,
           }}>
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.2rem', margin: '0 0 4px', background: 'linear-gradient(135deg, #C4ABFF, #00C8FF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.2rem', margin: '0 0 4px', background: 'linear-gradient(135deg, #C4ABFF, #FF8BC1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   ✦ Tweak This Take
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                  The AI understands natural language — just tell it what you want
+                  The engine understands natural language — just tell it what you want
                 </p>
               </div>
               {refining && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, background: 'rgba(123,92,240,0.18)', border: '1px solid rgba(155,114,255,0.35)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, background: 'rgba(123,92,240,0.25)', border: '1px solid rgba(155,114,255,0.45)' }}>
                   <span className="spinner" style={{ width: 12, height: 12, borderColor: 'rgba(155,114,255,0.25)', borderTopColor: '#9B72FF' }} />
-                  <span style={{ fontSize: '0.76rem', color: '#C4ABFF', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>AI is rewriting…</span>
+                  <span style={{ fontSize: '0.76rem', color: '#fff', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>Rewriting…</span>
                 </div>
               )}
             </div>
 
-            {/* AI Changes Summary */}
+            {/* Changes Summary */}
             {tweakChanges && !refining && (
               <div style={{
                 marginBottom: 20, padding: '12px 16px', borderRadius: 12,
@@ -1254,10 +1255,10 @@ export default function Generate() {
             </div>
 
             {/* Custom Instruction — The Power Feature */}
-            <div style={{ borderTop: '1px solid rgba(123,92,240,0.2)', paddingTop: 22 }}>
+            <div style={{ borderTop: '1px solid rgba(123,92,240,0.3)', paddingTop: 22 }}>
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text)', marginBottom: 4, fontFamily: 'var(--font-head)' }}>
-                  ✍️ Tell the AI exactly what you want
+                  ✍️ Tell us exactly what you want
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)' }}>Plain English works — "make the hook a question", "add a shocking stat", "make the CTA more urgent"</div>
               </div>
