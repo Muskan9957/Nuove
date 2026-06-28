@@ -118,7 +118,7 @@ const refineScript = async ({ hook, body, cta, instruction, language = 'en', aud
   const audienceInstruction = getAudienceContext(audience)
 
   const prompt = `
-You are refining an existing viral short-form video script based on the creator's feedback.
+You are an elite short-form video scriptwriter and editor. A creator has an existing script and wants you to refine it based on their specific instruction.
 
 LANGUAGE RULE (non-negotiable):
 ${langInstruction}
@@ -133,37 +133,59 @@ HOOK: ${hook}
 BODY: ${body}
 CTA: ${cta}
 
-CREATOR'S REFINEMENT INSTRUCTION:
+CREATOR'S INSTRUCTION:
 "${instruction}"
 
-Your job:
-- Apply the instruction PRECISELY — change only what is asked
-- Keep everything that is already strong and working
-- If the hook needs to change, make it Grade A (85+ score worthy)
-- Maintain the same language and tone unless explicitly told otherwise
-- Keep total speaking time 60-90 seconds
+YOUR EDITING RULES:
+1. INTENT DETECTION: First silently determine what the creator wants. Examples:
+   - "make it funnier" → add wit/humour throughout, keep structure
+   - "stronger hook" → only rewrite the hook, leave body and CTA untouched
+   - "make the CTA more urgent" → only edit the CTA
+   - "make it shorter" → cut 25-30% across all sections while keeping every key point
+   - "add a personal story" → restructure body as narrative, hook may change
+   - "more FOMO" → amplify scarcity/urgency language throughout
+   - General instructions → apply globally; section-specific → apply surgically
 
-Return ONLY the refined script in this exact format — no commentary. Keep the labels "HOOK:", "BODY:", "CTA:" exactly in English (do NOT translate the labels), even if the content is in another language:
+2. SURGICAL PRECISION: If the instruction targets one section (hook, body, or CTA), only edit that section. Leave the others EXACTLY as they are — word for word.
+
+3. QUALITY STANDARD FOR HOOKS: If the hook changes, it must be Grade A:
+   - Opens with a pattern interrupt (question, shocking stat, bold claim, or story tease)
+   - No filler words ("So today...", "Hey guys...", "In this video...")
+   - Makes viewer feel they MUST watch the next 60 seconds
+   - Specific and concrete, not vague
+
+4. PRESERVE WHAT WORKS: Keep everything that is already strong. Do NOT rewrite the whole script just because one thing was asked.
+
+5. LANGUAGE + TONE: Same language and tone unless the creator explicitly asks to change it.
+
+6. LENGTH: Keep total speaking time 60-90 seconds. Do NOT pad or inflate.
+
+Return the refined script in this EXACT format. Keep labels "HOOK:", "BODY:", "CTA:", "CHANGES:" in English even if content is in another language:
 
 HOOK:
-[refined hook]
+[refined hook — copy original word-for-word if not changed]
 
 BODY:
-[refined body]
+[refined body — copy original word-for-word if not changed]
 
 CTA:
-[refined cta]
+[refined cta — copy original word-for-word if not changed]
+
+CHANGES:
+[1-2 sentence plain-English summary of exactly what you changed and why. Be specific. Example: "Rewrote the hook as a shocking question to create a stronger pattern interrupt. Body and CTA were left unchanged." If a section was not touched, say so explicitly.]
 `;
 
-  const raw = await ask(prompt, 1200);
-  const hookMatch = raw.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY|$)/i);
-  const bodyMatch = raw.match(/BODY[^:]*:\s*([\s\S]*?)(?=CTA|$)/i);
-  const ctaMatch  = raw.match(/CTA[^:]*:\s*([\s\S]*?)$/i);
+  const raw = await ask(prompt, 1400);
+  const hookMatch    = raw.match(/HOOK[^:]*:\s*([\s\S]*?)(?=BODY:|$)/i);
+  const bodyMatch    = raw.match(/BODY[^:]*:\s*([\s\S]*?)(?=CTA:|$)/i);
+  const ctaMatch     = raw.match(/CTA[^:]*:\s*([\s\S]*?)(?=CHANGES:|$)/i);
+  const changesMatch = raw.match(/CHANGES[^:]*:\s*([\s\S]*?)$/i);
 
   return {
-    hook      : hookMatch ? hookMatch[1].trim() : hook,
-    body      : bodyMatch ? bodyMatch[1].trim() : body,
-    cta       : ctaMatch  ? ctaMatch[1].trim()  : cta,
+    hook    : hookMatch    ? hookMatch[1].trim()    : hook,
+    body    : bodyMatch    ? bodyMatch[1].trim()    : body,
+    cta     : ctaMatch     ? ctaMatch[1].trim()     : cta,
+    changes : changesMatch ? changesMatch[1].trim() : null,
     fullScript: raw,
   };
 };

@@ -11,14 +11,17 @@ import { detectAndSaveRegion, getSavedRegion, saveRegion, REGIONS } from '../uti
 import { buildCanonicalSections, copyCanonicalScript } from '../utils/scriptFormat'
 
 const REFINE_CHIPS = [
-  { label: '🔥 Stronger hook',       instruction: 'Make the hook much more scroll-stopping with higher emotional intensity and specificity.' },
-  { label: '✂️ Make it shorter',     instruction: 'Make the entire script more concise ,  cut 30% of the words while keeping all the value.' },
-  { label: '😂 Add humour',          instruction: 'Add clever humour and wit throughout ,  make it more entertaining and fun to watch.' },
-  { label: '🎯 More specific',       instruction: 'Replace vague statements with concrete numbers, specific examples, and real details.' },
-  { label: '😱 More FOMO',          instruction: 'Amplify fear of missing out ,  make the viewer feel they CANNOT afford to skip this.' },
-  { label: '🇮🇳 More Indian feel',   instruction: 'Add more Indian cultural references, examples, and context relevant to Indian audiences.' },
-  { label: '💡 Better CTA',         instruction: 'Rewrite the call-to-action to be more compelling, specific, and urgent.' },
-  { label: '📖 More storytelling',  instruction: 'Reframe using personal story structure ,  make it feel more human and relatable.' },
+  { label: '🔥 Stronger Hook',     sub: 'More scroll-stopping',     instruction: 'Make the hook much more scroll-stopping with higher emotional intensity and specificity. Open with a pattern interrupt — a shocking question, bold claim, or specific statistic.', color: '#FF6B35', bg: 'rgba(255,107,53,0.08)', border: 'rgba(255,107,53,0.25)' },
+  { label: '✂️ Make it Shorter',   sub: 'Cut 30%, keep the value',  instruction: 'Make the entire script more concise — cut at least 30% of the words while keeping all the core value. Every sentence must earn its place.', color: '#00C8FF', bg: 'rgba(0,200,255,0.08)', border: 'rgba(0,200,255,0.25)' },
+  { label: '😂 Add Humour',        sub: 'Wit & entertainment',       instruction: 'Add clever humour and wit throughout — make it more entertaining and fun to watch without losing credibility.', color: '#FFD60A', bg: 'rgba(255,214,10,0.08)', border: 'rgba(255,214,10,0.25)' },
+  { label: '🎯 More Specific',     sub: 'Numbers & real details',    instruction: 'Replace all vague statements with concrete numbers, specific examples, real names, and verifiable facts. Specificity builds credibility.', color: '#00C9A7', bg: 'rgba(0,201,167,0.08)', border: 'rgba(0,201,167,0.25)' },
+  { label: '😱 Add FOMO',          sub: 'Fear of missing out',       instruction: 'Amplify fear of missing out — make the viewer feel they absolutely CANNOT afford to skip this. Add urgency and scarcity language.', color: '#FF4D6D', bg: 'rgba(255,77,109,0.08)', border: 'rgba(255,77,109,0.25)' },
+  { label: '💡 Better CTA',        sub: 'More compelling action',    instruction: 'Rewrite only the call-to-action to be more compelling, specific, and urgent. Give viewers a crystal-clear next step with a reason to act NOW.', color: '#A78BFA', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)' },
+  { label: '📖 Personal Story',    sub: 'Human & relatable',         instruction: 'Reframe the script using a personal story structure — make it feel more human and relatable. Start with "I" or "My client" and build the content around a real journey.', color: '#FB923C', bg: 'rgba(251,146,60,0.08)', border: 'rgba(251,146,60,0.25)' },
+  { label: '🇮🇳 Indian Feel',       sub: 'Local cultural context',    instruction: 'Add more Indian cultural references, desi examples, and context specifically relevant to Indian audiences without changing the language.', color: '#4ADE80', bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.25)' },
+  { label: '📱 More Punchy',       sub: 'Short, sharp sentences',    instruction: 'Rewrite in short, punchy sentences. Maximum 10 words per sentence. Use line breaks for rhythm. Make every line land like a punch.', color: '#F472B6', bg: 'rgba(244,114,182,0.08)', border: 'rgba(244,114,182,0.25)' },
+  { label: '🎬 More Cinematic',    sub: 'Vivid & visual language',   instruction: 'Rewrite using vivid, cinematic language that paints pictures in the viewer\'s mind. Use sensory details, action verbs, and scene-setting descriptions.', color: '#60A5FA', bg: 'rgba(96,165,250,0.08)', border: 'rgba(96,165,250,0.25)' },
+  { label: '💬 Conversational',    sub: 'Like talking to a friend',  instruction: 'Make the entire script sound like a natural conversation with a close friend — casual, warm, and real. Remove any formal or corporate language.', color: '#34D399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.25)' },
 ]
 
 
@@ -132,7 +135,9 @@ export default function Generate() {
   const [refining, setRefining]       = useState(false)
   const [rerolling, setRerolling]     = useState(false)
   const [customRefinement, setCustomRefinement] = useState('')
+  const [tweakChanges, setTweakChanges] = useState(null)   // AI summary of what changed
   const [rerollCount, setRerollCount] = usePersistentState('arc_gen_rerolls', 0)   // free retakes used (max 5 per topic)
+  const customRefineRef = useRef(null)
   const MAX_RETAKES = 5
   const refineRef    = useRef(null)
   const prevLangRef  = useRef(lang)
@@ -358,9 +363,10 @@ export default function Generate() {
   }
 
   // Refine — targeted chip tweak, no quota cost
-  const refine = async (instruction) => {
+  const refine = async (instruction, chipLabel = null) => {
     if (!instruction || !result?.script) return
     setRefining(true)
+    setTweakChanges(null)
     try {
       const currentResult   = latestResultRef.current
       const currentVersions = latestVersionsRef.current
@@ -374,19 +380,20 @@ export default function Generate() {
         audience   : form.audience,
         topic      : form.topic,
       })
-      const chipLabel = instruction.length > 30 ? instruction.slice(0, 30) + '…' : instruction
+      const label = chipLabel || (instruction.length > 32 ? instruction.slice(0, 32) + '…' : instruction)
       // Inherit visual/music from the current version (never stale via ref)
       const inheritedVisual = current?.visual || currentResult?.script?.visual || null
       const inheritedMusic  = current?.music  || currentResult?.script?.music  || null
       const newVer = {
         ...data.script,
-        label : `Take ${currentVersions.length + 1} · ${chipLabel}`,
+        label : `Take ${currentVersions.length + 1} · ${label}`,
         visual: inheritedVisual,
         music : inheritedMusic,
       }
       setVersions(prev => [newVer, ...prev])
       setActiveVer(0)
       setResult(prev => ({ ...prev, script: newVer }))
+      if (data.script?.changes) setTweakChanges(data.script.changes)
       setTimeout(() => refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
       toast(err.message, 'error')
@@ -770,35 +777,35 @@ export default function Generate() {
 
             {/* Hook */}
             <div style={{ marginBottom: 10, padding: '13px 16px', borderRadius: 10, background: 'rgba(0,200,255,0.05)', borderLeft: '3px solid #00C8FF' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C8FF' }}>
-                  🎣 {t('generate_hook')} ,  {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
+                  🎣 {t('generate_hook')} — {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
                 </span>
-                {result.script?.id && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <button
                     type="button"
-                    onClick={improveHook}
-                    disabled={hookImproving}
-                    style={{
-                      padding: '3px 10px', borderRadius: 20,
-                      fontSize: '0.7rem', fontWeight: 700,
-                      fontFamily: 'var(--font-mono)',
-                      border: '1px solid rgba(0,200,255,0.3)',
-                      background: 'rgba(0,200,255,0.08)',
-                      color: '#00C8FF',
-                      cursor: hookImproving ? 'not-allowed' : 'pointer',
-                      opacity: hookImproving ? 0.55 : 1,
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      transition: 'all 0.15s', flexShrink: 0,
+                    onClick={() => {
+                      setCustomRefinement('Improve only the hook: ')
+                      customRefineRef.current?.focus()
+                      refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                     }}
-                    onMouseEnter={e => { if (!hookImproving) e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.08)' }}
-                  >
-                    {hookImproving
-                      ? <><span className="spinner" style={{ width: 9, height: 9, borderColor: 'rgba(0,200,255,0.2)', borderTopColor: '#00C8FF' }} /> Improving…</>
-                      : '⚡ Improve Hook'}
-                  </button>
-                )}
+                    style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.06)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.06)' }}
+                  >✏️ Tweak</button>
+                  {result.script?.id && (
+                    <button
+                      type="button"
+                      onClick={improveHook}
+                      disabled={hookImproving}
+                      style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.08)', color: '#00C8FF', cursor: hookImproving ? 'not-allowed' : 'pointer', opacity: hookImproving ? 0.55 : 1, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s', flexShrink: 0 }}
+                      onMouseEnter={e => { if (!hookImproving) e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.08)' }}
+                    >
+                      {hookImproving ? <><span className="spinner" style={{ width: 9, height: 9, borderColor: 'rgba(0,200,255,0.2)', borderTopColor: '#00C8FF' }} /> Improving…</> : '⚡ AI Improve'}
+                    </button>
+                  )}
+                </div>
               </div>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.hook}</p>
 
@@ -832,16 +839,42 @@ export default function Generate() {
 
             {/* Body */}
             <div style={{ marginBottom: 10, padding: '13px 16px', borderRadius: 10, background: 'rgba(0,201,167,0.05)', borderLeft: '3px solid #00C9A7' }}>
-              <div style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C9A7', marginBottom: 8 }}>
-                📖 {t('generate_body')} ,  {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+                <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C9A7' }}>
+                  📖 {t('generate_body')} — {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomRefinement('Improve only the body: ')
+                    customRefineRef.current?.focus()
+                    refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  }}
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,201,167,0.3)', background: 'rgba(0,201,167,0.06)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.18)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.06)' }}
+                >✏️ Tweak</button>
               </div>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
             </div>
 
             {/* CTA */}
             <div style={{ marginBottom: 14, padding: '13px 16px', borderRadius: 10, background: 'rgba(255,214,10,0.04)', borderLeft: '3px solid #FFD60A' }}>
-              <div style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FFD60A', marginBottom: 8 }}>
-                📣 {t('generate_cta')}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+                <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FFD60A' }}>
+                  📣 {t('generate_cta')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomRefinement('Improve only the CTA: ')
+                    customRefineRef.current?.focus()
+                    refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  }}
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(255,214,10,0.3)', background: 'rgba(255,214,10,0.06)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.18)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.06)' }}
+                >✏️ Tweak</button>
               </div>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.cta}</p>
             </div>
@@ -1131,182 +1164,235 @@ export default function Generate() {
 
           {/* ── Tweak This Take ──────────────────────────────────── */}
           <div ref={refineRef} className="card" style={{
-            background: 'linear-gradient(145deg, rgba(123,92,240,0.08) 0%, rgba(0,200,255,0.03) 100%)',
-            border: '1px solid rgba(123,92,240,0.25)',
-            paddingBottom: 24,
+            background: 'linear-gradient(145deg, rgba(123,92,240,0.10) 0%, rgba(0,200,255,0.04) 100%)',
+            border: '1px solid rgba(123,92,240,0.30)',
+            paddingBottom: 28,
           }}>
 
-            {/* Header row */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <h3 style={{
-                  fontFamily: 'var(--font-head)',
-                  fontWeight: 800,
-                  fontSize: '1.05rem',
-                  margin: '0 0 3px',
-                  color: 'var(--text)',
-                }}>
+                <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.2rem', margin: '0 0 4px', background: 'linear-gradient(135deg, #C4ABFF, #00C8FF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   ✦ Tweak This Take
                 </h3>
-                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-faint)', fontFamily: 'var(--font-body)' }}>
-                  Refine without spending quota
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-faint)' }}>
+                  The AI understands natural language — just tell it what you want
                 </p>
               </div>
               {refining && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  padding: '6px 13px', borderRadius: 20,
-                  background: 'rgba(123,92,240,0.15)',
-                  border: '1px solid rgba(155,114,255,0.3)',
-                }}>
-                  <span className="spinner" style={{ width: 11, height: 11, borderColor: 'rgba(155,114,255,0.25)', borderTopColor: '#9B72FF' }} />
-                  <span style={{ fontSize: '0.74rem', color: '#B39DFF', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>Rewriting…</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, background: 'rgba(123,92,240,0.18)', border: '1px solid rgba(155,114,255,0.35)' }}>
+                  <span className="spinner" style={{ width: 12, height: 12, borderColor: 'rgba(155,114,255,0.25)', borderTopColor: '#9B72FF' }} />
+                  <span style={{ fontSize: '0.76rem', color: '#C4ABFF', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>AI is rewriting…</span>
                 </div>
               )}
             </div>
 
-            {/* Chip grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))',
-              gap: 8,
-              marginBottom: 6,
-            }}>
-              {REFINE_CHIPS.map(chip => (
-                <button
-                  key={chip.label}
-                  type="button"
-                  onClick={() => refine(chip.instruction)}
-                  disabled={refining || rerolling}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    fontSize: '0.83rem',
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-body)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface2)',
-                    color: 'var(--text-muted)',
-                    cursor: (refining || rerolling) ? 'not-allowed' : 'pointer',
-                    opacity: (refining || rerolling) ? 0.38 : 1,
-                    transition: 'all 0.18s ease',
-                    textAlign: 'left',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    lineHeight: 1.3,
-                  }}
-                  onMouseEnter={e => {
-                    if (refining || rerolling) return
-                    e.currentTarget.style.borderColor = 'rgba(123,92,240,0.5)'
-                    e.currentTarget.style.background = 'rgba(123,92,240,0.15)'
-                    e.currentTarget.style.color = 'var(--text)'
-                    e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(123,92,240,0.15)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border)'
-                    e.currentTarget.style.background = 'var(--surface2)'
-                    e.currentTarget.style.color = 'var(--text-muted)'
-                    e.currentTarget.style.transform = 'none'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  {chip.label}
-                </button>
-              ))}
+            {/* AI Changes Summary */}
+            {tweakChanges && !refining && (
+              <div style={{
+                marginBottom: 20, padding: '12px 16px', borderRadius: 12,
+                background: 'rgba(74,222,128,0.08)',
+                border: '1px solid rgba(74,222,128,0.25)',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: 1 }}>✅</span>
+                <div>
+                  <div style={{ fontSize: '0.69rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4ADE80', marginBottom: 4 }}>What changed</div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>{tweakChanges}</p>
+                </div>
+                <button onClick={() => setTweakChanges(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: '1rem', flexShrink: 0, padding: 0, lineHeight: 1 }}>×</button>
+              </div>
+            )}
+
+            {/* Quick Chips */}
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: '0.69rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', marginBottom: 12 }}>Quick Tweaks</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 9 }}>
+                {REFINE_CHIPS.map(chip => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => refine(chip.instruction, chip.label)}
+                    disabled={refining || rerolling}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: 14,
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-body)',
+                      border: `1px solid ${chip.border}`,
+                      background: chip.bg,
+                      color: chip.color,
+                      cursor: (refining || rerolling) ? 'not-allowed' : 'pointer',
+                      opacity: (refining || rerolling) ? 0.4 : 1,
+                      transition: 'all 0.2s ease',
+                      textAlign: 'left',
+                      lineHeight: 1.2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                    onMouseEnter={e => {
+                      if (refining || rerolling) return
+                      e.currentTarget.style.transform = 'translateY(-3px)'
+                      e.currentTarget.style.boxShadow = `0 8px 24px ${chip.bg.replace('0.08', '0.3')}`
+                      e.currentTarget.style.borderColor = chip.color
+                      e.currentTarget.style.background = chip.bg.replace('0.08', '0.15')
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'none'
+                      e.currentTarget.style.boxShadow = 'none'
+                      e.currentTarget.style.borderColor = chip.border
+                      e.currentTarget.style.background = chip.bg
+                    }}
+                  >
+                    <span>{chip.label}</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 400, opacity: 0.75 }}>{chip.sub}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Custom Refinement */}
-            <div style={{ marginTop: 12, marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)', marginBottom: 8, fontFamily: 'var(--font-head)' }}>
-                Tell us what you'd like to improve
-              </label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            {/* Custom Instruction — The Power Feature */}
+            <div style={{ borderTop: '1px solid rgba(123,92,240,0.2)', paddingTop: 22 }}>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text)', marginBottom: 4, fontFamily: 'var(--font-head)' }}>
+                  ✍️ Tell the AI exactly what you want
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)' }}>Plain English works — "make the hook a question", "add a shocking stat", "make the CTA more urgent"</div>
+              </div>
+              <div style={{ position: 'relative', marginBottom: 10 }}>
                 <textarea
+                  ref={customRefineRef}
                   value={customRefinement}
                   onChange={e => setCustomRefinement(e.target.value)}
-                  placeholder="Examples: Make the intro stronger, Add humor, Make it suitable for Instagram..."
+                  placeholder="e.g. Make the hook start with a surprising statistic about money... or just: stronger hook"
                   disabled={refining || rerolling}
-                  rows={2}
+                  rows={3}
                   style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface2)',
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: 14,
+                    border: '1.5px solid',
+                    borderColor: customRefinement.trim() ? 'rgba(123,92,240,0.6)' : 'rgba(123,92,240,0.25)',
+                    background: 'rgba(123,92,240,0.05)',
                     color: 'var(--text)',
-                    fontSize: '0.85rem',
+                    fontSize: '0.925rem',
                     fontFamily: 'var(--font-body)',
                     resize: 'vertical',
-                    minHeight: '42px',
+                    minHeight: '80px',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    boxShadow: customRefinement.trim() ? '0 0 0 3px rgba(123,92,240,0.12)' : 'none',
+                  }}
+                  onFocus={e => {
+                    e.target.style.borderColor = 'rgba(155,114,255,0.7)'
+                    e.target.style.boxShadow = '0 0 0 3px rgba(123,92,240,0.15)'
+                  }}
+                  onBlur={e => {
+                    e.target.style.borderColor = customRefinement.trim() ? 'rgba(123,92,240,0.6)' : 'rgba(123,92,240,0.25)'
+                    e.target.style.boxShadow = customRefinement.trim() ? '0 0 0 3px rgba(123,92,240,0.12)' : 'none'
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
-                      if (!customRefinement.trim()) return
+                      if (!customRefinement.trim() || refining) return
                       refine(customRefinement)
                       setCustomRefinement('')
                     }
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!customRefinement.trim()) return
-                    refine(customRefinement)
-                    setCustomRefinement('')
-                  }}
-                  disabled={!customRefinement.trim() || refining || rerolling}
-                  className="btn btn-primary"
-                  style={{ padding: '0 20px', height: '42px', borderRadius: 12, fontSize: '0.85rem', flexShrink: 0 }}
-                >
-                  Refine Script
-                </button>
               </div>
+              {/* Example prompts */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                {[
+                  'Start with a shocking stat',
+                  'Open with a question',
+                  'Add a personal story',
+                  'Make the CTA urgent',
+                  'Cut it by half',
+                ].map(ex => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => setCustomRefinement(ex)}
+                    style={{ padding: '4px 11px', borderRadius: 20, fontSize: '0.74rem', fontWeight: 500, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-faint)', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(123,92,240,0.4)'; e.currentTarget.style.background = 'rgba(123,92,240,0.08)' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-faint)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'transparent' }}
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customRefinement.trim() || refining) return
+                  refine(customRefinement)
+                  setCustomRefinement('')
+                }}
+                disabled={!customRefinement.trim() || refining || rerolling}
+                style={{
+                  width: '100%',
+                  padding: '14px 24px',
+                  borderRadius: 14,
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-head)',
+                  border: 'none',
+                  background: (!customRefinement.trim() || refining || rerolling)
+                    ? 'var(--surface2)'
+                    : 'linear-gradient(135deg, #7B5CF0 0%, #00C8FF 100%)',
+                  color: (!customRefinement.trim() || refining || rerolling) ? 'var(--text-faint)' : '#fff',
+                  cursor: (!customRefinement.trim() || refining || rerolling) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: (!customRefinement.trim() || refining || rerolling) ? 'none' : '0 4px 20px rgba(123,92,240,0.35)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+                onMouseEnter={e => {
+                  if (!customRefinement.trim() || refining || rerolling) return
+                  e.currentTarget.style.boxShadow = '0 6px 28px rgba(123,92,240,0.50)'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = (!customRefinement.trim() || refining || rerolling) ? 'none' : '0 4px 20px rgba(123,92,240,0.35)'
+                  e.currentTarget.style.transform = 'none'
+                }}
+              >
+                {refining
+                  ? <><span className="spinner" style={{ width: 14, height: 14, borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> Rewriting your script…</>
+                  : '✦ Apply Instruction'}
+              </button>
             </div>
 
             {/* Version history */}
             {versions.length > 1 && (
-              <div style={{
-                marginTop: 22,
-                paddingTop: 18,
-                borderTop: '1px solid rgba(123,92,240,0.15)',
-              }}>
-                <div style={{
-                  fontSize: '0.69rem',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.12em',
-                  color: 'var(--text-faint)',
-                  marginBottom: 10,
-                }}>
-                  Your takes
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid rgba(123,92,240,0.15)' }}>
+                <div style={{ fontSize: '0.69rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-faint)', marginBottom: 12 }}>Your takes</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {versions.map((v, i) => (
                     <button
                       key={i}
                       type="button"
-                      onClick={() => switchVersion(i)}
+                      onClick={() => { switchVersion(i); setTweakChanges(null) }}
                       style={{
-                        padding: '6px 15px',
+                        padding: '7px 16px',
                         borderRadius: 20,
-                        fontSize: '0.75rem',
+                        fontSize: '0.76rem',
                         fontFamily: 'var(--font-mono)',
                         fontWeight: 600,
-                        border: i === activeVer ? '1px solid rgba(155,114,255,0.55)' : '1px solid var(--border)',
+                        border: i === activeVer ? '1px solid rgba(155,114,255,0.6)' : '1px solid var(--border)',
                         background: i === activeVer
-                          ? 'linear-gradient(135deg, rgba(123,92,240,0.28), rgba(0,200,255,0.1))'
+                          ? 'linear-gradient(135deg, rgba(123,92,240,0.30), rgba(0,200,255,0.12))'
                           : 'transparent',
                         color: i === activeVer ? '#C4ABFF' : 'var(--text-faint)',
                         cursor: 'pointer',
                         transition: 'all 0.15s',
-                        boxShadow: i === activeVer ? '0 2px 14px rgba(123,92,240,0.22)' : 'none',
+                        boxShadow: i === activeVer ? '0 2px 14px rgba(123,92,240,0.25)' : 'none',
                       }}
                     >
-                      {i === activeVer && <span style={{ marginRight: 5, fontSize: '0.55rem', verticalAlign: 'middle' }}>▶</span>}
+                      {i === activeVer && <span style={{ marginRight: 4, fontSize: '0.55rem', verticalAlign: 'middle' }}>▶</span>}
                       {v.label}
                     </button>
                   ))}
