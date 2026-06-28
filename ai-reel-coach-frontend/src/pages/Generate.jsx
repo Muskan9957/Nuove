@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { useLang } from '../i18n.jsx'
 import { MicButton, SpeakButton } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
-import { usePersistentState } from '../hooks/usePersistentState'
+import { usePersistentState, setPersistentState } from '../hooks/usePersistentState'
 
 import { detectAndSaveRegion, getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
+import { buildCanonicalSections, copyCanonicalScript } from '../utils/scriptFormat'
 
 const REFINE_CHIPS = [
   { label: '🔥 Stronger hook',       instruction: 'Make the hook much more scroll-stopping with higher emotional intensity and specificity.' },
@@ -44,6 +45,7 @@ export default function Generate() {
   const toast      = useToast()
   const { t, lang } = useLang()
   const location   = useLocation()
+  const navigate   = useNavigate()
   const resultRef  = useRef(null)
 
   const [form, setForm] = usePersistentState('arc_gen_form', {
@@ -448,8 +450,8 @@ export default function Generate() {
   }
 
   const copyScript = () => {
-    if (!result?.script?.fullScript) return
-    navigator.clipboard.writeText(result.script.fullScript)
+    if (!result?.script) return
+    copyCanonicalScript(result.script, t)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
     toast('Copied!', 'success')
@@ -753,9 +755,12 @@ export default function Generate() {
                   className="btn btn-sm"
                   style={{ background: '#E1306C', color: '#fff', border: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
                   onClick={() => {
-                    const full = [result.script?.hook, result.script?.body, result.script?.cta].filter(Boolean).join('\n\n')
-                    sessionStorage.setItem('rc_script', full)
-                    window.location.href = '/record'
+                    const full = buildCanonicalSections(result.script, t)
+                      .filter(s => ['hook', 'body', 'cta'].includes(s.id))
+                      .map(s => s.text)
+                      .join('\n\n')
+                    setPersistentState('rc_script', full)
+                    navigate('/record')
                   }}
                 >
                   ● Record

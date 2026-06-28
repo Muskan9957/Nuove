@@ -5,6 +5,14 @@ import { useState, useEffect } from 'react';
 // but completely clears out when the user performs a hard refresh on the browser.
 const memoryCache = new Map();
 
+export function setPersistentState(key, value) {
+  if (value === null || value === undefined) {
+    memoryCache.delete(key);
+  } else {
+    memoryCache.set(key, value);
+  }
+}
+
 export function usePersistentState(key, initialValue) {
   const [state, setState] = useState(() => {
     try {
