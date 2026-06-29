@@ -140,6 +140,7 @@ export default function Generate() {
   const customRefineRef = useRef(null)
   const [activeTweakSection, setActiveTweakSection] = useState(null)
   const [tweakValue, setTweakValue] = useState('')
+  const [approvedSections, setApprovedSections] = useState({ hook: false, body: false, cta: false })
   const MAX_RETAKES = 5
   const refineRef    = useRef(null)
   const prevLangRef  = useRef(lang)
@@ -156,6 +157,7 @@ export default function Generate() {
     setVersions([])
     setActiveVer(0)
     setRerollCount(0)
+    setApprovedSections({ hook: false, body: false, cta: false })
     try {
       const voiceInstruction = voiceProfile?.promptInstruction || undefined
       const data = await api.generate({ ...currentForm, language: newLang, voiceInstruction })
@@ -241,6 +243,7 @@ export default function Generate() {
     setVersions([])
     setActiveVer(0)
     setRerollCount(0)
+    setApprovedSections({ hook: false, body: false, cta: false })
     stopAudio(); setSongs(null)
 
     saveRegion(form.audience)
@@ -698,7 +701,7 @@ export default function Generate() {
               {/* Secondary: clear and start a new topic */}
               <button
                 type="button"
-                onClick={() => { setResult(null); setVersions([]); setActiveVer(0); setRerollCount(0); setForm({ topic: '', tone: 'motivational', audience: getSavedRegion(), scriptLang: getSavedScriptLang() }); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                onClick={() => { setResult(null); setVersions([]); setActiveVer(0); setRerollCount(0); setApprovedSections({ hook: false, body: false, cta: false }); setForm({ topic: '', tone: 'motivational', audience: getSavedRegion(), scriptLang: getSavedScriptLang() }); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                 className="btn btn-ghost"
                 style={{ height: 52, paddingInline: 20, fontSize: '0.9rem', whiteSpace: 'nowrap' }}
               >
@@ -795,14 +798,32 @@ export default function Generate() {
             <div style={{ marginBottom: 10, padding: '13px 16px', borderRadius: 10, background: 'rgba(0,200,255,0.05)', borderLeft: '3px solid #00C8FF' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C8FF' }}>
-                  🎣 {t('generate_hook')} — {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
+                  🎣 {t('generate_hook')} — {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'} {approvedSections.hook && <span style={{ color: '#4ADE80', marginLeft: 8, textTransform: 'none', fontSize: '0.62rem' }}>✓ Approved</span>}
                 </span>
               </div>
 
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.hook}</p>
 
-              {/* Tweak Button below right */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+              {/* Tweak & Approve Buttons below right */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setApprovedSections(prev => ({ ...prev, hook: !prev.hook }))}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono)',
+                    border: approvedSections.hook ? '1px solid #4ADE80' : '1px solid rgba(0,200,255,0.3)',
+                    background: approvedSections.hook ? 'rgba(74,222,128,0.15)' : 'transparent',
+                    color: approvedSections.hook ? '#4ADE80' : 'var(--text-faint)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {approvedSections.hook ? '✓ Approved' : ' Approve'}
+                </button>
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'hook' ? null : 'hook'); setTweakValue('') }}
@@ -854,14 +875,32 @@ export default function Generate() {
             <div style={{ marginBottom: 10, padding: '13px 16px', borderRadius: 10, background: 'rgba(0,201,167,0.05)', borderLeft: '3px solid #00C9A7' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C9A7' }}>
-                  📖 {t('generate_body')} — {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
+                  📖 {t('generate_body')} — {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'} {approvedSections.body && <span style={{ color: '#4ADE80', marginLeft: 8, textTransform: 'none', fontSize: '0.62rem' }}>✓ Approved</span>}
                 </span>
               </div>
 
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
 
-              {/* Tweak Button below right */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+              {/* Tweak & Approve Buttons below right */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setApprovedSections(prev => ({ ...prev, body: !prev.body }))}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono)',
+                    border: approvedSections.body ? '1px solid #4ADE80' : '1px solid rgba(0,201,167,0.3)',
+                    background: approvedSections.body ? 'rgba(74,222,128,0.15)' : 'transparent',
+                    color: approvedSections.body ? '#4ADE80' : 'var(--text-faint)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {approvedSections.body ? '✓ Approved' : ' Approve'}
+                </button>
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'body' ? null : 'body'); setTweakValue('') }}
@@ -913,14 +952,32 @@ export default function Generate() {
             <div style={{ marginBottom: 14, padding: '13px 16px', borderRadius: 10, background: 'rgba(255,214,10,0.04)', borderLeft: '3px solid #FFD60A' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FFD60A' }}>
-                  📣 {t('generate_cta')}
+                  📣 {t('generate_cta')} {approvedSections.cta && <span style={{ color: '#4ADE80', marginLeft: 8, textTransform: 'none', fontSize: '0.62rem' }}>✓ Approved</span>}
                 </span>
               </div>
 
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.cta}</p>
 
-              {/* Tweak Button below right */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+              {/* Tweak & Approve Buttons below right */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setApprovedSections(prev => ({ ...prev, cta: !prev.cta }))}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono)',
+                    border: approvedSections.cta ? '1px solid #4ADE80' : '1px solid rgba(255,214,10,0.3)',
+                    background: approvedSections.cta ? 'rgba(74,222,128,0.15)' : 'transparent',
+                    color: approvedSections.cta ? '#4ADE80' : 'var(--text-faint)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {approvedSections.cta ? '✓ Approved' : ' Approve'}
+                </button>
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'cta' ? null : 'cta'); setTweakValue('') }}
