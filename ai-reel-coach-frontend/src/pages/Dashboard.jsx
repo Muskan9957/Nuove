@@ -116,6 +116,12 @@ function TrendingBrief({ userName }) {
   const { t, lang } = useLang()
   const { theme } = useTheme()
   const navigate = useNavigate()
+
+  const handleGenerate = (topic) => {
+    localStorage.setItem('arc_prefill_topic', topic)
+    navigate('/generate', { state: { topic } })
+  }
+
   const isLight = theme === 'light'
   const { speaking, preparing, speak, stopSpeaking, prefetch } = useTextToSpeech()
   const [played, setPlayed] = useState(false)

@@ -44,7 +44,12 @@ function Protected({ children }) {
       </div>
     </div>
   )
-  if (!user) return <Navigate to="/" replace />
+  if (!user) {
+    if (window.location.pathname !== '/' && window.location.pathname !== '/auth') {
+      sessionStorage.setItem('arc_return_url', window.location.pathname + window.location.search)
+    }
+    return <Navigate to="/" replace />
+  }
 
   // Redirect to onboarding if not yet completed (skip if already going there)
   const onboarded = localStorage.getItem('vs_onboarded')
@@ -58,7 +63,12 @@ function Protected({ children }) {
 function OnboardingRoute() {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (!user) return <Navigate to="/" replace />
+  if (!user) {
+    if (window.location.pathname !== '/' && window.location.pathname !== '/auth') {
+      sessionStorage.setItem('arc_return_url', window.location.pathname + window.location.search)
+    }
+    return <Navigate to="/" replace />
+  }
   if (localStorage.getItem('vs_onboarded')) return <Navigate to="/dashboard" replace />
   return <Onboarding />
 }
@@ -113,13 +123,19 @@ export default function App() {
 function LandingRoute() {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) {
+    const returnUrl = sessionStorage.getItem('arc_return_url')
+    return <Navigate to={returnUrl || "/dashboard"} replace />
+  }
   return <Landing />
 }
 
 function AuthRoute() {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) {
+    const returnUrl = sessionStorage.getItem('arc_return_url')
+    return <Navigate to={returnUrl || "/dashboard"} replace />
+  }
   return <Auth />
 }

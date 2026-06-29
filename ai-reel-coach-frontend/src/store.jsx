@@ -67,10 +67,13 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const data = await api.login({ email, password })
     localStorage.setItem('arc_token', data.token)
-    clearStaleUserData()   // fresh start — never show the previous session's data
-    try {
-      sessionStorage.clear()
-    } catch {}
+    
+    const lastUser = localStorage.getItem('arc_last_user')
+    if (lastUser !== data.user.email) {
+      clearStaleUserData() // fresh start only for different user
+    }
+    localStorage.setItem('arc_last_user', data.user.email)
+
     setUser(data.user)
     return data
   }
@@ -81,10 +84,13 @@ export const AuthProvider = ({ children }) => {
     if (data.needsVerification) return data
     localStorage.setItem('arc_token', data.token)
     localStorage.removeItem('vs_onboarded')
-    clearStaleUserData()
-    try {
-      sessionStorage.clear()
-    } catch {}
+    
+    const lastUser = localStorage.getItem('arc_last_user')
+    if (lastUser !== data.user.email) {
+      clearStaleUserData()
+    }
+    localStorage.setItem('arc_last_user', data.user.email)
+
     setUser(data.user)
     return data
   }
@@ -102,9 +108,11 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('arc_token')
     localStorage.removeItem('vs_onboarded')
-    clearStaleUserData()
+    // We intentionally do NOT clear STALE_USER_KEYS here, so the workspace is preserved
+    // if the same user logs back in. It will be cleared in login() if a different user logs in.
     try {
-      sessionStorage.clear()
+      // Don't clear sessionStorage entirely to preserve arc_return_url
+      sessionStorage.removeItem('arc_return_url') 
     } catch {}
     setUser(null)
   }
