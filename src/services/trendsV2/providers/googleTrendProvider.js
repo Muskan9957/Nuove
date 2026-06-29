@@ -2,8 +2,29 @@ const axios = require('axios')
 const { cleanTrendText, sanitizeSignal, dedupeSignals } = require('../trendSanitizer')
 
 const GEO_CODE = {
-  India: 'IN', US: 'US', UK: 'GB',
-  'Middle East': 'AE', 'Southeast Asia': 'ID', Global: 'US',
+  'India': 'IN',
+  'Global': 'US',
+  'US': 'US',
+  'UK': 'GB',
+  'Canada': 'CA',
+  'Australia': 'AU',
+  'Japan': 'JP',
+  'South Korea': 'KR',
+  'Indonesia': 'ID',
+  'Brazil': 'BR',
+  'Mexico': 'MX',
+  'Germany': 'DE',
+  'France': 'FR',
+  'Spain': 'ES',
+  'Italy': 'IT',
+  'Nigeria': 'NG',
+  'Philippines': 'PH',
+  'Singapore': 'SG',
+  'UAE': 'AE',
+  'Saudi Arabia': 'SA',
+  'Pakistan': 'PK',
+  'Middle East': 'AE',
+  'Southeast Asia': 'ID',
 }
 const getGeo = (region) => GEO_CODE[region] ?? 'IN'
 
@@ -13,6 +34,21 @@ const NEWS_LOCALE = {
   GB: { hl: 'en-GB', gl: 'GB', ceid: 'GB:en' },
   AE: { hl: 'en-AE', gl: 'AE', ceid: 'AE:en' },
   ID: { hl: 'en-ID', gl: 'ID', ceid: 'ID:en' },
+  CA: { hl: 'en-CA', gl: 'CA', ceid: 'CA:en' },
+  AU: { hl: 'en-AU', gl: 'AU', ceid: 'AU:en' },
+  SG: { hl: 'en-SG', gl: 'SG', ceid: 'SG:en' },
+  PK: { hl: 'en-PK', gl: 'PK', ceid: 'PK:en' },
+  SA: { hl: 'en-SA', gl: 'SA', ceid: 'SA:en' },
+  JP: { hl: 'ja-JP', gl: 'JP', ceid: 'JP:ja' },
+  KR: { hl: 'ko-KR', gl: 'KR', ceid: 'KR:ko' },
+  BR: { hl: 'pt-BR', gl: 'BR', ceid: 'BR:pt' },
+  MX: { hl: 'es-MX', gl: 'MX', ceid: 'MX:es' },
+  DE: { hl: 'de-DE', gl: 'DE', ceid: 'DE:de' },
+  FR: { hl: 'fr-FR', gl: 'FR', ceid: 'FR:fr' },
+  ES: { hl: 'es-ES', gl: 'ES', ceid: 'ES:es' },
+  IT: { hl: 'it-IT', gl: 'IT', ceid: 'IT:it' },
+  NG: { hl: 'en-NG', gl: 'NG', ceid: 'NG:en' },
+  PH: { hl: 'en-PH', gl: 'PH', ceid: 'PH:en' },
 }
 
 const NICHE_QUERIES = {

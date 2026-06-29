@@ -2,8 +2,29 @@ const axios = require('axios')
 const { sanitizeSignal, dedupeSignals } = require('../trendSanitizer')
 
 const REGION_CODE = {
-  India: 'IN', US: 'US', UK: 'GB',
-  'Middle East': 'AE', 'Southeast Asia': 'ID', Global: 'US',
+  'India': 'IN',
+  'Global': 'US',
+  'US': 'US',
+  'UK': 'GB',
+  'Canada': 'CA',
+  'Australia': 'AU',
+  'Japan': 'JP',
+  'South Korea': 'KR',
+  'Indonesia': 'ID',
+  'Brazil': 'BR',
+  'Mexico': 'MX',
+  'Germany': 'DE',
+  'France': 'FR',
+  'Spain': 'ES',
+  'Italy': 'IT',
+  'Nigeria': 'NG',
+  'Philippines': 'PH',
+  'Singapore': 'SG',
+  'UAE': 'AE',
+  'Saudi Arabia': 'SA',
+  'Pakistan': 'PK',
+  'Middle East': 'AE',
+  'Southeast Asia': 'ID',
 }
 const getRegionCode = (region) => REGION_CODE[region] || 'IN'
 

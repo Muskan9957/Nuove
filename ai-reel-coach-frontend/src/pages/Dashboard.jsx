@@ -170,10 +170,8 @@ function TrendingBrief({ userName }) {
   }
 
   const fetchBrief = useCallback((force = false) => {
-    // The region is always a real country — never 'Global' (the scope toggle
-    // handles worldwide). A 'Global' or empty saved value falls back to India.
     const saved = getSavedRegion()
-    const region = (saved && saved !== 'Global') ? saved : 'India'
+    const region = scopeRef.current === 'global' ? 'Global' : ((saved && saved !== 'Global') ? saved : 'India')
     const rawNiche = nicheRef.current
     const activeNiche = rawNiche === 'All' ? 'general' : rawNiche
     const currentScope = scopeRef.current
@@ -352,51 +350,42 @@ function TrendingBrief({ userName }) {
         {/* Controls — toggle, niche, refresh & listen all on the same level */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
 
-        {/* Region + scope picker — shows the current country, click to change */}
-        <div style={{ position: 'relative' }} ref={regionMenuRef}>
+        {/* ── Local / Global pill toggle ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          background: 'var(--surface2)', borderRadius: 99, padding: 3,
+          border: '1px solid var(--border)', gap: 2,
+        }}>
           <button
-            onClick={() => setShowRegionMenu(v => !v)}
-            title="Choose your region"
+            onClick={() => handleScopeChange('local')}
+            title="Trending in your region"
             style={{
-              background: 'var(--surface2)', border: '1px solid var(--border)',
-              borderRadius: 99, padding: '5px 12px', color: 'var(--text)',
-              fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 16px', borderRadius: 99, border: 'none',
+              cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+              background: scope === 'local' ? 'var(--surface-card)' : 'transparent',
+              color: scope === 'local' ? 'var(--accent)' : 'var(--text-faint)',
+              boxShadow: scope === 'local' ? '0 1px 4px rgba(0,0,0,0.20)' : 'none',
+              transition: 'all 0.18s', display: 'flex', alignItems: 'center', gap: 5,
             }}
           >
-            <span style={{ whiteSpace: 'nowrap' }}>{scope === 'global'
-              ? (REGIONS.find(r => r.value === 'Global')?.label || 'Global')
-              : (REGIONS.find(r => r.value === region)?.label || region)}</span>
-            <svg style={{ width: 13, height: 13, opacity: 0.6 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+            Local
           </button>
-          <div style={{
-            display: showRegionMenu ? 'block' : 'none',
-            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
-            background: 'var(--surface)', backdropFilter: 'blur(16px)',
-            border: '1px solid var(--border)', borderRadius: 16, padding: 8,
-            width: 210, maxHeight: 320, overflowY: 'auto',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.12)', zIndex: 100,
-          }}>
-            {REGIONS.map(r => {
-              const isActive = r.value === 'Global' ? scope === 'global' : (scope === 'local' && r.value === region)
-              return (
-                <div
-                  key={r.value}
-                  onClick={() => handleRegionChange(r.value)}
-                  style={{
-                    padding: '8px 12px', borderRadius: 10, cursor: 'pointer',
-                    fontSize: '0.8rem', fontWeight: isActive ? 700 : 500,
-                    color: isActive ? '#fff' : 'var(--text)',
-                    background: isActive ? 'var(--accent)' : 'transparent',
-                  }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface2)' }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-                >
-                  {r.label}
-                </div>
-              )
-            })}
-          </div>
+          <button
+            onClick={() => handleScopeChange('global')}
+            title="Trending around the world"
+            style={{
+              padding: '6px 16px', borderRadius: 99, border: 'none',
+              cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+              background: scope === 'global' ? 'linear-gradient(90deg, #6366f1, #8b5cf6)' : 'transparent',
+              color: scope === 'global' ? '#fff' : 'var(--text-faint)',
+              boxShadow: scope === 'global' ? '0 2px 12px rgba(99,102,241,0.45)' : 'none',
+              transition: 'all 0.18s', display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            Global
+          </button>
         </div>
 
         {/* Custom Niche Dropdown */}
