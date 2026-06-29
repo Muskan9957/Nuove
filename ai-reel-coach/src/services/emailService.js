@@ -204,4 +204,38 @@ const sendVerificationEmail = async ({ to, name, code }) => {
   });
 };
 
-module.exports = { sendPasswordReset, sendWelcome, sendVerificationEmail };
+// ─── Support Feedback Email ──────────────────────────────────────────
+const supportFeedbackHtml = ({ name, email, feedback }) => layout(`
+  <div style="background:linear-gradient(135deg,rgba(0,200,255,0.15),rgba(160,110,255,0.10));padding:36px 40px 28px;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:36px;margin-bottom:12px;">💬</div>
+    <h1 style="color:#F0F0F8;font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">New Support Feedback</h1>
+    <p style="color:#6B6B90;font-size:15px;margin:0;line-height:1.5;">
+      From: <strong>${name}</strong> (${email})
+    </p>
+  </div>
+  <div style="padding:32px 40px;">
+    <p style="color:#6B6B90;font-size:14px;line-height:1.7;margin:0 0 20px;">
+      Message:
+    </p>
+    <div style="background:#161626;border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:20px;margin-bottom:24px;white-space:pre-wrap;color:#F0F0F8;font-size:14px;line-height:1.6;">
+      ${feedback}
+    </div>
+  </div>
+`);
+
+const sendSupportFeedback = async ({ user, feedback }) => {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[EMAIL SKIPPED] Support Feedback from ${user.email}: ${feedback}`);
+    return;
+  }
+  await resend.emails.send({
+    from    : FROM,
+    to      : 'support.nuove@anahatone.com', // Sending to the support inbox
+    replyTo : user.email, // So support can reply directly to the user
+    subject: `[Nuove Support] Feedback from ${user.name}`,
+    html   : supportFeedbackHtml({ name: user.name, email: user.email, feedback }),
+  });
+};
+
+module.exports = { sendPasswordReset, sendWelcome, sendVerificationEmail, sendSupportFeedback };

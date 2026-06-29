@@ -1,23 +1,27 @@
 import { useState } from 'react'
 import { useToast } from '../components/Toast'
+import { api } from '../api'
 
 export default function Support() {
   const [feedback, setFeedback] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const toast = useToast()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!feedback.trim()) return
 
     setSubmitting(true)
     
-    // Mocking an API call
-    setTimeout(() => {
+    try {
+      await api.submitSupportFeedback(feedback)
       toast('Feedback submitted successfully! We will get back to you soon.', 'success')
       setFeedback('')
+    } catch (err) {
+      toast(err.message || 'Failed to submit feedback. Please try again.', 'error')
+    } finally {
       setSubmitting(false)
-    }, 1000)
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 const router  = require('express').Router()
 const { protect: auth } = require('../middleware/auth')
-const { getProfile, updateLanguage, getBadges, pingStreak } = require('../controllers/userController')
+const { getProfile, updateLanguage, getBadges, pingStreak, submitSupportFeedback } = require('../controllers/userController')
 const prisma  = require('../config/prisma')
 const aiService = require('../services/aiService')
 const razorpayService = require('../services/razorpayService')
@@ -50,6 +50,7 @@ router.get('/profile',      auth, getProfile)
 router.patch('/language',   auth, updateLanguage)
 router.get('/badges',       auth, getBadges)
 router.post('/streak/ping', auth, pingStreak)
+router.post('/support',     auth, submitSupportFeedback)
 
 // ─── Creator Voice (premium personalisation) ──────────────────────
 

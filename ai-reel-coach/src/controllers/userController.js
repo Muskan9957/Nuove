@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma')
 const { updateStreak } = require('../services/badgeService');
+const { sendSupportFeedback } = require('../services/emailService');
 
 const VALID_LANGUAGES = ['en', 'hi', 'es', 'fr', 'pt']
 
@@ -94,4 +95,30 @@ const pingStreak = async (req, res, next) => {
   }
 }
 
-module.exports = { getProfile, updateLanguage, getBadges, pingStreak }
+// ─── POST /api/user/support ─────────────────────────────────────
+const submitSupportFeedback = async (req, res, next) => {
+  try {
+    const { feedback } = req.body;
+    if (!feedback || typeof feedback !== 'string' || feedback.trim().length === 0) {
+      return res.status(400).json({ error: 'Feedback message is required.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, email: true, name: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Send the email to the support inbox
+    await sendSupportFeedback({ user, feedback });
+
+    return res.json({ ok: true, message: 'Support feedback sent.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getProfile, updateLanguage, getBadges, pingStreak, submitSupportFeedback }
