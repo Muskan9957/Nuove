@@ -805,17 +805,6 @@ export default function Generate() {
                   🎣 {t('generate_hook')} — {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
                 </span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomRefinement('Improve only the hook: ')
-                      customRefineRef.current?.focus()
-                      refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    }}
-                    style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.06)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.06)' }}
-                  >✏️ Tweak</button>
                   {result.script?.id && (
                     <button
                       type="button"
@@ -866,17 +855,6 @@ export default function Generate() {
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C9A7' }}>
                   📖 {t('generate_body')} — {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomRefinement('Improve only the body: ')
-                    customRefineRef.current?.focus()
-                    refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,201,167,0.3)', background: 'rgba(0,201,167,0.06)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.18)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.06)' }}
-                >✏️ Tweak</button>
               </div>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
             </div>
@@ -887,17 +865,6 @@ export default function Generate() {
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FFD60A' }}>
                   📣 {t('generate_cta')}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomRefinement('Improve only the CTA: ')
-                    customRefineRef.current?.focus()
-                    refineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(255,214,10,0.3)', background: 'rgba(255,214,10,0.06)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.18)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.06)' }}
-                >✏️ Tweak</button>
               </div>
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.cta}</p>
             </div>
@@ -1185,213 +1152,9 @@ export default function Generate() {
             </div>
           )}
 
-          <div ref={refineRef} className="card" style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderLeft: '4px solid #7B5CF0',
-            paddingBottom: 28,
-          }}>
-
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.2rem', margin: '0 0 4px', background: 'linear-gradient(135deg, #C4ABFF, #FF8BC1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  ✦ Tweak This Take
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                  The engine understands natural language — just tell it what you want
-                </p>
-              </div>
-              {refining && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, background: 'rgba(123,92,240,0.25)', border: '1px solid rgba(155,114,255,0.45)' }}>
-                  <span className="spinner" style={{ width: 12, height: 12, borderColor: 'rgba(155,114,255,0.25)', borderTopColor: '#9B72FF' }} />
-                  <span style={{ fontSize: '0.76rem', color: '#fff', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>Rewriting…</span>
-                </div>
-              )}
-            </div>
-
-            {/* Changes Summary */}
-            {tweakChanges && !refining && (
-              <div style={{
-                marginBottom: 20, padding: '12px 16px', borderRadius: 12,
-                background: 'rgba(74,222,128,0.08)',
-                border: '1px solid rgba(74,222,128,0.25)',
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-              }}>
-                <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: 1 }}>✅</span>
-                <div>
-                  <div style={{ fontSize: '0.69rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#4ADE80', marginBottom: 4 }}>What changed</div>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>{tweakChanges}</p>
-                </div>
-                <button onClick={() => setTweakChanges(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: '1rem', flexShrink: 0, padding: 0, lineHeight: 1 }}>×</button>
-              </div>
-            )}
-
-            {/* Quick Chips */}
-            <div style={{ marginBottom: 22 }}>
-              <div style={{ fontSize: '0.69rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-faint)', marginBottom: 12 }}>Quick Tweaks</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 9 }}>
-                {REFINE_CHIPS.map(chip => (
-                  <button
-                    key={chip.label}
-                    type="button"
-                    onClick={() => refine(chip.instruction, chip.label)}
-                    disabled={refining || rerolling}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 14,
-                      fontSize: '0.875rem',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-body)',
-                      border: `1px solid ${chip.border}`,
-                      background: chip.bg,
-                      color: chip.color,
-                      cursor: (refining || rerolling) ? 'not-allowed' : 'pointer',
-                      opacity: (refining || rerolling) ? 0.4 : 1,
-                      transition: 'all 0.2s ease',
-                      textAlign: 'left',
-                      lineHeight: 1.2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                    }}
-                    onMouseEnter={e => {
-                      if (refining || rerolling) return
-                      e.currentTarget.style.transform = 'translateY(-3px)'
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${chip.bg.replace('0.08', '0.3')}`
-                      e.currentTarget.style.borderColor = chip.color
-                      e.currentTarget.style.background = chip.bg.replace('0.08', '0.15')
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.transform = 'none'
-                      e.currentTarget.style.boxShadow = 'none'
-                      e.currentTarget.style.borderColor = chip.border
-                      e.currentTarget.style.background = chip.bg
-                    }}
-                  >
-                    <span>{chip.label}</span>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 400, opacity: 0.75 }}>{chip.sub}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Instruction — The Power Feature */}
-            <div style={{ borderTop: '1px solid rgba(123,92,240,0.2)', paddingTop: 26 }}>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', marginBottom: 6, fontFamily: 'var(--font-head)' }}>
-                  ✍️ Tell us exactly what you want
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)' }}>Plain English works — "make the hook a question", "add a shocking stat", "make the CTA more urgent"</div>
-              </div>
-              <div style={{ position: 'relative', marginBottom: 10 }}>
-                <textarea
-                  ref={customRefineRef}
-                  value={customRefinement}
-                  onChange={e => setCustomRefinement(e.target.value)}
-                  placeholder="e.g. Make the hook start with a surprising statistic about money... or just: stronger hook"
-                  disabled={refining || rerolling}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: 14,
-                    border: '1.5px solid',
-                    borderColor: customRefinement.trim() ? 'rgba(123,92,240,0.6)' : 'rgba(123,92,240,0.25)',
-                    background: 'rgba(123,92,240,0.05)',
-                    color: 'var(--text)',
-                    fontSize: '1rem',
-                    fontFamily: 'var(--font-body)',
-                    resize: 'vertical',
-                    minHeight: '120px',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    transition: 'border-color 0.2s, box-shadow 0.2s',
-                    boxShadow: customRefinement.trim() ? '0 0 0 3px rgba(123,92,240,0.12)' : 'none',
-                  }}
-                  onFocus={e => {
-                    e.target.style.borderColor = 'rgba(155,114,255,0.7)'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(123,92,240,0.15)'
-                  }}
-                  onBlur={e => {
-                    e.target.style.borderColor = customRefinement.trim() ? 'rgba(123,92,240,0.6)' : 'rgba(123,92,240,0.25)'
-                    e.target.style.boxShadow = customRefinement.trim() ? '0 0 0 3px rgba(123,92,240,0.12)' : 'none'
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      if (!customRefinement.trim() || refining) return
-                      refine(customRefinement)
-                      setCustomRefinement('')
-                    }
-                  }}
-                />
-              </div>
-              {/* Example prompts */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                {[
-                  'Start with a shocking stat',
-                  'Open with a question',
-                  'Add a personal story',
-                  'Make the CTA urgent',
-                  'Cut it by half',
-                ].map(ex => (
-                  <button
-                    key={ex}
-                    type="button"
-                    onClick={() => setCustomRefinement(ex)}
-                    style={{ padding: '4px 11px', borderRadius: 20, fontSize: '0.74rem', fontWeight: 500, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-faint)', cursor: 'pointer', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'rgba(123,92,240,0.4)'; e.currentTarget.style.background = 'rgba(123,92,240,0.08)' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-faint)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'transparent' }}
-                  >
-                    {ex}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!customRefinement.trim() || refining) return
-                  refine(customRefinement)
-                  setCustomRefinement('')
-                }}
-                disabled={!customRefinement.trim() || refining || rerolling}
-                style={{
-                  width: '100%',
-                  padding: '14px 24px',
-                  borderRadius: 14,
-                  fontSize: '0.95rem',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-head)',
-                  border: 'none',
-                  background: (!customRefinement.trim() || refining || rerolling)
-                    ? 'var(--surface2)'
-                    : 'linear-gradient(135deg, #7B5CF0 0%, #00C8FF 100%)',
-                  color: (!customRefinement.trim() || refining || rerolling) ? 'var(--text-faint)' : '#fff',
-                  cursor: (!customRefinement.trim() || refining || rerolling) ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: (!customRefinement.trim() || refining || rerolling) ? 'none' : '0 4px 20px rgba(123,92,240,0.35)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                }}
-                onMouseEnter={e => {
-                  if (!customRefinement.trim() || refining || rerolling) return
-                  e.currentTarget.style.boxShadow = '0 6px 28px rgba(123,92,240,0.50)'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.boxShadow = (!customRefinement.trim() || refining || rerolling) ? 'none' : '0 4px 20px rgba(123,92,240,0.35)'
-                  e.currentTarget.style.transform = 'none'
-                }}
-              >
-                {refining
-                  ? <><span className="spinner" style={{ width: 14, height: 14, borderColor: 'rgba(255,255,255,0.25)', borderTopColor: '#fff' }} /> Rewriting your script…</>
-                  : '✦ Apply Instruction'}
-              </button>
-            </div>
-
             {/* Version history */}
             {versions.length > 1 && (
-              <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid rgba(123,92,240,0.15)' }}>
+              <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid rgba(123,92,240,0.15)', marginBottom: 20 }}>
                 <div style={{ fontSize: '0.69rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-faint)', marginBottom: 12 }}>Your takes</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {versions.map((v, i) => (
@@ -1422,7 +1185,6 @@ export default function Generate() {
                 </div>
               </div>
             )}
-          </div>
         </div>
       )}
     </div>
