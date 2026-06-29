@@ -182,8 +182,10 @@ ${voiceProfile.promptInstruction}
 Ignore generic "best practice" advice above if it conflicts with the creator's established voice. Their authenticity > textbook hooks.\n`
     : ''
 
-  const durationInstruction = duration
-    ? `- Target Duration: ${duration} minute${parseFloat(duration) === 1 ? '' : 's'} — calibrate the script length precisely for this. A 0.5 min script is ~75 words, 1 min ~150 words, 2 min ~300 words. Match the word count accordingly.`
+  let parsedDur = duration ? parseFloat(duration) : null
+  if (parsedDur && parsedDur > 5) parsedDur = 5
+  const durationInstruction = parsedDur
+    ? `- Target Duration: ${parsedDur} minute${parsedDur === 1 ? '' : 's'} — calibrate the script length precisely for this. A 0.5 min script is ~75 words, 1 min ~150 words, 2 min ~300 words. Match the word count accordingly.`
     : ''
 
   const prompt = `

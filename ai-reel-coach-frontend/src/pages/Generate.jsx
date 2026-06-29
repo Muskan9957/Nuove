@@ -226,6 +226,11 @@ export default function Generate() {
   const submit = async e => {
     e.preventDefault()
     if (!form.topic.trim()) { toast('Please enter a topic', 'error'); return }
+    const durationNum = parseFloat(form.duration)
+    if (!isNaN(durationNum) && durationNum > 5) {
+      toast('Duration cannot exceed 5 minutes', 'error')
+      return
+    }
 
     setLd(true)
     setStreaming(false)
@@ -608,7 +613,11 @@ export default function Generate() {
                 placeholder="e.g. 2.5"
                 value={form.duration}
                 onChange={e => {
-                  const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                  let val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
+                  const num = parseFloat(val)
+                  if (!isNaN(num) && num > 5) {
+                    val = '5'
+                  }
                   setForm(f => ({ ...f, duration: val }))
                 }}
                 maxLength={5}
