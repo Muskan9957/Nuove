@@ -767,12 +767,6 @@ export default function Generate() {
                 <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.05rem', margin: 0, whiteSpace: 'nowrap' }}>
                   {t('generate_your_script')}
                 </h2>
-                <span style={{
-                  fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
-                  padding: '2px 7px', borderRadius: 99, letterSpacing: '0.06em', whiteSpace: 'nowrap', flexShrink: 0,
-                  background: 'linear-gradient(135deg, rgba(255,180,0,0.15), rgba(255,95,31,0.15))',
-                  border: '1px solid rgba(255,160,0,0.3)', color: '#FFB800',
-                }}>⚡ Viral</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
                   {form.topic}
                 </span>
