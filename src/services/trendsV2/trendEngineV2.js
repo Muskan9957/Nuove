@@ -69,8 +69,18 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
       // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
       const trendType = classifyTrend(title, description);
 
-      // 5. Compute base raw score
-      const baseScore = sanitized.sourceScore || sanitized.viewCount || sanitized.value || sanitized.popularity || 0;
+      // 5. Compute normalized base raw score across providers
+      let baseScore = 0;
+      if (provider === 'youtube') {
+        // Scale down YouTube views (e.g., 2M views -> 100k score cap)
+        baseScore = Math.min((item.viewCount || 0) / 20, 100000);
+      } else if (provider === 'spotify') {
+        // Scale up Spotify popularity (0-100 -> 0-100k)
+        baseScore = (item.popularity || 0) * 1000;
+      } else {
+        // Google Trends/News sourceScore is already in a 0-200k range
+        baseScore = sanitized.sourceScore || sanitized.value || 0;
+      }
 
       // 6. Adjust rank score based on relevance multiplier, trend type weight, and quality score weighting
       const relevanceMultiplier = creatorRelevanceScore / 50.0;

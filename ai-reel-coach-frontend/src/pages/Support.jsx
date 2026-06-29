@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
 
@@ -12,13 +13,12 @@ export default function Support() {
     if (!feedback.trim()) return
 
     setSubmitting(true)
-    
     try {
-      await api.submitSupportFeedback(feedback)
+      await api.submitSupport(feedback)
       toast('Feedback submitted successfully! We will get back to you soon.', 'success')
       setFeedback('')
     } catch (err) {
-      toast(err.message || 'Failed to submit feedback. Please try again.', 'error')
+      toast(err.message || 'Could not submit feedback. Please try again.', 'error')
     } finally {
       setSubmitting(false)
     }

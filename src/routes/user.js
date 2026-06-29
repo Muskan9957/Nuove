@@ -186,4 +186,24 @@ router.patch('/avatar', auth, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+const { sendSupportTicket } = require('../services/emailService')
+
+// POST /api/user/support — send support ticket email
+router.post('/support', auth, async (req, res, next) => {
+  try {
+    const { message } = req.body
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message content is required.' })
+    }
+
+    await sendSupportTicket({
+      fromEmail: req.user.email,
+      fromName: req.user.name,
+      message: message
+    })
+
+    return res.json({ ok: true, message: 'Your query has been sent to our support team!' })
+  } catch (err) { next(err) }
+})
+
 module.exports = router

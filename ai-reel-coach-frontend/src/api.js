@@ -145,8 +145,8 @@ export const api = {
   generateAvatar:  (style)    => req('POST',  '/user/generate-avatar', { style }),
   saveAvatar:      (url)      => req('PATCH', '/user/avatar', { url }),
   pingStreak:      ()         => req('POST',  '/user/streak/ping'),
-  submitSupportFeedback: (feedback) => req('POST', '/user/support', { feedback }),
   deleteAccount:   ()         => req('DELETE', '/user/account'),
+  submitSupport:   (message)  => req('POST',  '/user/support', { message }),
   exportMyData:    async () => {
     const res = await fetch(`${BASE}/user/export`, {
       headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
