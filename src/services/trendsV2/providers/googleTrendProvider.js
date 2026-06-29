@@ -146,8 +146,11 @@ async function fetchTrends(region, niche) {
       queries = queries.map(q => `(${q}) AND NOT (India OR Indian)`)
     }
   }
+  const locale = NEWS_LOCALE[geo] || NEWS_LOCALE.US
   const urls = [
     `https://trends.google.com/trending/rss?geo=${geo}`,
+    // Google News Top Stories RSS (actual major headlines):
+    `https://news.google.com/rss?hl=${locale.hl}&gl=${locale.gl}&ceid=${locale.ceid}`,
     ...queries.slice(0, 2).map(query => newsUrl(query, geo)),
     // Inject a dedicated query that specifically hunts for viral Instagram Reels in this niche!
     newsUrl(`(${queries[0]}) AND (Instagram OR Reels OR TikTok OR viral)`, geo)
