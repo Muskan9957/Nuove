@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
-import { api } from '../api'
 
 export default function Support() {
   const [feedback, setFeedback] = useState('')
