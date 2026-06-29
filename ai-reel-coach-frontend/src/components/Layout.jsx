@@ -201,9 +201,18 @@ export default function Layout({ children }) {
   const { t }            = useLang()
   const navigate         = useNavigate()
   const isMobile         = useIsMobile()
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vs_sidebar_collapsed') === 'true')
   const [moreOpen, setMoreOpen] = useState(false)
   const [streakHype, setStreakHype] = useState(null)
   const [badgeHype, setBadgeHype] = useState(null)
+
+  const toggleSidebar = () => {
+    setCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem('vs_sidebar_collapsed', String(next))
+      return next
+    })
+  }
 
   useEffect(() => {
     const handleStreak = (e) => {
@@ -333,17 +342,72 @@ export default function Layout({ children }) {
 
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       {!isMobile && (
-        <aside style={styles.sidebar} className="app-sidebar">
+        <aside
+          style={{
+            ...styles.sidebar,
+            width: collapsed ? '72px' : '240px',
+            padding: collapsed ? '20px 8px' : '20px 14px',
+            transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+          className="app-sidebar"
+        >
           {/* Logo */}
-          <div style={styles.logoWrap}>
-            <Logo size={36} showWordmark />
+          <div style={{
+            ...styles.logoWrap,
+            justifyContent: collapsed ? 'center' : 'space-between',
+            alignItems: 'center',
+            flexDirection: collapsed ? 'column' : 'row',
+            gap: collapsed ? 12 : 0,
+            padding: collapsed ? '6px 0 16px' : '6px 0 20px',
+          }}>
+            <Logo size={collapsed ? 32 : 36} showWordmark={!collapsed} />
+            <button
+              onClick={toggleSidebar}
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border-nav)',
+                borderRadius: '8px',
+                color: 'var(--text-muted)',
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                outline: 'none',
+              }}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="13 17 18 12 13 7"/>
+                  <polyline points="6 17 11 12 6 7"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="11 17 6 12 11 7"/>
+                  <polyline points="18 17 13 12 18 7"/>
+                </svg>
+              )}
+            </button>
           </div>
 
           {/* Navigation */}
           <nav style={styles.nav}>
             {NAV_CONFIG.map((item, idx) => {
               if (item.section) {
-                return (
+                return collapsed ? (
+                  <hr
+                    key={`divider-${idx}`}
+                    style={{
+                      border: 'none',
+                      borderTop: '1px solid var(--border-nav)',
+                      margin: '12px 6px 8px',
+                      opacity: 0.5,
+                    }}
+                  />
+                ) : (
                   <div key={`section-${idx}`} className={`nav-section-label ${item.sectionClass}`}>
                     {item.section}
                   </div>
@@ -357,7 +421,10 @@ export default function Layout({ children }) {
                   style={({ isActive }) => ({
                     ...styles.navItem,
                     ...(isActive ? styles.navItemActive : {}),
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    padding: collapsed ? '10px 0' : '10px 12px',
                   })}
+                  title={collapsed ? t(labelKey) : undefined}
                 >
                   {({ isActive }) => (
                     <>
@@ -368,10 +435,12 @@ export default function Layout({ children }) {
                       }}>
                         <Icon size={18} />
                       </span>
-                      <span style={{ color: isActive ? 'var(--text)' : 'var(--text-muted)', flex: 1 }}>
-                        {t(labelKey)}
-                      </span>
-                      {premium && (
+                      {!collapsed && (
+                        <span style={{ color: isActive ? 'var(--text)' : 'var(--text-muted)', flex: 1 }}>
+                          {t(labelKey)}
+                        </span>
+                      )}
+                      {!collapsed && premium && (
                         <span style={{
                           fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
                           padding: '2px 6px', borderRadius: 99, lineHeight: 1,
@@ -392,9 +461,14 @@ export default function Layout({ children }) {
 
           {/* User info */}
           <div
-            style={{ ...styles.userBlock, cursor: 'pointer' }}
+            style={{
+              ...styles.userBlock,
+              cursor: 'pointer',
+              padding: collapsed ? '8px 0' : '12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+            }}
             onClick={() => navigate('/profile')}
-            title="View profile"
+            title={collapsed ? "View profile" : undefined}
           >
             <div style={{
               ...styles.avatarCircle,
@@ -406,69 +480,116 @@ export default function Layout({ children }) {
                 ? <img src={user.avatar} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                 : userInitial}
             </div>
-            <div style={styles.userInfo}>
-              <div style={styles.userName}>{userName}</div>
-              <div style={styles.userPlan}>
-                <span style={{ ...styles.planDot, background: planColor, boxShadow: `0 0 6px ${planColor}` }} />
-                {user?.plan || 'FREE'} Plan
-              </div>
-            </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
+            {!collapsed && (
+              <>
+                <div style={styles.userInfo}>
+                  <div style={styles.userName}>{userName}</div>
+                  <div style={styles.userPlan}>
+                    <span style={{ ...styles.planDot, background: planColor, boxShadow: `0 0 6px ${planColor}` }} />
+                    {user?.plan || 'FREE'} Plan
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </>
+            )}
           </div>
 
           {/* Pricing link */}
           {user?.plan === 'FREE' && (
-            <button
-              onClick={() => navigate('/pricing')}
-              style={{
-                background: 'linear-gradient(135deg, #00E5FF 0%, #00C8FF 50%, #7B5CF0 100%)',
-                border: 'none',
-                borderRadius: 10,
-                padding: '11px 12px',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                fontFamily: 'var(--font-body)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                marginBottom: 4,
-                transition: 'all 0.18s ease',
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: '0 4px 18px rgba(0,200,255,0.35)',
-                letterSpacing: '-0.01em',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.boxShadow = '0 6px 26px rgba(0,200,255,0.55)'
-                e.currentTarget.style.transform = 'translateY(-1px)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,200,255,0.35)'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
-            >
-              <span>Unlock More Features</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.68rem', opacity: 0.85, fontFamily: 'var(--font-mono)' }}>✦</span>
-            </button>
+            collapsed ? (
+              <button
+                onClick={() => navigate('/pricing')}
+                title="Unlock More Features"
+                style={{
+                  background: 'linear-gradient(135deg, #00E5FF 0%, #00C8FF 50%, #7B5CF0 100%)',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: '36px',
+                  height: '36px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 8px',
+                  boxShadow: '0 4px 14px rgba(0,200,255,0.3)',
+                  transition: 'all 0.18s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,200,255,0.5)'
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,200,255,0.3)'
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
+              >
+                ✦
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/pricing')}
+                style={{
+                  background: 'linear-gradient(135deg, #00E5FF 0%, #00C8FF 50%, #7B5CF0 100%)',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '11px 12px',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  marginBottom: 4,
+                  transition: 'all 0.18s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 18px rgba(0,200,255,0.35)',
+                  letterSpacing: '-0.01em',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 6px 26px rgba(0,200,255,0.55)'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,200,255,0.35)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
+              >
+                <span>Unlock More Features</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.68rem', opacity: 0.85, fontFamily: 'var(--font-mono)' }}>✦</span>
+              </button>
+            )
           )}
 
           {/* Language + Theme toggle row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', flexShrink: 0 }}>
-            <div style={{ flex: 1 }}>
-              <LanguageSelector compact />
+          {collapsed ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', width: '100%' }}>
+              <ThemeToggle size="sm" />
             </div>
-            <ThemeToggle size="sm" />
-          </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', flexShrink: 0 }}>
+              <div style={{ flex: 1 }}>
+                <LanguageSelector compact />
+              </div>
+              <ThemeToggle size="sm" />
+            </div>
+          )}
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            style={styles.logoutBtn}
+            style={{
+              ...styles.logoutBtn,
+              padding: collapsed ? '10px 0' : '9px 12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+            }}
+            title={collapsed ? t('sign_out') : undefined}
             onMouseEnter={e => {
               e.currentTarget.style.background = 'var(--surface2)'
               e.currentTarget.style.color = 'var(--text)'
@@ -481,7 +602,7 @@ export default function Layout({ children }) {
             }}
           >
             <IconLogout size={14} />
-            {t('sign_out')}
+            {!collapsed && t('sign_out')}
           </button>
         </aside>
       )}
