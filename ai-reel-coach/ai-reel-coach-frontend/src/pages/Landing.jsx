@@ -1,43 +1,38 @@
-﻿import { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useLang } from '../i18n.jsx'
 import { useAuth } from '../store'
 import { useToast } from '../components/Toast'
+import { api } from '../api'
+import PasswordChecklist, { isPasswordValid } from '../components/PasswordChecklist'
 import ThemeToggle from '../components/ThemeToggle'
 
-/* ─── Language flip ──────────────────────────────────────────────── */
-function LangFlip() {
-  const { lang, setLanguage } = useLang()
-  return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center',
-      background: 'var(--surface2)', border: '1px solid var(--border)',
-      borderRadius: 99, padding: 3,
-    }}>
-      {[{ code: 'en', label: 'EN' }, { code: 'hi', label: 'हिं' }].map(o => {
-        const active = lang === o.code
-        return (
-          <button key={o.code} type="button"
-            onClick={() => !active && setLanguage(o.code)} aria-pressed={active}
-            style={{
-              border: 'none', cursor: active ? 'default' : 'pointer',
-              padding: '4px 11px', borderRadius: 99,
-              background: active ? 'linear-gradient(135deg,#FF8C00,#FF2D6F)' : 'transparent',
-              color: active ? '#fff' : 'var(--text-muted)',
-              fontFamily: o.code === 'hi' ? 'var(--font-body)' : 'var(--font-mono)',
-              fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em',
-              transition: 'background 0.18s,color 0.18s',
-            }}>
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
-  )
+// Known webmail providers → direct inbox link (jump straight to the user's mail)
+const PROVIDER_URLS = {
+  'gmail.com': 'https://mail.google.com/mail/u/0/#inbox',
+  'googlemail.com': 'https://mail.google.com/mail/u/0/#inbox',
+  'outlook.com': 'https://outlook.live.com/mail/0/',
+  'hotmail.com': 'https://outlook.live.com/mail/0/',
+  'live.com': 'https://outlook.live.com/mail/0/',
+  'yahoo.com': 'https://mail.yahoo.com/',
+  'icloud.com': 'https://www.icloud.com/mail',
+  'me.com': 'https://www.icloud.com/mail',
+  'proton.me': 'https://mail.proton.me/u/0/inbox',
+  'protonmail.com': 'https://mail.proton.me/u/0/inbox',
+}
+const inboxUrlFor = (email) => PROVIDER_URLS[(email.split('@')[1] || '').toLowerCase()] || null
+
+/* ─── Google Fonts ───────────────────────────────────────────────── */
+if (!document.getElementById('nuove-fonts')) {
+  const link = document.createElement('link')
+  link.id   = 'nuove-fonts'
+  link.rel  = 'stylesheet'
+  link.href = 'https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap'
+  document.head.appendChild(link)
 }
 
-/* ─── SVG Icons ──────────────────────────────────────────────────── */
+/* ─── SVG Icons ───────────────────────────────────────────────────── */
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -56,217 +51,655 @@ const YouTubeIcon = () => (
     <path d="M23.495 2.205a3.02 3.02 0 0 0-2.122-2.136C19.548 0 12 0 12 0S4.452 0 2.627.069a3.02 3.02 0 0 0-2.122 2.136C0 4.04 0 8.667 0 8.667s0 4.627.505 6.462a3.02 3.02 0 0 0 2.122 2.136C4.452 17.334 12 17.334 12 17.334s7.548 0 9.373-.069a3.02 3.02 0 0 0 2.122-2.136C24 13.294 24 8.667 24 8.667s0-4.627-.505-6.462zM9.545 12.001V5.333l6.273 3.334-6.273 3.334z"/>
   </svg>
 )
+const XIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+)
+const ChevronLeft  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+const ChevronRight = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
 
-/* ══════════════════════════════════════════════════════════════════
-   APP PHONE  (unchanged)
-══════════════════════════════════════════════════════════════════ */
-const DEMO = {
-  en: {
-    s1Title: 'Script Studio',
-    topic: 'Morning fitness routine',
-    hook: 'Most beginners quit the gym in week 2.',
-    body: "Here's the one habit that kept me consistent for 2 years straight.",
-    cta: 'Follow for part 2 🔥',
-    topicLbl: 'Topic', hookLbl: 'Hook', bodyLbl: 'Body', ctaLbl: 'CTA',
-    s2Title: 'Hook Score',
-    viralPotential: 'Viral Potential',
-    bars: [
-      { l: 'Curiosity', v: 96, c: '#FF8C00' },
-      { l: 'Emotion',   v: 88, c: '#FF2D6F' },
-      { l: 'Clarity',   v: 97, c: '#C4FF00' },
-      { l: 'CTA Power', v: 92, c: '#00E5A0' },
-    ],
-    s3Title: 'Crosspost',
-    cpDesc: 'Script adapted & posted everywhere ✓',
-    cpNote: 'One click. Every platform.',
-    s4Title: 'Trending Now',
-    trends: [
-      { tag: '#MorningRoutine', views: '2.4M views', delta: '+38%', i: 1, c: '#FF2D6F', delay: '0.3s' },
-      { tag: '#FitnessIndia',   views: '1.8M views', delta: '+21%', i: 2, c: '#FF8C00', delay: '0.7s' },
-      { tag: '#AILifestyle',    views: '987K views',  delta: '+57%', i: 3, c: '#C4FF00', delay: '1.1s' },
-      { tag: '#5AMClub',        views: '741K views',  delta: '+14%', i: 4, c: '#00E5A0', delay: '1.5s' },
-    ],
-    s5Title: 'Creator Advisor',
-    q1: 'How do I grow faster on Reels?',
-    a1: 'Post between 7–9 AM daily. Use trending audio. Your hooks need more pattern interrupts — start with a bold claim or question. 💡',
-    q2: 'Which hashtags?',
-    labels: ['Script Studio', 'Hook Score', 'Crosspost', 'Trending', 'Creator Advisor'],
-  },
-  hi: {
-    s1Title: 'स्क्रिप्ट स्टूडियो',
-    topic: 'सुबह की फिटनेस रूटीन',
-    hook: 'ज़्यादातर नए लोग gym दूसरे हफ्ते छोड़ देते हैं।',
-    body: 'यही एक आदत है जिसने मुझे 2 साल तक consistent रखा।',
-    cta: 'Part 2 के लिए follow करो 🔥',
-    topicLbl: 'विषय', hookLbl: 'हुक', bodyLbl: 'बॉडी', ctaLbl: 'CTA',
-    s2Title: 'हुक स्कोर',
-    viralPotential: 'वायरल संभावना',
-    bars: [
-      { l: 'जिज्ञासा',   v: 96, c: '#00D4FF' },
-      { l: 'भावना',      v: 88, c: '#FF2D8B' },
-      { l: 'स्पष्टता',  v: 97, c: '#A8FF3C' },
-      { l: 'CTA पावर',  v: 92, c: '#FFB800' },
-    ],
-    s3Title: 'क्रॉसपोस्ट',
-    cpDesc: 'स्क्रिप्ट हर जगह post हो गई ✓',
-    cpNote: 'एक क्लिक। हर प्लेटफॉर्म।',
-    s4Title: 'ट्रेंडिंग अभी',
-    trends: [
-      { tag: '#MorningRoutine', views: '2.4M व्यूज़', delta: '+38%', i: 1, c: '#FF2D8B', delay: '0.3s' },
-      { tag: '#FitnessIndia',   views: '1.8M व्यूज़', delta: '+21%', i: 2, c: '#00D4FF', delay: '0.7s' },
-      { tag: '#AILifestyle',    views: '987K व्यूज़',  delta: '+57%', i: 3, c: '#A8FF3C', delay: '1.1s' },
-      { tag: '#5AMClub',        views: '741K व्यूज़',  delta: '+14%', i: 4, c: '#FFB800', delay: '1.5s' },
-    ],
-    s5Title: 'क्रिएटर एडवाइज़र',
-    q1: 'Reels पर जल्दी grow कैसे करूं?',
-    a1: 'रोज़ सुबह 7–9 बजे post करो। Trending audio use करो। Hooks में bold claim या question से शुरू करो। 💡',
-    q2: 'कौन से hashtags?',
-    labels: ['स्क्रिप्ट स्टूडियो', 'हुक स्कोर', 'क्रॉसपोस्ट', 'ट्रेंडिंग', 'क्रिएटर एडवाइज़र'],
-  },
+/* ─── Lang Flip ──────────────────────────────────────────────────── */
+function LangFlip() {
+  const { lang, setLanguage } = useLang()
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 99, padding: 3 }}>
+      {[{ code: 'en', label: 'EN' }, { code: 'hi', label: 'हिं' }].map(o => {
+        const active = lang === o.code
+        return (
+          <button key={o.code} type="button" onClick={() => !active && setLanguage(o.code)}
+            style={{ border: 'none', cursor: active ? 'default' : 'pointer', padding: '4px 11px', borderRadius: 99, background: active ? 'linear-gradient(135deg,#00D4FF,#FF2D8B)' : 'transparent', color: active ? '#fff' : 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', transition: 'all 0.18s', fontFamily: "'DM Sans', var(--font-body)" }}>
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
-function AppPhone() {
-  const { lang } = useLang()
-  const d = DEMO[lang] || DEMO.en
+/* ─── Smooth Video Hero ,  A/B Buffer ─────────────────────────────── */
+// Only 2 video elements exist at any time. We alternate between them
+// (like double-buffering in graphics) so the browser only ever needs
+// to handle 2 videos, not all 4 simultaneously.
+const VIDEOS    = ['/videos/hero1.mp4', '/videos/hero2.mp4', '/videos/hero3.mp4', '/videos/hero4.mp4']
+const START_AT  = 0      // videos are now pre-trimmed by FFmpeg!
+const SHOW_FOR  = 5000   // ms each clip is visible
+const FADE_TIME = 1200   // ms crossfade duration
+
+function HeroVideo() {
+  // which slot (0=A, 1=B) is currently ON TOP (visible)
+  const [topSlot, setTopSlot]   = useState(0)
+  const [ready,   setReady]     = useState(false)
+  const vidIdx  = useRef([0, 1])   // vidIdx[slot] = which VIDEOS[] index is loaded in that slot
+  const slotRef = useRef([null, null])
+  const timer   = useRef(null)
+
+  const playFrom = (el, t = START_AT) => {
+    if (!el) return
+    el.currentTime = t
+    el.play().catch(() => {})
+  }
+
+  // Load a video into a slot and start playing it silently until needed
+  const loadIntoSlot = (slot, videoIndex) => {
+    const el = slotRef.current[slot]
+    if (!el) return
+    vidIdx.current[slot] = videoIndex
+    el.src = VIDEOS[videoIndex]
+    el.load()
+    // Start playing immediately so it's buffered (it's invisible until we fade it in)
+    el.addEventListener('canplay', function handler() {
+      el.removeEventListener('canplay', handler)
+      playFrom(el)
+    })
+  }
+
+  useEffect(() => {
+    // Initial setup: load clip 0 into slot A, clip 1 into slot B
+    const slotA = slotRef.current[0]
+    const slotB = slotRef.current[1]
+
+    // Slot A ,  visible first
+    if (slotA) {
+      slotA.src = VIDEOS[0]
+      slotA.load()
+      slotA.addEventListener('canplay', function h() {
+        slotA.removeEventListener('canplay', h)
+        playFrom(slotA)
+        setReady(true)
+      })
+    }
+
+    // Slot B ,  preload clip 1 silently
+    if (slotB) {
+      slotB.src = VIDEOS[1]
+      slotB.load()
+      slotB.addEventListener('canplay', function h() {
+        slotB.removeEventListener('canplay', h)
+        playFrom(slotB)
+      })
+    }
+
+    let currentVideoIdx = 0
+
+    timer.current = setInterval(() => {
+      currentVideoIdx = (currentVideoIdx + 1) % VIDEOS.length
+      const nextVideoIdx = (currentVideoIdx + 1) % VIDEOS.length
+
+      // The slot that was HIDDEN becomes the new TOP (it's already playing)
+      setTopSlot(prev => {
+        const newTop = prev === 0 ? 1 : 0     // flip which slot is on top
+        const hiddenSlot = prev                 // the old top becomes hidden
+        // Load the NEXT video into the now-hidden slot so it's ready
+        setTimeout(() => loadIntoSlot(hiddenSlot, nextVideoIdx), FADE_TIME + 500)
+        return newTop
+      })
+    }, SHOW_FOR)
+
+    return () => clearInterval(timer.current)
+  }, [])
+
   return (
-    <div className="ap-outer">
-      <div className="ap-glow ap-glow-c" aria-hidden />
-      <div className="ap-glow ap-glow-p" aria-hidden />
-      <div className="ap-phone">
-        <div className="ap-island" />
-        <div className="ap-screen">
-          <div className="ap-scene ap-s1">
-            <div className="ap-hdr" style={{ '--hc': '#00D4FF' }}>
-              <span className="ap-hdr-icon">✍</span>
-              <span className="ap-hdr-title">{d.s1Title}</span>
-              <span className="ap-live-pill"><span className="ap-live-dot" />LIVE</span>
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', overflow: 'hidden', background: '#0a0a0a' }}>
+      {[0, 1].map(slot => (
+        <video
+          key={slot}
+          ref={el => slotRef.current[slot] = el}
+          muted playsInline loop
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%', objectFit: 'cover',
+            opacity: slot === topSlot && ready ? 1 : 0,
+            transition: `opacity ${FADE_TIME}ms ease-in-out`,
+            willChange: 'opacity',
+          }}
+        />
+      ))}
+      {/* Gradient overlay for text legibility */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.50) 55%, rgba(0,0,0,0.65) 100%)', borderRadius: 'inherit' }} />
+    </div>
+  )
+}
+
+/* ─── Feature Carousel ───────────────────────────────────────────── */
+const FEATURES = [
+  {
+    icon: '✍️',
+    color: '#00D4FF',
+    number: '01',
+    titleKey: 'landing_feat_script_title',
+    descKey: 'landing_feat_script_desc',
+    orbs: ['🎬', '📖', '📣'],
+  },
+  {
+    icon: '📈',
+    color: '#FFB800',
+    number: '02',
+    titleKey: 'landing_feat_trends_title',
+    descKey: 'landing_feat_trends_desc',
+    orbs: ['#️⃣', '🔥', '📊'],
+  },
+  {
+    icon: '🎬',
+    color: '#A8FF3C',
+    number: '03',
+    titleKey: 'landing_feat_tele_title',
+    descKey: 'landing_feat_tele_desc',
+    orbs: ['📱', '📷', '✂️'],
+  },
+  {
+    icon: '⇄',
+    color: '#A855F7',
+    number: '04',
+    titleKey: 'landing_feat_cross_title',
+    descKey: 'landing_feat_cross_desc',
+    orbs: ['▶', '📲', '✓'],
+  },
+  {
+    icon: '🏷️',
+    color: '#FF2D8B',
+    number: '05',
+    titleKey: 'landing_feat_captions_title',
+    descKey: 'landing_feat_captions_desc',
+    orbs: ['📝', '#️⃣', '✨'],
+  },
+  {
+    icon: '📂',
+    color: '#00D4FF',
+    number: '06',
+    titleKey: 'landing_feat_templates_title',
+    descKey: 'landing_feat_templates_desc',
+    orbs: ['💾', '📎', '📚'],
+  },
+]
+
+/* ─── Animated Feature Visual ─────────────────────────────────────── */
+function FeatureVisual({ feature, exiting }) {
+  const orbPositions = [
+    { x: '20%', y: '25%', size: 52, dur: 3.2, delay: 0.1 },
+    { x: '75%', y: '18%', size: 46, dur: 2.8, delay: 0.25 },
+    { x: '15%', y: '70%', size: 44, dur: 3.6, delay: 0 },
+  ]
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 220 }}>
+      {/* Outer glow ring */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 200, height: 200, borderRadius: '50%',
+        background: `radial-gradient(circle, ${feature.color}22 0%, transparent 70%)`,
+        animation: 'pulseRingFC 2.8s ease-in-out infinite',
+        opacity: exiting ? 0 : 1, transition: 'opacity 0.3s',
+      }} />
+      {/* Inner ring */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 110, height: 110, borderRadius: '50%',
+        border: `1.5px dashed ${feature.color}45`,
+        animation: 'spinSlowFC 18s linear infinite',
+        opacity: exiting ? 0 : 1, transition: 'opacity 0.3s',
+      }} />
+
+      {/* Central icon */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: `translate(-50%, -50%) scale(${exiting ? 0.5 : 1})`,
+        fontSize: '3.8rem',
+        filter: `drop-shadow(0 0 28px ${feature.color}90)`,
+        animation: 'floatYFC 3s ease-in-out infinite',
+        opacity: exiting ? 0 : 1,
+        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        zIndex: 2, userSelect: 'none',
+      }}>
+        {feature.icon}
+      </div>
+
+      {/* Orbiting mini icons */}
+      {orbPositions.map((orb, i) => (
+        <div key={i} style={{
+          position: 'absolute', left: orb.x, top: orb.y,
+          transform: `translate(-50%, -50%) scale(${exiting ? 0.3 : 1})`,
+          width: orb.size, height: orb.size,
+          borderRadius: '50%',
+          background: `${feature.color}18`,
+          border: `1px solid ${feature.color}40`,
+          backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: `${orb.size * 0.42}px`,
+          boxShadow: `0 6px 24px ${feature.color}25`,
+          animation: `floatYFC ${orb.dur}s ease-in-out infinite ${orb.delay}s`,
+          opacity: exiting ? 0 : 1,
+          transition: `all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.07}s`,
+          userSelect: 'none',
+        }}>
+          {feature.orbs[i]}
+        </div>
+      ))}
+
+      {/* SVG dashed connecting lines */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: exiting ? 0 : 0.18, transition: 'opacity 0.3s' }} viewBox="0 0 400 280" preserveAspectRatio="xMidYMid meet">
+        <line x1="200" y1="140" x2="80" y2="70" stroke={feature.color} strokeWidth="1.2" strokeDasharray="5 5" />
+        <line x1="200" y1="140" x2="300" y2="50" stroke={feature.color} strokeWidth="1.2" strokeDasharray="5 5" />
+        <line x1="200" y1="140" x2="60" y2="196" stroke={feature.color} strokeWidth="1.2" strokeDasharray="5 5" />
+      </svg>
+    </div>
+  )
+}
+
+function FeatureCarousel() {
+  const { t } = useLang()
+  const [idx, setIdx]         = useState(0)
+  const [exiting, setExiting] = useState(false)
+  const timerRef = useRef(null)
+
+  const goTo = (n) => {
+    if (exiting) return
+    clearInterval(timerRef.current)
+    setExiting(true)
+    setTimeout(() => {
+      setIdx(n)
+      setExiting(false)
+      timerRef.current = setInterval(() => goTo((n + 1) % FEATURES.length), 5500)
+    }, 320)
+  }
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setIdx(i => (i + 1) % FEATURES.length)
+    }, 5500)
+    return () => clearInterval(timerRef.current)
+  }, [])
+
+  const prev = () => goTo(idx === 0 ? FEATURES.length - 1 : idx - 1)
+  const next = () => goTo((idx + 1) % FEATURES.length)
+  const f    = FEATURES[idx]
+
+  return (
+    <div>
+      {/* ── CSS keyframe animations ── */}
+      <style>{`
+        @keyframes pulseRingFC {
+          0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 0.55; }
+          50%       { transform: translate(-50%,-50%) scale(1.35); opacity: 0.12; }
+        }
+        @keyframes spinSlowFC {
+          from { transform: translate(-50%,-50%) rotate(0deg); }
+          to   { transform: translate(-50%,-50%) rotate(360deg); }
+        }
+        @keyframes floatYFC {
+          0%, 100% { transform: translate(-50%,-50%) translateY(0px); }
+          50%       { transform: translate(-50%,-50%) translateY(-14px); }
+        }
+        .feat-tab-btn { transition: all 0.25s ease !important; }
+        .feat-tab-btn:hover { opacity: 0.9 !important; background-color: rgba(255,255,255,0.04) !important; }
+        
+        .feature-grid-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          position: relative;
+          z-index: 1;
+        }
+        @media (min-width: 641px) {
+          .feature-grid-container {
+            height: 380px;
+          }
+        }
+      `}</style>
+
+      {/* ── Main Card ── */}
+      <div style={{
+        borderRadius: 24,
+        overflow: 'hidden',
+        background: 'var(--surface)',
+        border: `1px solid ${f.color}35`,
+        boxShadow: `0 24px 60px rgba(0,0,0,0.25), 0 0 0 1px ${f.color}15, inset 0 1px 0 rgba(255,255,255,0.08)`,
+        transition: 'border-color 0.5s ease, box-shadow 0.5s ease',
+        position: 'relative',
+      }}>
+
+        {/* Full-card watermark number */}
+        <div style={{
+          position: 'absolute', top: -20, right: -10, zIndex: 0,
+          fontFamily: "'Fraunces', serif", fontWeight: 900,
+          fontSize: 'clamp(9rem, 20vw, 18rem)',
+          color: `${f.color}05`,
+          letterSpacing: '-0.05em', userSelect: 'none', lineHeight: 1,
+          opacity: exiting ? 0 : 1,
+          transition: 'opacity 0.3s ease, color 0.5s ease',
+          pointerEvents: 'none',
+        }}>
+          {f.number}
+        </div>
+
+        {/* ── Two-column interior ── */}
+        <div className="feature-grid-container">
+
+          {/* LEFT ,  text */}
+          <div style={{
+            padding: 'clamp(28px, 4vw, 40px)',
+            background: `linear-gradient(145deg, ${f.color}15 0%, rgba(255,255,255,0.02) 100%)`,
+            backdropFilter: 'blur(20px)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            transition: 'background 0.6s ease',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+          }}>
+            {/* Flex wrapper to group text at top and push controls to bottom */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Feature badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              width: 'fit-content', padding: '6px 14px', borderRadius: 99,
+              background: `${f.color}15`, border: `1px solid ${f.color}35`,
+              fontSize: '0.72rem', fontWeight: 700, color: f.color,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              fontFamily: "'DM Sans', sans-serif",
+              opacity: exiting ? 0 : 1,
+              transform: exiting ? 'translateY(-10px)' : 'translateY(0)',
+              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}>
+              <span>{f.icon}</span> Feature {f.number}
             </div>
-            <div className="ap-field-lbl">{d.topicLbl}</div>
-            <div className="ap-input-row">
-              <span className="ap-typed-text">{d.topic}</span>
-              <span className="ap-cursor" />
+
+            {/* Title */}
+            <h3 style={{
+              margin: 0, fontFamily: "'Fraunces', Georgia, serif",
+              fontWeight: 800, fontSize: 'clamp(1.9rem, 3.5vw, 2.9rem)',
+              color: 'var(--text)', letterSpacing: '-0.03em', lineHeight: 1.1,
+              opacity: exiting ? 0 : 1,
+              transform: exiting ? 'translateY(22px)' : 'translateY(0)',
+              transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s',
+            }}>
+              {t(f.titleKey) || f.titleKey}
+            </h3>
+
+            {/* Description */}
+            <p style={{
+              margin: 0, fontFamily: "'DM Sans', sans-serif",
+              fontSize: '1.05rem', color: 'var(--text-muted)', lineHeight: 1.75, maxWidth: 380,
+              opacity: exiting ? 0 : 1,
+              transform: exiting ? 'translateY(22px)' : 'translateY(0)',
+              transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.1s',
+            }}>
+              {t(f.descKey) || f.descKey}
+            </p>
             </div>
-            <div className="ap-field-lbl" style={{ marginTop: 10 }}>{d.hookLbl}</div>
-            <div className="ap-script-line ap-sl-hook" style={{ animationDelay: '1.2s' }}>
-              <span className="ap-tag" style={{ '--tc': '#00D4FF' }}>hook</span>{d.hook}
-            </div>
-            <div className="ap-field-lbl" style={{ marginTop: 8 }}>{d.bodyLbl}</div>
-            <div className="ap-script-line" style={{ animationDelay: '1.8s' }}>
-              <span className="ap-tag" style={{ '--tc': '#A855F7' }}>body</span>{d.body}
-            </div>
-            <div className="ap-field-lbl" style={{ marginTop: 8 }}>{d.ctaLbl}</div>
-            <div className="ap-script-line ap-sl-cta" style={{ animationDelay: '2.4s' }}>
-              <span className="ap-tag" style={{ '--tc': '#FF2D8B' }}>cta</span>{d.cta}
+
+            {/* Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+              <button onClick={prev} aria-label="Previous feature" style={{
+                width: 44, height: 44, borderRadius: '50%',
+                border: `1px solid ${f.color}35`, background: `${f.color}10`,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: f.color, transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${f.color}28`; e.currentTarget.style.transform = 'scale(1.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${f.color}10`; e.currentTarget.style.transform = 'scale(1)' }}>
+                <ChevronLeft />
+              </button>
+              <button onClick={next} aria-label="Next feature" style={{
+                width: 44, height: 44, borderRadius: '50%',
+                border: `1px solid ${f.color}35`, background: `${f.color}10`,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: f.color, transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${f.color}28`; e.currentTarget.style.transform = 'scale(1.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${f.color}10`; e.currentTarget.style.transform = 'scale(1)' }}>
+                <ChevronRight />
+              </button>
             </div>
           </div>
-          <div className="ap-scene ap-s2">
-            <div className="ap-hdr" style={{ '--hc': '#A8FF3C' }}>
-              <span className="ap-hdr-icon">🎯</span>
-              <span className="ap-hdr-title">{d.s2Title}</span>
-              <span className="ap-badge" style={{ '--bc': '#A8FF3C' }}>AI Rating</span>
-            </div>
-            <div className="ap-score-center">
-              <svg className="ap-gauge-svg" viewBox="0 0 120 66">
-                <defs>
-                  <linearGradient id="gaugeG" x1="0" y1="0" x2="120" y2="0" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%"   stopColor="#A8FF3C" />
-                    <stop offset="50%"  stopColor="#00D4FF" />
-                    <stop offset="100%" stopColor="#FF2D8B" />
-                  </linearGradient>
-                </defs>
-                <path className="ap-gauge-bg" d="M 10 60 A 50 50 0 0 1 110 60" stroke="rgba(255,255,255,0.07)" strokeWidth="7" fill="none" strokeLinecap="round"/>
-                <path className="ap-gauge-fill" d="M 10 60 A 50 50 0 0 1 110 60" stroke="url(#gaugeG)" strokeWidth="7" fill="none" strokeLinecap="round"/>
-              </svg>
-              <div className="ap-score-num">94</div>
-              <div className="ap-score-sub">{d.viralPotential}</div>
-            </div>
-            <div className="ap-bars">
-              {d.bars.map((b, i) => (
-                <div key={i} className="ap-bar-row" style={{ animationDelay: `${0.4 + i * 0.15}s` }}>
-                  <span className="ap-bar-lbl">{b.l}</span>
-                  <div className="ap-bar-track"><div className="ap-bar-fill" style={{ '--bw': b.v + '%', '--bc': b.c, animationDelay: `${0.6 + i * 0.15}s` }} /></div>
-                  <span className="ap-bar-val" style={{ color: b.c }}>{b.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="ap-scene ap-s3">
-            <div className="ap-hdr" style={{ '--hc': '#FF2D8B' }}>
-              <span className="ap-hdr-icon">⇄</span>
-              <span className="ap-hdr-title">{d.s3Title}</span>
-              <span className="ap-badge" style={{ '--bc': '#FF2D8B' }}>4 platforms</span>
-            </div>
-            <div className="ap-cp-desc">{d.cpDesc}</div>
-            <div className="ap-cp-platforms">
-              {[
-                { icon: '𝕏',  label: 'Twitter / X',   color: '#1DA1F2', delay: '0.4s' },
-                { icon: 'in', label: 'LinkedIn',        color: '#0077B5', delay: '0.9s' },
-                { icon: '▶',  label: 'YouTube Shorts',  color: '#FF5F4C', delay: '1.4s' },
-                { icon: '◈',  label: 'Instagram',       color: '#E1306C', delay: '1.9s' },
-              ].map(p => (
-                <div key={p.icon} className="ap-cp-row" style={{ animationDelay: p.delay }}>
-                  <span className="ap-cp-icon" style={{ color: p.color }}>{p.icon}</span>
-                  <span className="ap-cp-label">{p.label}</span>
-                  <span className="ap-cp-check">✓</span>
-                </div>
-              ))}
-            </div>
-            <div className="ap-cp-note">{d.cpNote}</div>
-          </div>
-          <div className="ap-scene ap-s4">
-            <div className="ap-hdr" style={{ '--hc': '#FFB800' }}>
-              <span className="ap-hdr-icon">📈</span>
-              <span className="ap-hdr-title">{d.s4Title}</span>
-              <span className="ap-live-pill ap-live-amber"><span className="ap-live-dot ap-live-dot-a" />LIVE</span>
-            </div>
-            <div className="ap-trends">
-              {d.trends.map(t => (
-                <div key={t.tag} className="ap-trend-row" style={{ animationDelay: t.delay }}>
-                  <span className="ap-trend-rank" style={{ color: t.c }}>{t.i}</span>
-                  <div className="ap-trend-info">
-                    <div className="ap-trend-tag">{t.tag}</div>
-                    <div className="ap-trend-views">{t.views}</div>
-                  </div>
-                  <span className="ap-trend-delta" style={{ color: t.c }}>{t.delta} ↑</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="ap-scene ap-s5">
-            <div className="ap-hdr" style={{ '--hc': '#A855F7' }}>
-              <span className="ap-hdr-icon">🤖</span>
-              <span className="ap-hdr-title">{d.s5Title}</span>
-              <span className="ap-badge" style={{ '--bc': '#A855F7' }}>24/7</span>
-            </div>
-            <div className="ap-chat">
-              <div className="ap-msg ap-msg-u" style={{ animationDelay: '0.2s' }}>{d.q1}</div>
-              <div className="ap-msg ap-msg-ai" style={{ animationDelay: '0.9s' }}>{d.a1}</div>
-              <div className="ap-msg ap-msg-u" style={{ animationDelay: '2.0s' }}>{d.q2}</div>
-              <div className="ap-typing" style={{ animationDelay: '2.6s' }}><span /><span /><span /></div>
-            </div>
+
+          {/* RIGHT ,  animated orbital visual showcase */}
+          <div style={{
+            position: 'relative',
+            background: `radial-gradient(ellipse at 55% 40%, ${f.color}18 0%, transparent 65%), var(--surface2)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', minHeight: 280,
+            transition: 'background 0.6s ease',
+          }}>
+            {/* Dot grid pattern */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              backgroundImage: `radial-gradient(circle, ${f.color}35 1px, transparent 1px)`,
+              backgroundSize: '28px 28px', opacity: 0.3,
+              transition: 'all 0.5s ease',
+            }} />
+            <FeatureVisual feature={f} exiting={exiting} />
           </div>
         </div>
+
+        {/* ── Bottom feature tab strip ── */}
+        <div style={{
+          display: 'flex', borderTop: '1px solid var(--border)',
+          background: 'var(--surface)', overflow: 'hidden',
+        }}>
+          {FEATURES.map((feat, i) => (
+            <button key={i} className="feat-tab-btn" onClick={() => goTo(i)} style={{
+              flex: 1, padding: '14px 4px', border: 'none',
+              borderTop: i === idx ? `2.5px solid ${feat.color}` : '2.5px solid transparent',
+              background: i === idx ? `${feat.color}0C` : 'transparent',
+              cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 4,
+              opacity: i === idx ? 1 : 0.38,
+              transition: 'all 0.3s ease',
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>{feat.icon}</span>
+              <span style={{
+                fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.06em',
+                textTransform: 'uppercase', fontFamily: "'DM Sans', sans-serif",
+                color: i === idx ? feat.color : 'var(--text-faint)',
+                transition: 'color 0.3s ease',
+              }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="ap-dots">
-        {[1,2,3,4,5].map(n => <div key={n} className={`ap-dot ap-dot-${n}`} title={d.labels[n-1]} />)}
+    </div>
+  )
+}
+
+/* ─── Auth Modal ─────────────────────────────────────────────────── */
+function AuthModal({ open, onClose, defaultMode = 'login' }) {
+  const { t } = useLang()
+  const { login, register, refreshUser } = useAuth()
+  const toast    = useToast()
+  const navigate = useNavigate()
+
+  const [mode, setMode]       = useState(defaultMode)
+  const [email, setEmail]     = useState('')
+  const [password, setPass]   = useState('')
+  const [name, setName]       = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showPass, setShow]   = useState(false)
+  const [verifySent, setVerifySent]     = useState(false)
+  const [code, setCode]                 = useState('')
+  const [verifying, setVerifying]       = useState(false)
+
+  const handleVerifyCode = async e => {
+    e.preventDefault()
+    if (code.trim().length !== 6) return
+    setVerifying(true)
+    try {
+      const data = await api.verifyCode(email, code.trim())
+      localStorage.setItem('arc_token', data.token)
+      localStorage.removeItem('vs_onboarded')
+      await refreshUser()
+      navigate('/onboarding')
+    } catch (err) {
+      toast(err.message || 'Invalid code. Please try again.', 'error')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  useEffect(() => { if (open) setMode(defaultMode) }, [defaultMode, open])
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose() }
+    if (open) window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [open, onClose])
+
+  const submit = async e => {
+    e.preventDefault(); setLoading(true)
+    try {
+      if (mode === 'login') {
+        const data = await login(email, password)
+        if (data?.needsVerification) { setVerifySent(true) }
+        else { toast(t('landing_auth_welcome'), 'success'); navigate('/dashboard') }
+      } else {
+        const data = await register(email, password, name)
+        if (data?.needsVerification) { setVerifySent(true) }
+        else { toast(t('landing_auth_created'), 'success'); navigate('/dashboard') }
+      }
+    } catch (err) {
+      if (err.data?.needsVerification) {
+        setVerifySent(true)
+      } else {
+        toast(err.message, 'error')
+      }
+    }
+    finally { setLoading(false) }
+  }
+
+  const handleSocial = p => { const b = import.meta.env.VITE_API_URL || ''; window.location.href = `${b}/api/auth/${p}` }
+
+  if (!open) return null
+  return (
+    <div id="auth-modal-backdrop" onClick={e => e.target.id === 'auth-modal-backdrop' && onClose()}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', animation: 'mFadeIn 0.2s ease' }}>
+      <div style={{ width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16, padding: '36px 32px', boxShadow: '0 32px 80px rgba(0,0,0,0.2)', border: '1px solid var(--border)', animation: 'mSlideUp 0.26s cubic-bezier(0.22,1,0.36,1)', position: 'relative' }}>
+        <button id="auth-modal-close" onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'var(--surface2)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', transition: 'background 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--surface2)'}>
+          <XIcon />
+        </button>
+
+        {verifySent && (
+          <div style={{ textAlign: 'center', padding: '12px 4px' }}>
+            <div style={{ fontSize: '2.6rem', marginBottom: 12 }}>📬</div>
+            <h2 style={{ margin: '0 0 8px', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '1.5rem', color: 'var(--text)' }}>
+              Enter your code
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 22 }}>
+              We've sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Enter it below to verify your account.
+            </p>
+            <form onSubmit={handleVerifyCode}>
+              <input
+                className="input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                autoFocus
+                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5em', fontWeight: 700, paddingLeft: '0.5em' }}
+              />
+              <button type="submit" disabled={verifying || code.length !== 6}
+                style={{ marginTop: 14, width: '100%', height: 46, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontSize: '0.95rem', fontWeight: 600, cursor: (verifying || code.length !== 6) ? 'not-allowed' : 'pointer', opacity: (verifying || code.length !== 6) ? 0.6 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+                {verifying ? 'Verifying…' : 'Verify & Continue →'}
+              </button>
+            </form>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: '16px 0 0' }}>Didn't get it? Check your spam folder.</p>
+            <button onClick={() => { setVerifySent(false); setCode(''); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+              Back to sign in
+            </button>
+          </div>
+        )}
+
+        {!verifySent && (<>
+        <h2 style={{ margin: '0 0 6px', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: '1.55rem', color: 'var(--text)', letterSpacing: '-0.025em' }}>
+          {mode === 'login' ? 'Welcome back' : 'Create your account'}
+        </h2>
+        <p style={{ margin: '0 0 24px', fontSize: '0.84rem', color: 'var(--text-muted)', fontFamily: "'DM Sans', sans-serif" }}>
+          {mode === 'login' ? 'Sign in to continue creating.' : 'Start building your creator presence today.'}
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+          {[
+            { id: 'google',    label: t('landing_auth_google'),    icon: <GoogleIcon />,    bg: '#fff', color: '#111', border: '1.5px solid #e0e0e0', soon: false },
+            { id: 'instagram', label: t('landing_auth_instagram'), icon: <InstagramIcon />, bg: 'linear-gradient(45deg,#405DE6,#C13584,#E1306C)', color: '#fff', soon: true },
+            { id: 'youtube',   label: t('landing_auth_youtube'),   icon: <YouTubeIcon />,   bg: '#FF0000', color: '#fff', soon: true },
+          ].map(btn => (
+            <button key={btn.id} id={`auth-btn-${btn.id}`} type="button" disabled={btn.soon} onClick={() => !btn.soon && handleSocial(btn.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 44, padding: '0 16px', borderRadius: 8, cursor: btn.soon ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: '0.88rem', fontWeight: 500, background: btn.bg, color: btn.color, border: btn.border || 'none', opacity: btn.soon ? 0.38 : 1 }}>
+              <span style={{ display: 'flex', width: 20, flexShrink: 0 }}>{btn.icon}</span>
+              <span style={{ flex: 1, textAlign: 'center' }}>{btn.label}</span>
+              {btn.soon && <span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: 'rgba(0,0,0,0.25)', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Soon</span>}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: "'DM Sans', sans-serif" }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          {mode === 'register' && (
+            <div className="field">
+              <label style={{ fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_name_label')}</label>
+              <input className="input" placeholder={t('landing_auth_name_ph')} value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
+            </div>
+          )}
+          <div className="field">
+            <label style={{ fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_email_label')}</label>
+            <input className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+          </div>
+          <div className="field">
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <label style={{ margin: 0, fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_pass_label')}</label>
+              {mode === 'login' && <Link to="/forgot-password" onClick={onClose} style={{ fontSize: '0.76rem', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_forgot')}</Link>}
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showPass ? 'text' : 'password'} placeholder={mode === 'register' ? t('landing_auth_pass_ph_new') : '••••••••'} value={password} onChange={e => setPass(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required style={{ paddingRight: 44 }} />
+              <button type="button" onClick={() => setShow(v => !v)} tabIndex={-1} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 4, display: 'flex' }}>
+                {showPass
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+              </button>
+            </div>
+            {mode === 'register' && <PasswordChecklist password={password} />}
+          </div>
+          <button id="auth-submit-btn" type="submit" disabled={loading || (mode === 'register' && !isPasswordValid(password))}
+            style={{ marginTop: 4, height: 46, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #00D4FF, #FF2D8B)', color: '#fff', fontSize: '0.95rem', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 6px 24px rgba(0,212,255,0.25)' }}>
+            {loading ? <><span className="spinner" /> {t('landing_auth_processing')}</> : mode === 'login' ? t('landing_auth_signin_btn') : t('landing_auth_signup_btn')}
+          </button>
+        </form>
+
+        <p style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.8rem', marginTop: 16, marginBottom: 0, fontFamily: "'DM Sans', sans-serif" }}>
+          {mode === 'login' ? t('landing_auth_no_account') : t('landing_auth_has_account')}
+          <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 700, fontFamily: "'DM Sans', sans-serif", padding: '0 0 0 4px' }}>
+            {mode === 'login' ? t('landing_auth_signup_link') : t('landing_auth_signin_link')}
+          </button>
+        </p>
+        </>)}
       </div>
-      <div className="ap-label-wrap">
-        {[{ n:1,c:'#00D4FF'},{n:2,c:'#A8FF3C'},{n:3,c:'#FF2D8B'},{n:4,c:'#FFB800'},{n:5,c:'#A855F7'}].map((f,i) => (
-          <div key={f.n} className={`ap-label ap-label-${f.n}`} style={{ '--lc': f.c }}>{d.labels[i]}</div>
-        ))}
-      </div>
-      <div className="vb vb-thumb"   aria-hidden>👍</div>
-      <div className="vb vb-eyes"    aria-hidden>👀</div>
-      <div className="vb vb-comment" aria-hidden>💬</div>
-      <div className="vb vb-heart"   aria-hidden>❤️</div>
-      <div className="vb vb-fire"    aria-hidden>🔥</div>
-      <div className="vb vb-rise vb-rise-1" aria-hidden>❤️</div>
-      <div className="vb vb-rise vb-rise-2" aria-hidden>🧡</div>
-      <div className="vb vb-rise vb-rise-3" aria-hidden>❤️</div>
-      <div className="vb vb-rise vb-rise-4" aria-hidden>😍</div>
-      <div className="vb vb-spark vb-spark-1" aria-hidden>✦</div>
-      <div className="vb vb-spark vb-spark-2" aria-hidden>✦</div>
-      <div className="vb vb-spark vb-spark-3" aria-hidden>✸</div>
     </div>
   )
 }
@@ -274,736 +707,180 @@ function AppPhone() {
 /* ─── Landing Page ───────────────────────────────────────────────── */
 export default function Landing() {
   const { t } = useLang()
-  const { login, register } = useAuth()
-  const toast    = useToast()
-  const navigate = useNavigate()
-
-  const [mode,     setMode]     = useState('login')
-  const [email,    setEmail]    = useState('')
-  const [password, setPass]     = useState('')
-  const [name,     setName]     = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [showPass, setShowPass] = useState(false)
-
-  const submit = async e => {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      if (mode === 'login') {
-        await login(email, password)
-        toast(t('landing_auth_welcome'), 'success')
-      } else {
-        await register(email, password, name)
-        toast(t('landing_auth_created'), 'success')
-      }
-      navigate('/dashboard')
-    } catch (err) {
-      toast(err.message, 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSocialClick = platform => {
-    const base = import.meta.env.VITE_API_URL || ''
-    window.location.href = `${base}/api/auth/${platform}`
-  }
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState('login')
+  const openModal = (mode = 'login') => { setModalMode(mode); setModalOpen(true) }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', overflowX: 'hidden' }}>
+      <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} defaultMode={modalMode} />
 
-      {/* ── Navbar ───────────────────────────────────────────────── */}
-      <nav className="lp-nav">
-        <Logo size={36} showWordmark />
-        <div className="lp-nav-actions">
+      {/* ── Navbar ─────────────────────────────────────────────────
+          Sits ABOVE the video frame (in the page margin area)
+      ─────────────────────────────────────────────────────────── */}
+      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 10, flexWrap: 'wrap' }}>
+        {/* Logo ,  always in original vibrant colour */}
+        <Logo size={30} showWordmark />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <LangFlip />
           <ThemeToggle size="sm" />
+          <button id="nav-signin-btn" onClick={() => openModal('login')}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: '0.84rem', fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', var(--font-body)", transition: 'all 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            Sign In
+          </button>
+          <button id="nav-getstarted-btn" onClick={() => openModal('register')}
+            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#00D4FF,#FF2D8B)', color: '#fff', fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', var(--font-body)", boxShadow: '0 4px 16px rgba(0,212,255,0.25)', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}>
+            Get Started
+          </button>
         </div>
       </nav>
 
-      {/* ── Hero: Phone left · Auth right ────────────────────────── */}
-      <section className="lp-hero">
-        <div className="lp-bg" aria-hidden>
-          <div className="lp-orb lp-orb-1" />
-          <div className="lp-orb lp-orb-2" />
-        </div>
+      {/* ── Hero Video ,  framed with margin ────────────────────────
+          The 20px padding on all sides creates the "border/frame" 
+          effect the user requested.
+      ─────────────────────────────────────────────────────────── */}
+      <div style={{ padding: '0 20px 20px' }}>
+        <div style={{ position: 'relative', height: 'calc(100vh - 90px)', borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+          <HeroVideo />
 
-        {/* ── Tagline ──────────────────────────────────────────── */}
-        <div className="lp-heading">
-          <div className="lp-words-row1">
-            <span>{t('landing_h1_a')}</span>
-            <span className="lp-grad">{t('landing_h1_b')}</span>
+          {/* Hero text sits on top of the video */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 6%' }}>
+            <p className="lp-up" style={{ animationDelay: '0.1s', fontFamily: "'DM Sans', sans-serif", fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
+              AI-Powered Content Creation
+            </p>
+            <h1 className="lp-up" style={{ animationDelay: '0.2s', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(2.6rem,6.5vw,5.5rem)', lineHeight: 1.06, letterSpacing: '-0.02em', color: '#fff', margin: '0 0 24px', maxWidth: 800, whiteSpace: 'pre-line' }}>
+              {t('landing_hero_h1')}
+            </h1>
+            <p className="lp-up" style={{ animationDelay: '0.3s', fontFamily: "'DM Sans', sans-serif", fontSize: 'clamp(0.95rem,1.6vw,1.1rem)', color: 'rgba(255,255,255,0.62)', lineHeight: 1.7, margin: '0 auto 40px', maxWidth: 460 }}>
+              {t('landing_hero_sub')}
+            </p>
+
           </div>
-          <p className="lp-sub">{t('landing_sub')}</p>
+
+          {/* Scroll hint */}
+          <div style={{ position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, animation: 'scrollBounce 2s ease-in-out infinite' }}>
+            <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.14em', textTransform: 'uppercase' }}>Scroll</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
         </div>
+      </div>
 
-        {/* Bottom row */}
-        <div className="lp-bottom-row">
-
-        {/* Left — phone mockup */}
-        <div className="lp-visual">
-          <AppPhone />
+      {/* ── Feature Carousel ─────────────────────────────────────── */}
+      <section style={{ padding: '90px 20px' }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 48 }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.18em', whiteSpace: 'nowrap' }}>{t('landing_feat_eyebrow')}</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+          <FeatureCarousel />
         </div>
+      </section>
 
-        {/* Right — auth card */}
-        <div className="lp-auth-col">
-
-          {/* Auth card */}
-          <div className="lp-auth-card">
-
-            {/* Social buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 18 }}>
-              {[
-                { id: 'google',    label: t('landing_auth_google'),    icon: <GoogleIcon />,    bg: '#fff',                                                        color: '#1f1f1f', border: '1px solid rgba(0,0,0,0.15)', soon: false },
-                { id: 'instagram', label: t('landing_auth_instagram'), icon: <InstagramIcon />, bg: 'linear-gradient(45deg,#405DE6,#833AB4,#C13584,#E1306C)',     color: '#fff',    border: 'none',                       soon: true  },
-                { id: 'youtube',   label: t('landing_auth_youtube'),   icon: <YouTubeIcon />,   bg: '#FF0000',                                                     color: '#fff',    border: 'none',                       soon: true  },
-              ].map(btn => (
-                <button
-                  key={btn.id}
-                  type="button"
-                  disabled={btn.soon}
-                  onClick={() => !btn.soon && handleSocialClick(btn.id)}
-                  style={{
-                    position: 'relative',
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    width: '100%', height: 44, padding: '0 16px',
-                    borderRadius: 10, cursor: btn.soon ? 'not-allowed' : 'pointer',
-                    fontFamily: 'var(--font-body)', fontSize: '0.875rem',
-                    fontWeight: 600, transition: 'opacity 0.15s, transform 0.15s',
-                    background: btn.bg, color: btn.color, border: btn.border || 'none',
-                    opacity: btn.soon ? 0.38 : 1,
-                    filter: btn.soon ? 'grayscale(0.4)' : 'none',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, flexShrink: 0 }}>{btn.icon}</span>
-                  <span style={{ flex: 1, textAlign: 'center' }}>{btn.label}</span>
-                  {btn.soon && (
-                    <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', padding: '2px 7px', borderRadius: 99, background: 'rgba(0,0,0,0.35)', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', flexShrink: 0 }}>
-                      {t('landing_auth_soon')}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* OR divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('landing_auth_or')}</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            </div>
-
-            {/* Email form */}
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {mode === 'register' && (
-                <div className="field">
-                  <label>{t('landing_auth_name_label')}</label>
-                  <input className="input" placeholder={t('landing_auth_name_ph')} value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
-                </div>
-              )}
-              <div className="field">
-                <label>{t('landing_auth_email_label')}</label>
-                <input className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
-              </div>
-              <div className="field">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ margin: 0 }}>{t('landing_auth_pass_label')}</label>
-                  {mode === 'login' && (
-                    <Link to="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-                      {t('landing_auth_forgot')}
-                    </Link>
-                  )}
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    className="input"
-                    type={showPass ? 'text' : 'password'}
-                    placeholder={mode === 'register' ? t('landing_auth_pass_ph_new') : '••••••••'}
-                    value={password}
-                    onChange={e => setPass(e.target.value)}
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    required
-                    style={{ paddingRight: 44 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(v => !v)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 4, display: 'flex', alignItems: 'center' }}
-                    tabIndex={-1}
-                    aria-label={showPass ? t('landing_auth_pass_hide') : t('landing_auth_pass_show')}
-                  >
-                    {showPass ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                        <line x1="1" y1="1" x2="23" y2="23"/>
-                      </svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary btn-full btn-lg"
-                disabled={loading}
-                style={{ marginTop: 2, fontSize: '1rem', fontWeight: 700 }}
-              >
-                {loading
-                  ? <><span className="spinner" /> {t('landing_auth_processing')}</>
-                  : mode === 'login' ? t('landing_auth_signin_btn') : t('landing_auth_signup_btn')}
-              </button>
-            </form>
-
-            {/* Toggle */}
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 16, marginBottom: 0 }}>
-              {mode === 'login' ? t('landing_auth_no_account') : t('landing_auth_has_account')}
-              <button
-                type="button"
-                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'var(--font-body)', padding: 0 }}
-              >
-                {mode === 'login' ? t('landing_auth_signup_link') : t('landing_auth_signin_link')}
-              </button>
+      {/* ── About Section ────────────────────────────────────────── */}
+      <section style={{ padding: '90px 20px', background: 'var(--surface2)' }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
+          <div>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 16 }}>{t('landing_about_eyebrow')}</p>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 400, fontStyle: 'italic', fontSize: 'clamp(1.7rem,3.5vw,2.4rem)', color: 'var(--text)', letterSpacing: '-0.025em', lineHeight: 1.2, margin: '0 0 22px' }}>
+              {t('landing_about_h2')}
+            </h2>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '1rem', color: 'var(--text-muted)', lineHeight: 1.8, margin: '0 0 14px' }}>
+              {t('landing_about_p1')}
+            </p>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '1rem', color: 'var(--text-muted)', lineHeight: 1.8, margin: 0 }}>
+              {t('landing_about_p2')}
             </p>
           </div>
 
-          {/* Fine print below card — width matches card so text sits centered under it */}
-          <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: 14, width: 360 }}>
-            {t('landing_cta_fine')}
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[
+              { icon: '🇮🇳', label: t('landing_about_b1_title'), sub: t('landing_about_b1_sub') },
+              { icon: '📱', label: t('landing_about_b2_title'), sub: t('landing_about_b2_sub') },
+              { icon: '🔒', label: t('landing_about_b3_title'), sub: t('landing_about_b3_sub') },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{item.icon}</span>
+                <div>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>{item.label}</div>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.76rem', color: 'var(--text-faint)', marginTop: 2 }}>{item.sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        </div>{/* /lp-bottom-row */}
+      </section>
+
+      {/* ── Final CTA ────────────────────────────────────────────── */}
+      <section style={{ padding: '110px 20px', textAlign: 'center' }}>
+        <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(1.4rem, 3vw, 2rem)', color: 'var(--accent)', marginBottom: 24 }}>Script anytime, anywhere!</p>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 16 }}>{t('landing_ready_eyebrow')}</p>
+        <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 300, fontStyle: 'italic', fontSize: 'clamp(2rem,5.5vw,3.6rem)', color: 'var(--text)', letterSpacing: '-0.025em', margin: '0 auto 32px', maxWidth: 600, lineHeight: 1.15 }}>
+          {t('landing_ready_h2')}
+        </h2>
+        <button id="bottom-cta-btn" onClick={() => openModal('register')}
+          style={{ padding: '14px 38px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#00D4FF,#FF2D8B)', color: '#fff', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", boxShadow: '0 8px 28px rgba(0,212,255,0.3)', transition: 'all 0.18s' }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 14px 36px rgba(0,212,255,0.4)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,212,255,0.3)' }}>
+          {t('landing_ready_btn')}
+        </button>
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer style={{
-        borderTop: '1px solid var(--border)',
-        padding: '20px 5%', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', flexWrap: 'wrap', gap: 14,
-        background: 'var(--surface)', marginTop: 'auto',
-      }}>
-        <div style={{ fontSize: '0.74rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}>
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '22px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', fontFamily: "'DM Sans', sans-serif" }}>
           {t('landing_footer_legal')}
         </div>
         <div style={{ display: 'flex', gap: 18 }}>
-          <Link to="/privacy" style={{ fontSize: '0.74rem', color: 'var(--text-faint)', textDecoration: 'none' }}>{t('landing_privacy')}</Link>
-          <Link to="/terms"   style={{ fontSize: '0.74rem', color: 'var(--text-faint)', textDecoration: 'none' }}>{t('landing_terms')}</Link>
+          {[['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, to]) => (
+            <Link key={to} to={to} style={{ fontSize: '0.72rem', color: 'var(--text-faint)', textDecoration: 'none', fontFamily: "'DM Sans', sans-serif", transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}>
+              {label}
+            </Link>
+          ))}
         </div>
       </footer>
 
-      {/* ══════════════════════════════════════════════════════════
-          STYLES
-      ══════════════════════════════════════════════════════════ */}
+      {/* ── Global Styles ────────────────────────────────────────── */}
       <style>{`
-
-        /* ── Navbar ──────────────────────────────────────────────── */
-        .lp-nav {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 5%;
-          background: var(--surface-nav);
-          backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-          border-bottom: 1px solid var(--border-nav);
-          position: sticky; top: 0; z-index: 100;
-          gap: 10px;
+        .lp-up {
+          opacity: 0;
+          animation: lpUp 0.7s cubic-bezier(0.22,1,0.36,1) forwards;
         }
-        .lp-nav-actions {
-          display: flex; align-items: center; gap: 8px;
-          flex-shrink: 0;
+        @keyframes lpUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        @media (max-width: 480px) {
-          .lp-nav { padding: 10px 4%; }
-          .lp-nav-tagline { font-size: 0.72rem; }
+        @keyframes scrollBounce {
+          0%,100% { transform: translateX(-50%) translateY(0); }
+          50%      { transform: translateX(-50%) translateY(7px); }
+        }
+        @keyframes mFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes mSlideUp {
+          from { opacity: 0; transform: translateY(18px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* ── Hero layout ─────────────────────────────────────────── */
-        .lp-hero {
-          position: relative; flex: 1;
-          display: flex; flex-direction: column;
-          padding: 28px 6% 48px;
-          max-width: 1280px; margin: 0 auto; width: 100%;
-          min-height: calc(100vh - 130px);
-          box-sizing: border-box;
-          gap: 32px;
-        }
-        .lp-bg { position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
-        .lp-orb { position:absolute; border-radius:50%; filter:blur(80px); }
-        .lp-orb-1 { top:-10%; left:-6%; width:480px; height:380px;
-          background:radial-gradient(ellipse,rgba(0,212,255,0.09) 0%,transparent 65%); }
-        .lp-orb-2 { bottom:-5%; right:-4%; width:460px; height:400px;
-          background:radial-gradient(ellipse,rgba(255,45,139,0.10) 0%,transparent 65%); }
-
-        .lp-visual {
-          position:relative; z-index:1;
-          display:flex; justify-content:flex-start; align-items:center;
-          animation: fadeUp 0.6s 0.05s cubic-bezier(0.22,1,0.36,1) both;
+        /* Mobile ,  stack About grid */
+        @media (max-width: 720px) {
+          section > div[style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+            gap: 36px !important;
+          }
         }
 
-        /* ── Top heading ─────────────────────────────────────────── */
-        .lp-heading {
-          position:relative; z-index:1;
-          display:flex; flex-direction:column; align-items:center;
-          text-align:center;
-          animation: fadeUp 0.4s 0.05s cubic-bezier(0.22,1,0.36,1) both;
+        /* Mobile ,  stack feature carousel */
+        @media (max-width: 640px) {
+          div[style*="grid-template-columns: 1fr 1fr"]:has(h3) {
+            grid-template-columns: 1fr !important;
+          }
         }
-        .lp-words-row1 {
-          display:flex; justify-content:center; gap:12px;
-          font-family:var(--font-head); font-weight:800;
-          font-size:clamp(1.4rem,2vw,2.2rem);
-          letter-spacing:-0.02em; line-height:1.2;
-          color:var(--text);
-        }
-        .lp-words-row2 {
-          text-align:center;
-          font-family:var(--font-head); font-weight:800;
-          font-size:clamp(1.4rem,2vw,2.2rem);
-          letter-spacing:-0.02em; line-height:1.2;
-          margin-top:2px; margin-bottom:10px;
-        }
-
-        /* ── Bottom row: phone + login ───────────────────────────── */
-        .lp-bottom-row {
-          position:relative; z-index:1;
-          display:grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 48px;
-          align-items: center;
-          flex: 1;
-        }
-        .lp-grad {
-          background:linear-gradient(135deg,#00D4FF 0%,#FF2D8B 55%,#FFB800 100%);
-          -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-          background-clip:text; display:inline-block;
-          filter:drop-shadow(0 0 32px rgba(255,45,139,0.26));
-        }
-        .lp-sub {
-          font-size:clamp(0.78rem,1vw,0.88rem); color:var(--text-muted);
-          line-height:1.65; margin:0; text-align:center;
-        }
-
-        /* ── Auth column ─────────────────────────────────────────── */
-        .lp-auth-col {
-          position: relative; z-index: 1;
-          display: flex; flex-direction: column;
-          align-items: flex-end;
-          animation: fadeUp 0.5s 0.14s cubic-bezier(0.22,1,0.36,1) both;
-        }
-
-        /* ── Auth card ───────────────────────────────────────────── */
-        .lp-auth-card {
-          background: var(--surface-card);
-          backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-          border: 1px solid var(--border-bright);
-          border-radius: 20px;
-          padding: 28px;
-          box-shadow: var(--shadow-glass);
-          width: 360px;
-        }
-        .lp-tagline { width: 360px; }
-
-        @keyframes fadeUp {
-          from { opacity:0; transform:translateY(20px); }
-          to   { opacity:1; transform:translateY(0); }
-        }
-
-        /* ── Mobile layout ─────────────────────────────────────────── */
-        @media (max-width: 860px) {
-          .lp-hero { padding: 24px 5% 40px; gap: 24px; min-height: auto; }
-          .lp-bottom-row { grid-template-columns: 1fr; gap: 28px; }
-          .lp-visual   { justify-content: center; }
-          .lp-auth-col { align-items: center; }
-          .lp-auth-card { width: 100%; max-width: 420px; }
-          .lp-sub { max-width: 340px; margin: 0 auto; }
-        }
-
-        /* ══════════════════════════════════════════════════════════
-           PHONE
-        ══════════════════════════════════════════════════════════ */
-        .ap-outer {
-          position:relative;
-          display:flex; flex-direction:column; align-items:center;
-          gap: 18px;
-        }
-        .ap-glow { position:absolute; border-radius:50%; filter:blur(70px); pointer-events:none; z-index:0; }
-        .ap-glow-c { width:300px; height:300px; top:5%; left:-15%; background:radial-gradient(ellipse,rgba(0,212,255,0.13) 0%,transparent 70%); }
-        .ap-glow-p { width:280px; height:280px; bottom:5%; right:-10%; background:radial-gradient(ellipse,rgba(255,45,139,0.12) 0%,transparent 70%); }
-
-        .ap-phone {
-          position:relative; z-index:2;
-          width:248px; height:504px;
-          background:#050710;
-          border-radius:42px;
-          box-shadow: 0 60px 100px rgba(0,0,0,0.6), 0 0 0 1.5px rgba(255,255,255,0.08), 0 0 60px rgba(0,212,255,0.10), 0 0 40px rgba(255,45,139,0.08), inset 0 0 0 1px rgba(255,255,255,0.04);
-          padding: 12px;
-        }
-        .ap-island { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:84px; height:20px; background:#000; border-radius:14px; z-index:10; box-shadow:0 0 0 1px rgba(255,255,255,0.05); }
-        .ap-screen { width:100%; height:100%; background:linear-gradient(160deg,#07091E 0%,#0B0E2C 100%); border-radius:32px; overflow:hidden; position:relative; }
-        .ap-screen::after { content:''; position:absolute; inset:0; pointer-events:none; background: radial-gradient(ellipse at 20% 10%,rgba(0,212,255,0.06) 0%,transparent 50%), radial-gradient(ellipse at 80% 90%,rgba(255,45,139,0.06) 0%,transparent 50%); border-radius:inherit; }
-
-        .ap-scene { position:absolute; inset:0; padding:46px 16px 18px; opacity:0; display:flex; flex-direction:column; animation:sceneCycle 25s ease-in-out infinite; overflow:hidden; }
-        .ap-s1 { animation-delay: 0s; }
-        .ap-s2 { animation-delay: 5s; }
-        .ap-s3 { animation-delay:10s; }
-        .ap-s4 { animation-delay:15s; }
-        .ap-s5 { animation-delay:20s; }
-        @keyframes sceneCycle {
-          0%,1%    { opacity:0; transform:translateY(14px); }
-          5%       { opacity:1; transform:translateY(0); }
-          17%      { opacity:1; transform:translateY(0); }
-          20%,100% { opacity:0; transform:translateY(-12px); }
-        }
-
-        .ap-hdr { display:flex; align-items:center; gap:7px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:12px; }
-        .ap-hdr-icon { font-size:0.9rem; }
-        .ap-hdr-title { flex:1; font-family:var(--font-head); font-weight:800; font-size:0.78rem; color:#fff; letter-spacing:-0.015em; }
-        .ap-live-pill { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:99px; background:rgba(0,212,255,0.12); border:1px solid rgba(0,212,255,0.25); color:#00D4FF; font-family:var(--font-mono); font-size:0.5rem; font-weight:800; letter-spacing:0.1em; }
-        .ap-live-amber { background:rgba(255,184,0,0.12); border-color:rgba(255,184,0,0.25); color:#FFB800; }
-        .ap-live-dot { width:4px; height:4px; border-radius:50%; background:#00D4FF; box-shadow:0 0 6px #00D4FF; animation:livePulse 1.2s ease-in-out infinite; }
-        .ap-live-dot-a { background:#FFB800; box-shadow:0 0 6px #FFB800; }
-        @keyframes livePulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.3; transform:scale(0.6); } }
-        .ap-badge { font-size:0.48rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; padding:2px 6px; border-radius:4px; color:var(--bc); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); }
-        .ap-field-lbl { font-family:var(--font-mono); font-size:0.5rem; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-bottom:4px; }
-
-        .ap-input-row { display:flex; align-items:center; background:rgba(0,212,255,0.07); border:1px solid rgba(0,212,255,0.22); border-radius:8px; padding:6px 9px; margin-bottom:2px; }
-        .ap-typed-text { font-family:var(--font-mono); font-size:0.62rem; color:#00D4FF; overflow:hidden; white-space:nowrap; width:0; animation:typeText 1.2s steps(24,end) 0.3s forwards; }
-        @keyframes typeText { to { width:100%; } }
-        .ap-cursor { width:1.5px; height:11px; background:#00D4FF; margin-left:2px; flex-shrink:0; animation:blink 0.7s steps(1) infinite; }
-        @keyframes blink { 50%{ opacity:0; } }
-
-        .ap-script-line { background:rgba(255,255,255,0.04); border-radius:7px; padding:6px 8px; font-size:0.62rem; line-height:1.4; color:rgba(255,255,255,0.85); display:flex; gap:5px; align-items:flex-start; opacity:0; transform:translateY(6px); animation:lineSlideIn 0.35s ease forwards; border-left:2px solid rgba(255,255,255,0.12); }
-        .ap-sl-hook { border-left-color:#00D4FF; }
-        .ap-sl-cta  { border-left-color:#FF2D8B; }
-        @keyframes lineSlideIn { to { opacity:1; transform:translateY(0); } }
-        .ap-tag { font-family:var(--font-mono); font-size:0.48rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; padding:1px 4px; border-radius:3px; flex-shrink:0; margin-top:1px; color:var(--tc); background:rgba(255,255,255,0.07); }
-
-        .ap-score-center { display:flex; flex-direction:column; align-items:center; margin-bottom:12px; }
-        .ap-gauge-svg { width:120px; height:66px; }
-        .ap-gauge-fill { stroke-dasharray:157; stroke-dashoffset:157; animation:gaugeAnim 1.4s cubic-bezier(0.22,1,0.36,1) 0.4s forwards; filter:drop-shadow(0 0 5px rgba(0,212,255,0.5)); }
-        @keyframes gaugeAnim { to { stroke-dashoffset:10; } }
-        .ap-score-num { font-family:var(--font-head); font-weight:900; font-size:2.2rem; line-height:1; margin-top:-16px; background:linear-gradient(135deg,#A8FF3C,#00D4FF,#FF2D8B); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; opacity:0; animation:fadeIn 0.4s ease 1.5s forwards; }
-        .ap-score-sub { font-size:0.54rem; color:rgba(255,255,255,0.4); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.12em; margin-top:3px; opacity:0; animation:fadeIn 0.4s ease 1.7s forwards; }
-        @keyframes fadeIn { to { opacity:1; } }
-
-        .ap-bars { display:flex; flex-direction:column; gap:7px; }
-        .ap-bar-row { display:flex; align-items:center; gap:7px; opacity:0; animation:fadeIn 0.3s ease forwards; }
-        .ap-bar-lbl { font-size:0.54rem; color:rgba(255,255,255,0.5); width:54px; flex-shrink:0; font-family:var(--font-mono); }
-        .ap-bar-track { flex:1; height:4px; background:rgba(255,255,255,0.07); border-radius:4px; overflow:hidden; }
-        .ap-bar-fill { height:100%; border-radius:4px; background:var(--bc); width:0; animation:barGrow 0.7s cubic-bezier(0.22,1,0.36,1) forwards; }
-        @keyframes barGrow { to { width:var(--bw); } }
-        .ap-bar-val { font-size:0.55rem; font-weight:800; font-family:var(--font-mono); width:22px; text-align:right; flex-shrink:0; }
-
-        .ap-cp-desc { font-size:0.6rem; color:rgba(255,255,255,0.5); margin-bottom:12px; font-style:italic; }
-        .ap-cp-platforms { display:flex; flex-direction:column; gap:7px; }
-        .ap-cp-row { display:flex; align-items:center; gap:9px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:7px 10px; opacity:0; transform:translateX(-10px); animation:cpSlideIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards; }
-        @keyframes cpSlideIn { to { opacity:1; transform:translateX(0); } }
-        .ap-cp-icon { font-weight:800; font-size:0.8rem; width:18px; text-align:center; flex-shrink:0; }
-        .ap-cp-label { flex:1; font-size:0.62rem; color:rgba(255,255,255,0.8); font-weight:600; }
-        .ap-cp-check { font-size:0.7rem; font-weight:900; color:#A8FF3C; background:rgba(168,255,60,0.12); width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 8px rgba(168,255,60,0.3); flex-shrink:0; }
-        .ap-cp-note { margin-top:14px; font-size:0.58rem; color:rgba(255,255,255,0.35); font-family:var(--font-mono); text-align:center; letter-spacing:0.06em; }
-
-        .ap-trends { display:flex; flex-direction:column; gap:7px; }
-        .ap-trend-row { display:flex; align-items:center; gap:9px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:7px 10px; opacity:0; transform:translateY(8px); animation:trendIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards; }
-        @keyframes trendIn { to { opacity:1; transform:translateY(0); } }
-        .ap-trend-rank { font-family:var(--font-head); font-weight:900; font-size:0.9rem; width:14px; text-align:center; flex-shrink:0; }
-        .ap-trend-info { flex:1; }
-        .ap-trend-tag { font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.9); letter-spacing:-0.01em; }
-        .ap-trend-views { font-size:0.54rem; color:rgba(255,255,255,0.38); font-family:var(--font-mono); }
-        .ap-trend-delta { font-size:0.56rem; font-weight:800; font-family:var(--font-mono); flex-shrink:0; }
-
-        .ap-chat { display:flex; flex-direction:column; gap:8px; }
-        .ap-msg { font-size:0.62rem; line-height:1.45; padding:7px 10px; border-radius:12px; max-width:85%; opacity:0; animation:fadeIn 0.3s ease forwards; }
-        .ap-msg-u { align-self:flex-end; background:linear-gradient(135deg,#00D4FF,#A855F7); color:#fff; border-radius:12px 12px 3px 12px; }
-        .ap-msg-ai { align-self:flex-start; background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.88); border:1px solid rgba(255,255,255,0.08); border-radius:3px 12px 12px 12px; }
-        .ap-typing { align-self:flex-start; display:flex; gap:4px; padding:8px 12px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.08); border-radius:3px 12px 12px 12px; opacity:0; animation:fadeIn 0.3s ease forwards; }
-        .ap-typing span { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,0.45); animation:typingDot 1s ease-in-out infinite; }
-        .ap-typing span:nth-child(2){ animation-delay:0.2s; }
-        .ap-typing span:nth-child(3){ animation-delay:0.4s; }
-        @keyframes typingDot { 0%,60%,100%{ transform:translateY(0); } 30%{ transform:translateY(-4px); } }
-
-        .ap-dots { display:flex; gap:8px; align-items:center; z-index:2; }
-        .ap-dot { height:4px; border-radius:2px; background:rgba(255,255,255,0.2); animation:dotCycle 25s ease-in-out infinite; }
-        .ap-dot-1{ background:#00D4FF; animation-delay: 0s; }
-        .ap-dot-2{ background:#A8FF3C; animation-delay: 5s; }
-        .ap-dot-3{ background:#FF2D8B; animation-delay:10s; }
-        .ap-dot-4{ background:#FFB800; animation-delay:15s; }
-        .ap-dot-5{ background:#A855F7; animation-delay:20s; }
-        @keyframes dotCycle {
-          0%,3%    { width:22px; opacity:1; }
-          18%,100% { width:5px;  opacity:0.25; }
-        }
-
-        .ap-label-wrap { position:relative; height:28px; width:180px; z-index:2; }
-        .ap-label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:0.68rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--lc); opacity:0; animation:labelCycle 25s ease-in-out infinite; }
-        .ap-label-1{ animation-delay: 0s; }
-        .ap-label-2{ animation-delay: 5s; }
-        .ap-label-3{ animation-delay:10s; }
-        .ap-label-4{ animation-delay:15s; }
-        .ap-label-5{ animation-delay:20s; }
-        @keyframes labelCycle {
-          0%,3%    { opacity:0; transform:translateY(4px); }
-          6%       { opacity:1; transform:translateY(0); }
-          16%      { opacity:1; transform:translateY(0); }
-          20%,100% { opacity:0; transform:translateY(-4px); }
-        }
-
-        @media (max-width: 480px) {
-          .ap-phone { transform:scale(0.82); transform-origin:top center; }
-          .ap-outer { gap:10px; }
-          .ap-dots    { margin-top:-22px; }
-          .ap-label-wrap { margin-top:-18px; height:32px; width:200px; }
-          .ap-label { font-size:0.75rem; letter-spacing:0.1em; background:rgba(7,9,28,0.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.08); border-radius:99px; padding:0 14px; }
-        }
-        @media (max-width: 360px) {
-          .ap-phone { transform:scale(0.72); transform-origin:top center; }
-          .ap-dots    { margin-top:-42px; }
-          .ap-label-wrap { margin-top:-38px; width:190px; }
-          .ap-label { font-size:0.72rem; }
-        }
-
-        /* ── Virality decorations ────────────────────────────────── */
-        @media (min-width: 861px) { .ap-outer { padding: 0 72px; } }
-        .vb { position:absolute; pointer-events:none; z-index:4; user-select:none; line-height:1; }
-        @media (max-width: 860px) { .vb { display:none; } }
-
-        .vb-thumb   { left:2px; top:138px; font-size:2.6rem; transform:rotate(-22deg); filter:drop-shadow(0 6px 18px rgba(0,212,255,0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.6)); animation:vbThumb 3.8s ease-in-out infinite; }
-        .vb-eyes    { left:14px; top:52px; font-size:1.05rem; transform:rotate(8deg); opacity:0.82; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)); animation:vbBobSlow 6.2s ease-in-out 1.1s infinite; }
-        .vb-comment { left:0px; top:318px; font-size:1.55rem; transform:rotate(12deg); opacity:0.75; filter:drop-shadow(0 3px 10px rgba(255,45,139,0.35)); animation:vbBobL 5s ease-in-out 0.6s infinite; }
-        .vb-heart   { right:10px; top:88px; font-size:1.8rem; transform:rotate(10deg); filter:drop-shadow(0 4px 14px rgba(255,45,139,0.6)) drop-shadow(0 1px 3px rgba(0,0,0,0.5)); animation:vbHeartbeat 2s ease-in-out 0.3s infinite; }
-        .vb-fire    { right:4px; top:20px; font-size:2.1rem; transform:rotate(6deg); filter:drop-shadow(0 6px 20px rgba(255,100,0,0.55)); animation:vbFireSway 2.4s ease-in-out infinite; }
-
-        .vb-rise { animation:vbRise 3.4s ease-out infinite; filter:drop-shadow(0 2px 6px rgba(255,45,139,0.4)); }
-        .vb-rise-1 { right:24px; top:400px; font-size:1.35rem; animation-delay:0.0s; }
-        .vb-rise-2 { right:44px; top:418px; font-size:0.9rem;  animation-delay:0.9s; opacity:0.7; }
-        .vb-rise-3 { right:16px; top:408px; font-size:1.1rem;  animation-delay:1.8s; }
-        .vb-rise-4 { right:38px; top:396px; font-size:0.78rem; animation-delay:2.6s; opacity:0.6; }
-
-        .vb-spark { animation:vbSparkle 2.5s ease-in-out infinite; }
-        .vb-spark-1 { left:58px;  top:10px;  font-size:1.1rem;  color:#00D4FF; transform:rotate(20deg);  animation-delay:0s;   filter:drop-shadow(0 0 6px #00D4FF); }
-        .vb-spark-2 { right:55px; top:22px;  font-size:0.65rem; color:#FF2D8B; transform:rotate(-12deg); animation-delay:0.9s; filter:drop-shadow(0 0 5px #FF2D8B); }
-        .vb-spark-3 { left:52px;  top:484px; font-size:0.85rem; color:#FFB800; transform:rotate(45deg);  animation-delay:1.7s; filter:drop-shadow(0 0 6px #FFB800); }
-
-        @keyframes vbThumb   { 0%{ transform:rotate(-22deg) translateY(0) scale(1); } 30%{ transform:rotate(-14deg) translateY(-10px) scale(1.08); } 60%{ transform:rotate(-26deg) translateY(-5px) scale(0.96); } 100%{ transform:rotate(-22deg) translateY(0) scale(1); } }
-        @keyframes vbFireSway{ 0%,100%{ transform:rotate(6deg) scaleX(1); } 33%{ transform:rotate(-4deg) scaleX(0.9); } 66%{ transform:rotate(10deg) scaleX(1.05); } }
-        @keyframes vbBobL    { 0%,100%{ transform:rotate(12deg) translateY(0); } 50%{ transform:rotate(9deg) translateY(-8px); } }
-        @keyframes vbBobSlow { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
-        @keyframes vbHeartbeat { 0%,60%,100%{ transform:rotate(10deg) scale(1); } 15%{ transform:rotate(10deg) scale(1.45); } 30%{ transform:rotate(10deg) scale(1.12); } 45%{ transform:rotate(10deg) scale(1.3); } }
-        @keyframes vbRise    { 0%{ opacity:0; transform:translateY(0) scale(0.4) rotate(-10deg); } 10%{ opacity:1; transform:translateY(-18px) scale(1.25) rotate(5deg); } 70%{ opacity:0.55; } 100%{ opacity:0; transform:translateY(-120px) scale(0.6) rotate(15deg); } }
-        @keyframes vbSparkle { 0%,100%{ opacity:0.25; transform:var(--sr,rotate(20deg)) scale(0.7); } 50%{ opacity:1; transform:var(--sr,rotate(20deg)) scale(1.5) rotate(180deg); } }
-
-        /* ══════════════════════════════════════════════════════════
-           LIGHT MODE OVERRIDES
-        ══════════════════════════════════════════════════════════ */
-        [data-theme="light"] .lp-hero {
-          background: linear-gradient(160deg, #F0F4FF 0%, #E8EDFF 100%);
-        }
-        [data-theme="light"] .lp-orb-1 {
-          background: radial-gradient(ellipse, rgba(0,160,255,0.18) 0%, transparent 65%);
-        }
-        [data-theme="light"] .lp-orb-2 {
-          background: radial-gradient(ellipse, rgba(255,45,139,0.14) 0%, transparent 65%);
-        }
-
-        /* Phone shell — thin grey bezel matching login card border */
-        [data-theme="light"] .ap-phone {
-          background: #E4E8F0;
-          padding: 6px;
-          border: 1.5px solid #BFC8D6;
-          box-shadow: 0 10px 32px rgba(30,50,120,0.12);
-        }
-        [data-theme="light"] .ap-island {
-          background: #2A2F3A;
-        }
-        [data-theme="light"] .ap-screen {
-          border-radius: 28px;
-        }
-
-        /* Phone SCREEN — bright app UI in light mode */
-        [data-theme="light"] .ap-screen {
-          background: linear-gradient(165deg, #FAFBFF 0%, #F0F3FB 100%);
-        }
-        [data-theme="light"] .ap-screen::after {
-          background:
-            radial-gradient(ellipse at 20% 10%, rgba(0,160,255,0.06) 0%, transparent 55%),
-            radial-gradient(ellipse at 80% 90%, rgba(255,45,139,0.05) 0%, transparent 55%);
-        }
-
-        /* Headers — dark text on light */
-        [data-theme="light"] .ap-hdr {
-          border-bottom: 1px solid rgba(80,100,200,0.16);
-        }
-        [data-theme="light"] .ap-hdr-title { color: #0A0F2E; font-weight: 900; }
-        [data-theme="light"] .ap-field-lbl { color: #4A5878; font-weight: 800; }
-
-        /* Live pill — stays vibrant, contrast on light */
-        [data-theme="light"] .ap-live-pill {
-          background: rgba(0,150,200,0.10);
-          border-color: rgba(0,150,200,0.35);
-          color: #0091BB;
-        }
-        [data-theme="light"] .ap-live-amber {
-          background: rgba(200,140,0,0.10);
-          border-color: rgba(200,140,0,0.35);
-          color: #B07700;
-        }
-        [data-theme="light"] .ap-badge {
-          background: rgba(15,21,53,0.04);
-          border: 1px solid rgba(80,100,200,0.14);
-        }
-
-        /* Scene 1 — Script Studio */
-        [data-theme="light"] .ap-input-row {
-          background: rgba(0,160,220,0.07);
-          border: 1px solid rgba(0,160,220,0.25);
-        }
-        [data-theme="light"] .ap-typed-text { color: #0091BB; }
-        [data-theme="light"] .ap-cursor { background: #0091BB; }
-        [data-theme="light"] .ap-script-line {
-          background: #FFFFFF;
-          color: #0A0F2E;
-          font-weight: 600;
-          border-left: 2px solid rgba(80,100,200,0.18);
-          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
-        }
-        [data-theme="light"] .ap-sl-hook { border-left-color: #0091BB; }
-        [data-theme="light"] .ap-sl-cta  { border-left-color: #D62478; }
-        [data-theme="light"] .ap-tag {
-          background: rgba(15,21,53,0.06);
-        }
-
-        /* Scene 2 — Hook Score */
-        [data-theme="light"] .ap-gauge-bg { stroke: rgba(80,100,200,0.18); }
-        [data-theme="light"] .ap-score-sub { color: #4A5878; font-weight: 700; }
-        [data-theme="light"] .ap-bar-lbl { color: #2A3458; font-weight: 700; }
-        [data-theme="light"] .ap-bar-track { background: rgba(80,100,200,0.14); }
-
-        /* Scene 3 — Crosspost */
-        [data-theme="light"] .ap-cp-desc { color: #2A3458; font-weight: 600; }
-        [data-theme="light"] .ap-cp-row {
-          background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.14);
-          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
-        }
-        [data-theme="light"] .ap-cp-label { color: #0A0F2E; font-weight: 700; }
-        [data-theme="light"] .ap-cp-check {
-          color: #1F8000;
-          background: rgba(168,255,60,0.22);
-          box-shadow: 0 0 10px rgba(100,180,0,0.30);
-        }
-        [data-theme="light"] .ap-cp-note { color: #4A5878; font-weight: 700; }
-
-        /* Scene 4 — Trending */
-        [data-theme="light"] .ap-trend-row {
-          background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.14);
-          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
-        }
-        [data-theme="light"] .ap-trend-tag { color: #0A0F2E; font-weight: 800; }
-        [data-theme="light"] .ap-trend-views { color: #4A5878; font-weight: 600; }
-
-        /* Scene 5 — Coach chat */
-        [data-theme="light"] .ap-msg-ai {
-          background: #FFFFFF;
-          color: #0A0F2E;
-          font-weight: 600;
-          border: 1px solid rgba(80,100,200,0.16);
-          box-shadow: 0 2px 6px rgba(30,50,120,0.10);
-        }
-        [data-theme="light"] .ap-typing {
-          background: #FFFFFF;
-          border: 1px solid rgba(80,100,200,0.16);
-        }
-        [data-theme="light"] .ap-typing span { background: rgba(15,21,53,0.55); }
-
-        /* Indicator dots — keep vibrant colours in light mode too */
-        [data-theme="light"] .ap-dot-1 { background: #00D4FF; }
-        [data-theme="light"] .ap-dot-2 { background: #A8FF3C; }
-        [data-theme="light"] .ap-dot-3 { background: #FF2D8B; }
-        [data-theme="light"] .ap-dot-4 { background: #FFB800; }
-        [data-theme="light"] .ap-dot-5 { background: #A855F7; }
-
-        /* Auth card — crisp white, grey border matching phone */
-        [data-theme="light"] .lp-auth-card {
-          background: #FFFFFF;
-          border: 1.5px solid #BFC8D6;
-          box-shadow:
-            0 16px 56px rgba(30,50,120,0.16),
-            0 4px 12px rgba(30,50,120,0.08),
-            0 1px 0 rgba(255,255,255,1) inset;
-        }
-
-        /* Auth card content contrast — bolder, darker labels */
-        [data-theme="light"] .lp-auth-card .field label {
-          color: #0A0F2E;
-          font-weight: 800;
-        }
-        [data-theme="light"] .lp-auth-card .input {
-          border: 1.5px solid rgba(80,100,200,0.28);
-          color: #0A0F2E;
-          font-weight: 500;
-        }
-        [data-theme="light"] .lp-auth-card .input::placeholder {
-          color: #6878A8;
-          opacity: 1;
-        }
-
-        /* Wordmark — keep gradient, add contrast on light bg */
-        [data-theme="light"] .nuove-wordmark {
-          filter: drop-shadow(0 1px 2px rgba(15,21,53,0.35))
-                  drop-shadow(0 0 10px rgba(0,150,200,0.18));
-        }
-
-        /* Navbar text contrast */
-        [data-theme="light"] .lp-nav {
-          box-shadow: 0 2px 14px rgba(30,50,120,0.06);
-        }
-
-        /* Footer in light mode */
-        [data-theme="light"] footer {
-          background: #FAFBFF !important;
-          border-top-color: rgba(80,100,200,0.14) !important;
-        }
-        [data-theme="light"] footer a,
-        [data-theme="light"] footer div {
-          color: #2A3458 !important;
-          font-weight: 600;
-        }
-
-        /* Auth card body text — toggle, fine print, OR */
-        [data-theme="light"] .lp-auth-card p {
-          color: #2A3458 !important;
-        }
-        [data-theme="light"] .lp-auth-col > p {
-          color: #2A3458 !important;
-          font-weight: 600;
-        }
-
-        /* Feature label — deeper hues for light background, no stroke needed */
-        [data-theme="light"] .ap-label {
-          background: none;
-          border: none;
-          padding: 0;
-          box-shadow: none;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          -webkit-text-stroke: 0;
-          paint-order: fill;
-          text-shadow: none;
-        }
-        [data-theme="light"] .ap-label-1 { color: #0284C7; }
-        [data-theme="light"] .ap-label-2 { color: #16A34A; }
-        [data-theme="light"] .ap-label-3 { color: #DB2777; }
-        [data-theme="light"] .ap-label-4 { color: #D97706; }
-        [data-theme="light"] .ap-label-5 { color: #7C3AED; }
-        [data-theme="light"] .ap-label-wrap {
-          height: 32px;
-          width: 200px;
-        }
-
       `}</style>
     </div>
   )

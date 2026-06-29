@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { useLang } from '../i18n.jsx'
+import { buildCanonicalSections, copyCanonicalScript } from '../utils/scriptFormat'
 
 const gradeColor = s => s >= 75 ? '#00C9A7' : s >= 50 ? '#FFD60A' : '#FF6B6B'
 const gradeLabel = s => s >= 90 ? 'Excellent' : s >= 75 ? 'Good' : s >= 60 ? 'Average' : s >= 50 ? 'Weak' : 'Poor'
@@ -157,16 +158,24 @@ export default function Scripts() {
                       <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('scripts_loading_detail')}</div>
                     ) : full ? (
                       <>
-                        {/* Hook */}
-                        <ScriptBlock label={t('scripts_hook_label')} text={full.hook} onCopy={() => copy(full.hook)} accent="#00C8FF" copyLabel={t('copy')} />
-                        {/* Body */}
-                        {full.body && <ScriptBlock label={t('scripts_body_label')} text={full.body} onCopy={() => copy(full.body)} accent="#7B5CF0" copyLabel={t('copy')} />}
-                        {/* CTA */}
-                        {full.cta && <ScriptBlock label={t('scripts_cta_label')} text={full.cta} onCopy={() => copy(full.cta)} accent="#00C9A7" copyLabel={t('copy')} />}
+                        {buildCanonicalSections(full, t).map(section => (
+                          <ScriptBlock 
+                            key={section.id} 
+                            label={`${section.emoji} ${section.label}`} 
+                            text={section.text} 
+                            onCopy={() => copy(section.text)} 
+                            accent={section.accent} 
+                            copyLabel={t('copy')} 
+                          />
+                        ))}
+                        
                         {/* Actions row */}
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                           <button
-                            onClick={() => copy(full.fullScript || [full.hook, full.body, full.cta].filter(Boolean).join('\n\n'))}
+                            onClick={() => {
+                              copyCanonicalScript(full, t)
+                              toast('Copied!', 'success')
+                            }}
                             className="btn btn-ghost btn-sm"
                           >
                             {t('scripts_copy_full')}

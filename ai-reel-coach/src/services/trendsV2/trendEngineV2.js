@@ -30,30 +30,16 @@ function generateId(title) {
   return 'tr_' + crypto.createHash('md5').update(title).digest('hex').substring(0, 10);
 }
 
-function extractJsonArray(content) {
-  if (!content) return null;
-  let s = String(content).trim().replace(/```(?:json)?/gi, '').replace(/```/g, '');
-  const start = s.indexOf('[');
-  const end = s.lastIndexOf(']');
-  if (start === -1 || end === -1 || end < start) return null;
-  let jsonStr = s.substring(start, end + 1).replace(/,\s*([\]}])/g, '$1'); // strip trailing commas
-  try { return JSON.parse(jsonStr); } catch { return null; }
-}
-
 async function askClaude(prompt) {
-  // Routes to the configured provider (Gemini/Claude). Retries once on a parse
-  // failure — Gemini occasionally emits slightly-malformed JSON.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
-    const parsed = extractJsonArray(content);
-    if (Array.isArray(parsed)) return parsed;
-    if (attempt === 0) {
-      prompt += '\n\nIMPORTANT: your previous reply was not valid JSON. Reply with ONLY a valid JSON array — no markdown fences, no commentary.';
-      continue;
-    }
-    console.error('LLM output that failed to parse:', String(content).slice(0, 300));
+  // Routes to the configured provider (Gemini/Claude). 'fast' tier — title cleanup is simple.
+  const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
+  try {
+    const jsonStr = content.substring(content.indexOf('['), content.lastIndexOf(']') + 1);
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error('LLM output that failed to parse:', content);
+    throw new Error('Failed to parse LLM response as JSON');
   }
-  throw new Error('Failed to parse LLM response as JSON');
 }
 
 // Map provider signals to the final trend schema without inventing trend titles.
@@ -73,6 +59,9 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
       const qualityScore = calculateQualityScore(title, description, scope);
       if (qualityScore < 40) continue; // Drop signal entirely if low quality
 
+      // 2. Trend Abstraction Layer
+      const abstractTitle = abstractTrendTopic(title, niche);
+
       // 3. Calculate creator relevance score (0-100) using raw title for key matches
       const creatorRelevanceScore = calculateCreatorRelevance(title, description, niche, scope);
       if (creatorRelevanceScore <= 20) continue; // Drop heavily penalized news items
@@ -80,47 +69,36 @@ function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
       // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
       const trendType = classifyTrend(title, description);
 
-      // 5. Compute base raw score (normalized per-source below)
-      const baseScore = sanitized.sourceScore || sanitized.viewCount || sanitized.value || sanitized.popularity || 0;
+      // 5. Compute normalized base raw score across providers
+      let baseScore = 0;
+      if (provider === 'youtube') {
+        // Scale down YouTube views (e.g., 2M views -> 100k score cap)
+        baseScore = Math.min((item.viewCount || 0) / 20, 100000);
+      } else if (provider === 'spotify') {
+        // Scale up Spotify popularity (0-100 -> 0-100k)
+        baseScore = (item.popularity || 0) * 1000;
+      } else {
+        // Google Trends/News sourceScore is already in a 0-200k range
+        baseScore = sanitized.sourceScore || sanitized.value || 0;
+      }
+
+      // 6. Adjust rank score based on relevance multiplier, trend type weight, and quality score weighting
+      const relevanceMultiplier = creatorRelevanceScore / 50.0;
+      const typeWeight = TREND_TYPE_PRIORITIES[trendType] || 1.0;
+      const qualityMultiplier = qualityScore / 100.0;
+      const adjustedRankScore = baseScore * relevanceMultiplier * typeWeight * qualityMultiplier;
 
       allItems.push({
         ...sanitized,
         _originalTitle: title,
+        title: abstractTitle, // Use abstract title as default
         _sourceProvider: provider,
         _creatorRelevanceScore: creatorRelevanceScore,
         _trendType: trendType,
+        _rankScore: adjustedRankScore,
         _qualityScore: qualityScore,
-        _baseScore: baseScore,
-        _relMult: creatorRelevanceScore / 50.0,
-        _typeWeight: TREND_TYPE_PRIORITIES[trendType] || 1.0,
-        _qualMult: qualityScore / 100.0,
       });
     }
-  }
-
-  // Normalize the raw popularity score WITHIN each provider, so a top YouTube
-  // video (millions of views) doesn't automatically outrank a top local Google
-  // Trends search. This lets genuinely-local signals surface for every country
-  // instead of only globally-viral YouTube content.
-  const maxByProvider = {};
-  for (const it of allItems) {
-    maxByProvider[it._sourceProvider] = Math.max(maxByProvider[it._sourceProvider] || 0, it._baseScore || 0);
-  }
-  // Source weighting: LOCAL favours geo-specific Google Trends/News (most local);
-  // GLOBAL favours YouTube (worldwide virality).
-  const SOURCE_WEIGHT = scope === 'global'
-    ? { 'google-trends': 1.0,  youtube: 1.25, twitter: 0.9, spotify: 1.0 }
-    : { 'google-trends': 1.35, youtube: 0.7,  twitter: 0.9, spotify: 1.0 };
-  for (const it of allItems) {
-    const norm = (it._baseScore || 0) / (maxByProvider[it._sourceProvider] || 1); // 0..1 within source
-    const weight = SOURCE_WEIGHT[it._sourceProvider] || 1.0;
-    // For LOCAL, the geo-specific Google Trends *searches* (RSS, growth:rising)
-    // are what people in that country are actually searching right now — the
-    // most authentically-local signal. Boost them above generic "viral news"
-    // and global YouTube so the brief feels local, not global.
-    const isLocalSearch = it.sourceType === 'google-trends-rss' || it.growth === 'rising';
-    const localBonus = (scope !== 'global' && isLocalSearch) ? 1.7 : 1.0;
-    it._rankScore = (0.2 + norm) * weight * localBonus * it._relMult * it._typeWeight * it._qualMult;
   }
 
   const selectedItems = dedupeSignals(allItems)
@@ -188,33 +166,6 @@ async function getTrendsV2(region, niche, scope = 'local') {
     'spotify': spotifyData
   };
 
-  // For Global, drop anything that is ALSO trending locally in India, so the
-  // Global tab stays distinct from Local — even for globally-viral Indian
-  // content (e.g. a Punjabi song trending in both US/UK and India).
-  if (normalizedScope === 'global') {
-    try {
-      // Exclude whatever is trending in the user's OWN country (their Local tab).
-      const localRegion = (normalizedRegion && normalizedRegion !== 'Global') ? normalizedRegion : 'India';
-      const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-      const [inYt, inGg] = await Promise.all([
-        youtubeTrendProvider.fetchTrends(localRegion, normalizedNiche).catch(() => []),
-        googleTrendProvider.fetchTrends(localRegion, normalizedNiche).catch(() => []),
-      ]);
-      const localItems = [...inYt, ...inGg].map(it => norm(it.title)).filter(Boolean);
-      const localWordSets = localItems.map(t => new Set(t.split(' ').filter(w => w.length > 3)));
-      const isLocal = (title) => {
-        const t = norm(title);
-        if (!t) return false;
-        if (localItems.includes(t)) return true;
-        const w = new Set(t.split(' ').filter(x => x.length > 3));
-        return localWordSets.some(ls => [...w].filter(x => ls.has(x)).length >= 2);
-      };
-      for (const prov of Object.keys(rawData)) {
-        rawData[prov] = (rawData[prov] || []).filter(it => !isLocal(it.title));
-      }
-    } catch (e) { /* if the India comparison fetch fails, keep global as-is */ }
-  }
-
   // FIX 1: Enforce Niche Priorities
   const priorityData = {};
   const allowedProviders = [...priorities.primary, ...priorities.secondary];
@@ -244,36 +195,28 @@ async function getTrendsV2(region, niche, scope = 'local') {
      return staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope);
   }
 
-  // Clean up titles via the LLM. We send ONLY the titles/descriptions (tiny
-  // payload) — sending the full objects was slow and the model often corrupted
-  // the large JSON, which dropped us back to raw clickbait titles.
-  if (synthesizedTrends.length > 0) {
+  // Use Claude to extract the broad topic title and move specific viral video references to the description.
+  if (true) { // Always enable Claude enrichment to fix the viral video clickbait issue
     try {
-      const slim = synthesizedTrends.map((t, i) => ({ i, title: t.title, description: t.description || '' }));
-      const prompt = `You are a social-media trend editor. Below is a JSON array of REAL trends from live YouTube and Google Trends data.
-For EACH item, rewrite "title" into a clean, specific, headline-style topic (about 4-9 words) reflecting what is ACTUALLY trending:
-- Remove clickbait, ALL-CAPS, emojis, channel names, hashtags, publisher suffixes and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
-- KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten into a vague category (avoid "Sports News", "Fitness Content", "Demand For X Is Rising").
-- If the title is NOT in English (e.g. Japanese, Korean, Arabic), TRANSLATE it into clear, natural English while keeping proper nouns.
-- Rewrite "description" to one short factual sentence on what the trend is and why it's a good short-form video topic.
-Return ONLY a JSON array, each item exactly {"i": <same index number>, "title": "...", "description": "..."} — same length and order.
-Input: ${JSON.stringify(slim)}`;
+      const prompt = `You are a social media trend analyzer. You will be given an array of trend objects.
+Some of these trends are derived from specific viral YouTube videos with clickbait or overly specific titles (e.g., "I BOUGHT A NEW CAMERA!", or "This video is getting viral").
+Your job is to:
+1. Change the 'title' to be the broad, generic topic being discussed (e.g., "New Camera Gear Trends", "Fitness Diet Hacks").
+2. Change the 'description' to briefly explain the trend, and you may mention that a specific video about this is currently going viral.
+Do NOT change the evidence array or any other IDs.
+Return ONLY a valid JSON array of objects with the updated 'title' and 'description' fields corresponding to the input array: ${JSON.stringify(synthesizedTrends)}`;
 
-      const enriched = await askClaude(prompt);
-      if (Array.isArray(enriched) && enriched.length) {
-        const byIndex = {};
-        enriched.forEach((e, k) => { const idx = (e && Number.isInteger(e.i)) ? e.i : k; byIndex[idx] = e; });
-        synthesizedTrends = synthesizedTrends.map((trend, index) => {
-          const e = byIndex[index] || {};
-          return {
-            ...trend,
-            title: cleanTrendText(e.title) || trend.title,
-            description: cleanTrendText(e.description) || trend.description,
-          };
-        });
+      const enrichedTrends = await askClaude(prompt);
+      if (Array.isArray(enrichedTrends) && enrichedTrends.length > 0) {
+        synthesizedTrends = synthesizedTrends.map((trend, index) => ({
+          ...trend,
+          title: cleanTrendText(enrichedTrends[index]?.title) || trend.title,
+          description: cleanTrendText(enrichedTrends[index]?.description) || trend.description,
+        }));
       }
     } catch (err) {
-      console.log('[TrendEngineV2] Trend title enrichment failed, using cleaned raw titles.');
+      console.log('[TrendEngineV2] Claude description enrichment failed or skipped.');
+      console.error(err.message || err);
     }
   }
 
@@ -314,20 +257,6 @@ Input: ${JSON.stringify(slim)}`;
       createdAt: new Date().toISOString()
     };
   });
-
-  // Floor: never show fewer than 3 cards. If live providers were sparse for this
-  // niche/scope, top up with static fallback so the brief never looks broken.
-  if (finalTrends.length < 3) {
-    try {
-      const fillers = staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope) || [];
-      for (const f of fillers) {
-        if (finalTrends.length >= 4) break;
-        if (!finalTrends.some(t => (t.title || '').toLowerCase() === (f.title || '').toLowerCase())) {
-          finalTrends.push(f);
-        }
-      }
-    } catch (e) { /* ignore */ }
-  }
 
   return finalTrends;
 }

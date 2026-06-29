@@ -1,16 +1,16 @@
 import { useLang } from '../i18n.jsx'
 
 const LANGUAGES = [
-  { code: 'en',       label: 'English',    flag: '🇬🇧' },
-  { code: 'hi',       label: 'हिंदी',      flag: '🇮🇳' },
-  { code: 'es',       label: 'Español',    flag: '🇪🇸' },
-  { code: 'fr',       label: 'Français',   flag: '🇫🇷' },
-  { code: 'pt',       label: 'Português',  flag: '🇧🇷' },
-  { code: 'de',       label: 'Deutsch',    flag: '🇩🇪' },
-  { code: 'ar',       label: 'العربية',    flag: '🇸🇦' },
-  { code: 'id',       label: 'Bahasa',     flag: '🇮🇩' },
-  { code: 'ja',       label: '日本語',      flag: '🇯🇵' },
-  { code: 'ko',       label: '한국어',      flag: '🇰🇷' },
+  { code: 'en', label: 'English'   },
+  { code: 'hi', label: 'हिंदी'    },
+  { code: 'es', label: 'Español'   },
+  { code: 'fr', label: 'Français'  },
+  { code: 'pt', label: 'Português' },
+  { code: 'de', label: 'Deutsch'   },
+  { code: 'ar', label: 'العربية'  },
+  { code: 'id', label: 'Bahasa'    },
+  { code: 'ja', label: '日本語'    },
+  { code: 'ko', label: '한국어'    },
 ]
 
 export default function LanguageSelector({ compact = false }) {
@@ -33,7 +33,7 @@ export default function LanguageSelector({ compact = false }) {
         }}
       >
         {LANGUAGES.map(l => (
-          <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+          <option key={l.code} value={l.code}>{l.label}</option>
         ))}
       </select>
     )
@@ -58,7 +58,7 @@ export default function LanguageSelector({ compact = false }) {
             fontFamily: 'var(--font-body)',
           }}
         >
-          {l.flag} {l.label}
+          {l.label}
         </button>
       ))}
     </div>

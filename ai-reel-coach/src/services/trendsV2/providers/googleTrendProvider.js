@@ -1,8 +1,55 @@
 const axios = require('axios')
 const { cleanTrendText, sanitizeSignal, dedupeSignals } = require('../trendSanitizer')
-const { regionConfig } = require('../regions')
 
-const getGeo = (region) => regionConfig(region).yt
+const GEO_CODE = {
+  'India': 'IN',
+  'Global': 'US',
+  'US': 'US',
+  'UK': 'GB',
+  'Canada': 'CA',
+  'Australia': 'AU',
+  'Japan': 'JP',
+  'South Korea': 'KR',
+  'Indonesia': 'ID',
+  'Brazil': 'BR',
+  'Mexico': 'MX',
+  'Germany': 'DE',
+  'France': 'FR',
+  'Spain': 'ES',
+  'Italy': 'IT',
+  'Nigeria': 'NG',
+  'Philippines': 'PH',
+  'Singapore': 'SG',
+  'UAE': 'AE',
+  'Saudi Arabia': 'SA',
+  'Pakistan': 'PK',
+  'Middle East': 'AE',
+  'Southeast Asia': 'ID',
+}
+const getGeo = (region) => GEO_CODE[region] ?? 'IN'
+
+const NEWS_LOCALE = {
+  IN: { hl: 'en-IN', gl: 'IN', ceid: 'IN:en' },
+  US: { hl: 'en-US', gl: 'US', ceid: 'US:en' },
+  GB: { hl: 'en-GB', gl: 'GB', ceid: 'GB:en' },
+  AE: { hl: 'en-AE', gl: 'AE', ceid: 'AE:en' },
+  ID: { hl: 'en-ID', gl: 'ID', ceid: 'ID:en' },
+  CA: { hl: 'en-CA', gl: 'CA', ceid: 'CA:en' },
+  AU: { hl: 'en-AU', gl: 'AU', ceid: 'AU:en' },
+  SG: { hl: 'en-SG', gl: 'SG', ceid: 'SG:en' },
+  PK: { hl: 'en-PK', gl: 'PK', ceid: 'PK:en' },
+  SA: { hl: 'en-SA', gl: 'SA', ceid: 'SA:en' },
+  JP: { hl: 'ja-JP', gl: 'JP', ceid: 'JP:ja' },
+  KR: { hl: 'ko-KR', gl: 'KR', ceid: 'KR:ko' },
+  BR: { hl: 'pt-BR', gl: 'BR', ceid: 'BR:pt' },
+  MX: { hl: 'es-MX', gl: 'MX', ceid: 'MX:es' },
+  DE: { hl: 'de-DE', gl: 'DE', ceid: 'DE:de' },
+  FR: { hl: 'fr-FR', gl: 'FR', ceid: 'FR:fr' },
+  ES: { hl: 'es-ES', gl: 'ES', ceid: 'ES:es' },
+  IT: { hl: 'it-IT', gl: 'IT', ceid: 'IT:it' },
+  NG: { hl: 'en-NG', gl: 'NG', ceid: 'NG:en' },
+  PH: { hl: 'en-PH', gl: 'PH', ceid: 'PH:en' },
+}
 
 const NICHE_QUERIES = {
   'ai & technology': ['OpenAI OR Claude OR Gemini OR AI tools', 'artificial intelligence technology'],
@@ -70,24 +117,14 @@ async function fetchRss(url) {
   return parseRssItems(resp.data || '', url.includes('trending/rss') ? 'google-trends-rss' : 'google-news-rss')
 }
 
-function newsUrl(query, locale) {
+function newsUrl(query, geo) {
+  const locale = NEWS_LOCALE[geo] || NEWS_LOCALE.US
   const q = `${query} when:7d`
   return `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${locale.hl}&gl=${locale.gl}&ceid=${locale.ceid}`
 }
 
 async function fetchTrends(region, niche) {
-  // "Global" = worldwide blend, deliberately EXCLUDING India (and other
-  // South-Asian-heavy regions) so it stays distinct from the Local (India) tab.
-  if (region === 'Global') {
-    const regions = ['US', 'UK']
-    const results = await Promise.all(regions.map(r => fetchTrends(r, niche).catch(() => [])))
-    return dedupeSignals(results.flat())
-      .sort((a, b) => (b.value || 0) - (a.value || 0))
-      .slice(0, 10)
-  }
-
   const geo = getGeo(region)
-  const newsLocale = regionConfig(region).news
   let queries = NICHE_QUERIES[niche] || NICHE_QUERIES.general
   
   if (niche === 'travel') {
@@ -108,12 +145,27 @@ async function fetchTrends(region, niche) {
     } else {
       queries = queries.map(q => `(${q}) AND NOT (India OR Indian)`)
     }
+  } else if (niche === 'sports') {
+    if (geo === 'IN' || geo === 'PK') {
+      queries = [
+        `cricket OR IPL OR T20 OR ODI OR "Womens Cricket" OR WPL OR BCCI OR "Indian cricket team"`,
+        `football OR F1 OR tennis OR badminton OR Olympics`
+      ]
+    } else if (geo === 'US' || geo === 'CA') {
+      queries = [
+        `NBA OR NFL OR NHL OR MLB OR MLS OR soccer OR "world cup" OR F1 OR tennis`,
+        `sports match league champions playoffs`
+      ]
+    }
   }
+  const locale = NEWS_LOCALE[geo] || NEWS_LOCALE.US
   const urls = [
     `https://trends.google.com/trending/rss?geo=${geo}`,
-    ...queries.slice(0, 2).map(query => newsUrl(query, newsLocale)),
+    // Google News Top Stories RSS (actual major headlines):
+    `https://news.google.com/rss?hl=${locale.hl}&gl=${locale.gl}&ceid=${locale.ceid}`,
+    ...queries.slice(0, 2).map(query => newsUrl(query, geo)),
     // Inject a dedicated query that specifically hunts for viral Instagram Reels in this niche!
-    newsUrl(`(${queries[0]}) AND (Instagram OR Reels OR TikTok OR viral)`, newsLocale)
+    newsUrl(`(${queries[0]}) AND (Instagram OR Reels OR TikTok OR viral)`, geo)
   ]
 
   try {

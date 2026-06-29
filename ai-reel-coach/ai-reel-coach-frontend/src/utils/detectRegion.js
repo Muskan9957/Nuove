@@ -1,21 +1,33 @@
 // ─── IP-based region detection ────────────────────────────────────
 // Uses ipapi.co free tier (1000 req/day) — no API key needed.
 // Runs once on first use, result saved to localStorage forever.
+// Region values MUST match the backend region map (ai-reel-coach/src/services/trendsV2/regions.js).
 
 const COUNTRY_TO_REGION = {
-  // India
   IN: 'India',
-  // United States / Canada
-  US: 'US', CA: 'US',
-  // United Kingdom / Ireland
+  US: 'US',
+  CA: 'Canada',
   GB: 'UK', IE: 'UK',
-  // Middle East
-  AE: 'Middle East', SA: 'Middle East', KW: 'Middle East',
-  QA: 'Middle East', BH: 'Middle East', OM: 'Middle East',
+  AU: 'Australia', NZ: 'Australia',
+  JP: 'Japan',
+  KR: 'South Korea',
+  ID: 'Indonesia',
+  BR: 'Brazil',
+  MX: 'Mexico',
+  DE: 'Germany', AT: 'Germany', CH: 'Germany',
+  FR: 'France',
+  ES: 'Spain',
+  IT: 'Italy',
+  NG: 'Nigeria',
+  PH: 'Philippines',
+  SG: 'Singapore',
+  AE: 'UAE',
+  SA: 'Saudi Arabia',
+  PK: 'Pakistan',
+  // Grouped regions for countries we don't list individually
+  KW: 'Middle East', QA: 'Middle East', BH: 'Middle East', OM: 'Middle East',
   EG: 'Middle East', JO: 'Middle East', LB: 'Middle East',
-  // Southeast Asia
-  ID: 'Southeast Asia', MY: 'Southeast Asia', PH: 'Southeast Asia',
-  TH: 'Southeast Asia', VN: 'Southeast Asia', SG: 'Southeast Asia',
+  MY: 'Southeast Asia', TH: 'Southeast Asia', VN: 'Southeast Asia',
   MM: 'Southeast Asia', KH: 'Southeast Asia',
 }
 
@@ -45,11 +57,29 @@ export function saveRegion(region) {
   localStorage.setItem(STORAGE_KEY, region)
 }
 
+// Country list for the region picker. Values match the backend region map.
 export const REGIONS = [
-  { value: 'India',          label: '🇮🇳 India'          },
-  { value: 'Global',         label: '🌐 Global'          },
-  { value: 'US',             label: '🇺🇸 United States'  },
-  { value: 'UK',             label: '🇬🇧 United Kingdom' },
-  { value: 'Middle East',    label: '🇦🇪 Middle East'    },
-  { value: 'Southeast Asia', label: '🌏 Southeast Asia'  },
+  { value: 'India',          label: 'India'          },
+  { value: 'Global',         label: 'Global'          },
+  { value: 'US',             label: 'United States'   },
+  { value: 'UK',             label: 'United Kingdom'  },
+  { value: 'Canada',         label: 'Canada'          },
+  { value: 'Australia',      label: 'Australia'       },
+  { value: 'Japan',          label: 'Japan'           },
+  { value: 'South Korea',    label: 'South Korea'     },
+  { value: 'Indonesia',      label: 'Indonesia'       },
+  { value: 'Brazil',         label: 'Brazil'          },
+  { value: 'Mexico',         label: 'Mexico'          },
+  { value: 'Germany',        label: 'Germany'         },
+  { value: 'France',         label: 'France'          },
+  { value: 'Spain',          label: 'Spain'           },
+  { value: 'Italy',          label: 'Italy'           },
+  { value: 'Nigeria',        label: 'Nigeria'         },
+  { value: 'Philippines',    label: 'Philippines'     },
+  { value: 'Singapore',      label: 'Singapore'       },
+  { value: 'UAE',            label: 'UAE'             },
+  { value: 'Saudi Arabia',   label: 'Saudi Arabia'    },
+  { value: 'Pakistan',       label: 'Pakistan'        },
+  { value: 'Middle East',    label: 'Middle East'     },
+  { value: 'Southeast Asia', label: 'Southeast Asia'  },
 ]

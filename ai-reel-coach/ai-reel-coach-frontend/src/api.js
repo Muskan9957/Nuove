@@ -18,7 +18,11 @@ const req = async (method, path, body) => {
   })
 
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || data.errors?.[0]?.msg || 'Something went wrong')
+  if (!res.ok) {
+    const err = new Error(data.error || data.errors?.[0]?.msg || 'Something went wrong')
+    err.data = data
+    throw err
+  }
   
   // Intercept streak updates globally
   if (data.newStreak !== undefined) {
@@ -40,6 +44,7 @@ export const api = {
   register:      (body)          => req('POST', '/auth/register', body),
   verifyEmail:   (token)         => req('GET', `/auth/verify-email?token=${token}`),
   checkVerification: (email)     => req('GET', `/auth/verification-status?email=${encodeURIComponent(email)}`),
+  verifyCode:    (email, code)   => req('POST', '/auth/verify-code', { email, code }),
   login:         (body)          => req('POST', '/auth/login', body),
   getMe:         ()              => req('GET',  '/auth/me'),
   forgotPassword:(email)         => req('POST', '/auth/forgot-password', { email }),
@@ -91,14 +96,16 @@ export const api = {
   deleteCalendarEntry: (id)        => req('DELETE', `/calendar/${id}`),
 
   // Trending — region-aware, force=true bypasses cache for refresh button
-  getTrending:  (language, region = 'India', force = false) => {
-    const params = new URLSearchParams({ language, region })
+  // scope/niche/region create separate backend cache keys.
+  getTrending:  (language, region = 'India', force = false, niche, scope = 'local') => {
+    const params = new URLSearchParams({ language, region, scope })
     if (force) params.set('force', 'true')
+    if (niche) params.set('niche', niche)
     return req('GET', `/trending?${params}`)
   },
   getTrendingAudio: (region = 'India') => req('GET', `/trending/audio?region=${encodeURIComponent(region)}`),
-  getGreeting:  (region, language, bust = '') => {
-    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}${bust}`)
+  getGreeting:  (region, language, bust = '', niche, scope = 'local') => {
+    return req('GET', `/trending/greeting?region=${encodeURIComponent(region)}&language=${language || 'en'}&niche=${encodeURIComponent(niche || 'general')}&scope=${encodeURIComponent(scope)}${bust}`)
   },
 
   // Templates
@@ -120,7 +127,9 @@ export const api = {
 
   // AI Coach
   coachChat: (body) => req('POST', '/coach/chat', body),
-  getCoachHistory: () => req('GET', '/coach/history'),
+  listConversations:  ()   => req('GET',    '/coach/conversations'),
+  getConversation:    (id) => req('GET',    `/coach/conversations/${id}`),
+  deleteConversation: (id) => req('DELETE', `/coach/conversations/${id}`),
 
   hookAlternatives: (body) => req('POST', '/hooks/alternatives', body),
 
@@ -136,6 +145,20 @@ export const api = {
   generateAvatar:  (style)    => req('POST',  '/user/generate-avatar', { style }),
   saveAvatar:      (url)      => req('PATCH', '/user/avatar', { url }),
   pingStreak:      ()         => req('POST',  '/user/streak/ping'),
+  deleteAccount:   ()         => req('DELETE', '/user/account'),
+  submitSupport:   (message)  => req('POST',  '/user/support', { message }),
+  exportMyData:    async () => {
+    const res = await fetch(`${BASE}/user/export`, {
+      headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+    })
+    if (!res.ok) throw new Error('Could not export data')
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = 'nuove-my-data.json'
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  },
 
   // Creator Voice (premium personalisation)
   getVoiceProfile:    ()          => req('GET',    '/user/voice'),

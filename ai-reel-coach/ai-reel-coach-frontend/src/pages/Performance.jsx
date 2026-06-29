@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { useLang } from '../i18n.jsx'
+import { usePersistentState } from '../hooks/usePersistentState'
 
 export default function Performance() {
   const toast   = useToast()
   const { t, lang } = useLang()
-  const [form, setForm]       = useState({ topic: '', hookUsed: '', views: '', watchTimePercent: '', likes: '', shares: '', comments: '' })
+  const [form, setForm]       = usePersistentState('arc_perf_form', { topic: '', hookUsed: '', views: '', watchTimePercent: '', likes: '', shares: '', comments: '' })
   const [loading, setLd]      = useState(false)
-  const [result, setResult]   = useState(null)
+  const [result, setResult]   = usePersistentState('arc_perf_result', null)
   const [history, setHistory] = useState([])
   const [hLoading, setHLd]    = useState(true)
-  const [tab, setTab]         = useState('analyze') // 'analyze' | 'history'
+  const [tab, setTab]         = usePersistentState('arc_perf_tab', 'analyze') // 'analyze' | 'history'
 
   useEffect(() => {
     api.perfHistory()
@@ -53,8 +54,20 @@ export default function Performance() {
 
   return (
     <div className="page-enter">
-      <h1 className="page-title">{t('performance_title')}</h1>
-      <p className="page-sub">{t('performance_sub')}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div>
+          <h1 className="page-title">{t('performance_title')}</h1>
+          <p className="page-sub">{t('performance_sub')}</p>
+        </div>
+        {result && tab === 'analyze' && (
+          <button onClick={() => {
+            setForm({ topic: '', hookUsed: '', views: '', watchTimePercent: '', likes: '', shares: '', comments: '' })
+            setResult(null)
+          }} className="btn btn-ghost btn-sm">
+            New Analysis
+          </button>
+        )}
+      </div>
 
       {/* Tabs */}
       <div style={styles.tabs}>

@@ -1,23 +1,8 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
 import { api } from '../api'
 import Logo from '../components/Logo'
-
-const NICHES = [
-  { id: 'comedy',        emoji: '😂', label: 'Comedy' },
-  { id: 'fitness',       emoji: '💪', label: 'Fitness' },
-  { id: 'finance',       emoji: '💰', label: 'Finance' },
-  { id: 'food',          emoji: '🍜', label: 'Food' },
-  { id: 'fashion',       emoji: '👗', label: 'Fashion' },
-  { id: 'tech',          emoji: '⚡', label: 'Tech' },
-  { id: 'lifestyle',     emoji: '✨', label: 'Lifestyle' },
-  { id: 'education',     emoji: '📚', label: 'Education' },
-  { id: 'travel',        emoji: '🗺️', label: 'Travel' },
-  { id: 'motivation',    emoji: '🔥', label: 'Motivation' },
-  { id: 'business',      emoji: '🚀', label: 'Business' },
-  { id: 'relationships', emoji: '❤️', label: 'Relationships' },
-]
 
 const PLATFORMS = [
   {
@@ -81,9 +66,8 @@ const GOALS = [
 ]
 
 const STEPS = [
-  { id: 1, title: 'Pick your niche',    sub: "We'll personalise your AI scripts and trends around it." },
-  { id: 2, title: 'Where do you post?', sub: "We'll optimise scripts for your platform's format." },
-  { id: 3, title: "What's your goal?",  sub: "We'll calibrate the AI to match what you're building." },
+  { id: 1, title: 'Where do you post?', sub: "We'll optimise scripts for your platform's format." },
+  { id: 2, title: "What's your goal?",  sub: "We'll calibrate the AI to match what you're building." },
 ]
 
 const mobileStyles = `
@@ -107,16 +91,9 @@ export default function Onboarding() {
   const navigate  = useNavigate()
   const [step, setStep]         = useState(1)
   const [exiting, setExiting]   = useState(false)
-  const [niches, setNiches]     = useState([])   // multi-select array
   const [platform, setPlatform] = useState(null)
   const [goals, setGoals]       = useState([])   // multi-select array
   const [done, setDone]         = useState(false)
-
-  const toggleNiche = (id) => {
-    setNiches(prev =>
-      prev.includes(id) ? prev.filter(n => n !== id) : [...prev, id]
-    )
-  }
 
   const toggleGoal = (id) => {
     setGoals(prev =>
@@ -132,13 +109,8 @@ export default function Onboarding() {
     }, 260)
   }
 
-  const skipNiche = () => {
-    setNiches([])
-    goNext()
-  }
-
   const finish = () => {
-    const prefs = { niches, platform, goals }
+    const prefs = { platform, goals }
     localStorage.setItem('vs_onboarded', '1')
     localStorage.setItem('vs_prefs', JSON.stringify(prefs))
     api.markOnboarded().catch(() => {})
@@ -147,8 +119,8 @@ export default function Onboarding() {
     setTimeout(() => navigate('/dashboard'), 2000)
   }
 
-  // Step 1 can always proceed (niches optional), step 2 needs platform, step 3 needs at least one goal
-  const canNext = step === 1 || (step === 2 && platform)
+  // Step 1 needs a platform; step 2 (goal) is the finish step
+  const canNext = step === 1 && platform
 
   if (done) return (
     <div style={styles.root}>
@@ -191,71 +163,12 @@ export default function Onboarding() {
 
       {/* Card */}
       <div className="ob-card" style={{ ...styles.card, opacity: exiting ? 0 : 1, transform: exiting ? 'translateY(10px)' : 'translateY(0)', transition: 'all 0.26s ease' }}>
-        <div style={styles.stepBadge}>Step {step} of 3</div>
+        <div style={styles.stepBadge}>Step {step} of 2</div>
         <h1 className="ob-title" style={styles.title}>{current.title}</h1>
         <p style={styles.sub}>{current.sub}</p>
 
-        {/* Step 1: Niche grid — multi-select */}
+        {/* Step 1: Platform */}
         {step === 1 && (
-          <>
-            <div className="ob-niche-grid" style={styles.nicheGrid}>
-              {NICHES.map(n => {
-                const selected = niches.includes(n.id)
-                return (
-                  <button
-                    key={n.id}
-                    onClick={() => toggleNiche(n.id)}
-                    style={{
-                      ...styles.nicheChip,
-                      background: selected ? 'rgba(255,95,31,0.15)' : 'var(--surface2)',
-                      border: selected ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
-                      boxShadow: selected ? '0 0 20px rgba(255,95,31,0.2)' : 'none',
-                      transform: selected ? 'scale(1.04)' : 'scale(1)',
-                      color: selected ? 'var(--text)' : 'var(--text-muted)',
-                      position: 'relative',
-                    }}
-                  >
-                    {selected && (
-                      <div style={{
-                        position: 'absolute', top: 5, right: 5,
-                        width: 14, height: 14, borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #00C8FF, #7B5CF0)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.55rem', color: '#fff', fontWeight: 800,
-                      }}>✓</div>
-                    )}
-                    <span style={{ fontSize: '1.3rem' }}>{n.emoji}</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>{n.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Selection count + skip */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, marginTop: -8 }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>
-                {niches.length > 0
-                  ? <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{niches.length} selected</span>
-                  : 'Select one or more'}
-              </span>
-              <button
-                onClick={skipNiche}
-                style={{
-                  background: 'none', border: 'none',
-                  color: 'var(--text-faint)', fontSize: '0.8rem',
-                  cursor: 'pointer', fontFamily: 'var(--font-body)',
-                  textDecoration: 'underline', textUnderlineOffset: 3,
-                  padding: '4px 0',
-                }}
-              >
-                Skip this step →
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Step 2: Platform */}
-        {step === 2 && (
           <div style={styles.platformGrid}>
             {PLATFORMS.map(p => (
               <button
@@ -283,8 +196,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 3: Goal — multi-select */}
-        {step === 3 && (
+        {/* Step 2: Goal ,  multi-select */}
+        {step === 2 && (
           <>
             <div style={styles.goalGrid}>
               {GOALS.map(g => {
@@ -326,14 +239,14 @@ export default function Onboarding() {
           {step > 1 && (
             <button onClick={() => setStep(s => s - 1)} style={styles.backBtn}>← Back</button>
           )}
-          {step < 3 ? (
+          {step < 2 ? (
             <button
               className="btn btn-primary btn-lg"
               style={{ marginLeft: 'auto', opacity: canNext ? 1 : 0.4 }}
               disabled={!canNext}
               onClick={goNext}
             >
-              {step === 1 && niches.length === 0 ? 'Skip →' : 'Continue →'}
+              Continue →
             </button>
           ) : (
             <button

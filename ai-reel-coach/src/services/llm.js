@@ -53,10 +53,8 @@ async function complete(prompt, { system = '', history = [], maxTokens = 1024, t
         .join('\n');
       finalPrompt = `${transcript}\nUser: ${prompt}`;
     }
-    try {
-      const res = await model.generateContent(finalPrompt);
-      return (res.response.text() || '').trim();
-    } catch (err) { throw normalizeLLMError(err); }
+    const res = await model.generateContent(finalPrompt);
+    return (res.response.text() || '').trim();
   }
 
   // ── Anthropic ──
@@ -64,67 +62,13 @@ async function complete(prompt, { system = '', history = [], maxTokens = 1024, t
     ...(history || []).map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content })),
     { role: 'user', content: prompt },
   ];
-  try {
-    const res = await anthropic().messages.create({
-      model     : MODELS.anthropic[tier] || MODELS.anthropic.default,
-      max_tokens: maxTokens,
-      ...(system ? { system } : {}),
-      messages,
-    });
-    return (res.content[0].text || '').trim();
-  } catch (err) { throw normalizeLLMError(err); }
+  const res = await anthropic().messages.create({
+    model     : MODELS.anthropic[tier] || MODELS.anthropic.default,
+    max_tokens: maxTokens,
+    ...(system ? { system } : {}),
+    messages,
+  });
+  return (res.content[0].text || '').trim();
 }
 
-// Turn raw provider errors into clean, user-friendly messages. Rate-limit /
-// quota errors (e.g. Gemini free-tier daily cap) get a calm "try again" note
-// instead of leaking a scary "[GoogleGenerativeAI Error] 429 ..." to the user.
-function normalizeLLMError(err) {
-  const msg = String((err && err.message) || '');
-  if (/\b429\b|too many requests|quota|rate.?limit|RESOURCE_EXHAUSTED/i.test(msg)) {
-    const e = new Error('Our AI is handling a lot of requests right now. Please try again in a minute.');
-    e.status = 429;
-    e.retryable = true;
-    return e;
-  }
-  return err;
-}
-
-/**
- * Multimodal completion (text + images). Provider-agnostic.
- * @param {string} prompt
- * @param {Array<{data:string, mimeType:string}>} images  base64 image data
- * @param {object} opts { maxTokens, tier }
- * @returns {Promise<string>}
- */
-async function completeVision(prompt, images = [], { maxTokens = 1600, tier = 'default' } = {}) {
-  if (PROVIDER === 'gemini') {
-    const model = gemini().getGenerativeModel({
-      model: MODELS.gemini[tier] || MODELS.gemini.default,
-      generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
-    });
-    const parts = [
-      { text: prompt },
-      ...images.map(img => ({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.data } })),
-    ];
-    try {
-      const res = await model.generateContent(parts);
-      return (res.response.text() || '').trim();
-    } catch (err) { throw normalizeLLMError(err); }
-  }
-
-  // ── Anthropic ──
-  const content = [
-    ...images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mimeType || 'image/jpeg', data: img.data } })),
-    { type: 'text', text: prompt },
-  ];
-  try {
-    const res = await anthropic().messages.create({
-      model     : MODELS.anthropic[tier] || MODELS.anthropic.default,
-      max_tokens: maxTokens,
-      messages  : [{ role: 'user', content }],
-    });
-    return (res.content[0].text || '').trim();
-  } catch (err) { throw normalizeLLMError(err); }
-}
-
-module.exports = { complete, completeVision, PROVIDER, MODELS };
+module.exports = { complete, PROVIDER, MODELS };

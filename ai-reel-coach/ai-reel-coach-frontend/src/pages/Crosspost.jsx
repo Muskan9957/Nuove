@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useLang } from '../i18n.jsx'
+import { usePersistentState } from '../hooks/usePersistentState'
 
 /* ─── Creator palette (matches Dashboard) ────────────────────────── */
 const C = {
@@ -48,17 +49,16 @@ export default function Crosspost() {
   const { t, lang } = useLang()
 
   // Source: 'library' | 'paste'
-  const [source, setSource]     = useState('library')
+  const [source, setSource]     = usePersistentState('arc_cross_source', 'library')
   const [scripts, setScripts]   = useState([])
   const [scriptsLoading, setScriptsLoading] = useState(true)
-  const [pickedId, setPickedId] = useState(null)
-  const [pickedDetail, setPickedDetail] = useState(null) // {hook, body, cta, topic}
+  const [pickedId, setPickedId] = usePersistentState('arc_cross_pickedId', null)
+  const [pickedDetail, setPickedDetail] = usePersistentState('arc_cross_pickedDetail', null) // {hook, body, cta, topic}
   const [pickLoading, setPickLoading] = useState(false)
-  const [pasted, setPasted]     = useState('')
-  const [topic, setTopic]       = useState('')
+  const [pasted, setPasted]     = usePersistentState('arc_cross_pasted', '')
 
   const [loading, setLoading]   = useState(false)
-  const [result, setResult]     = useState(null)
+  const [result, setResult]     = usePersistentState('arc_cross_result', null)
   const [error, setError]       = useState('')
   const [copied, setCopied]     = useState({})
 
@@ -125,12 +125,12 @@ export default function Crosspost() {
         hook:  pickedDetail.hook,
         body:  pickedDetail.body,
         cta:   pickedDetail.cta,
-        topic: topic.trim() || pickedDetail.topic || '',
+        topic: pickedDetail.topic || '',
         language: lang,
       }
     } else {
       const split = autoSplit(pasted)
-      payload = { ...split, topic: topic.trim(), language: lang }
+      payload = { ...split, topic: '', language: lang }
     }
 
     try {
@@ -174,9 +174,21 @@ export default function Crosspost() {
         <h1 className="page-title">
           {t('crosspost_title_pre')} {t('crosspost_title_post')}
         </h1>
-        <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', lineHeight: 1.55, margin: 0 }}>
-          {t('crosspost_sub')}
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', lineHeight: 1.55, margin: 0 }}>
+            {t('crosspost_sub')}
+          </p>
+          {result && (
+            <button type="button" onClick={() => {
+              setResult(null)
+              setPasted('')
+              setPickedId(null)
+              setPickedDetail(null)
+            }} className="btn btn-ghost btn-sm">
+              New Remix
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleMultiply}>
@@ -337,22 +349,6 @@ export default function Crosspost() {
             </div>
           </div>
         )}
-
-        {/* Optional topic */}
-        <div className="field" style={{ marginBottom: 22 }}>
-          <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>
-            {t('crosspost_topic')} <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>· {t('crosspost_topic_hint')}</span>
-          </label>
-          <input
-            className="input"
-            style={{ width: '100%' }}
-            type="text"
-            placeholder={t('crosspost_topic_ph')}
-            value={topic}
-            onChange={e => setTopic(e.target.value)}
-            maxLength={100}
-          />
-        </div>
 
         {error && (
           <div style={{

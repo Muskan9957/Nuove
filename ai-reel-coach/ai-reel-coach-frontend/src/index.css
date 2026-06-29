@@ -399,6 +399,12 @@
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(180,80,0,0.26); }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(180,80,0,0.42); }
 
+/* ─── Today's Brief trend grid — 3-up on desktop, single column on phones ─ */
+.brief-trend-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 700px) {
+  .brief-trend-grid { grid-template-columns: 1fr; gap: 12px; }
+}
+
 /* ─── Reset ──────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
@@ -1155,6 +1161,26 @@ h1, h2, h3, h4 {
 @keyframes glow {
   0%,100% { opacity: 0.6; }
   50%      { opacity: 1; }
+}
+@keyframes studioGlow {
+  0%,100% { box-shadow: 0 0 32px rgba(179,109,255,0.12), inset 0 0 40px rgba(255,45,111,0.04); }
+  50%      { box-shadow: 0 0 52px rgba(179,109,255,0.28), 0 0 80px rgba(255,45,111,0.14), inset 0 0 40px rgba(179,109,255,0.08); }
+}
+@keyframes studioFloat {
+  0%,100% { transform: translateY(0px); }
+  50%      { transform: translateY(-7px); }
+}
+@keyframes studioBorderPulse {
+  0%,100% { box-shadow: inset 0 0 0 1.5px rgba(179,109,255,0.30); }
+  50%      { box-shadow: inset 0 0 0 1.5px rgba(255,45,111,0.55), inset 0 0 20px rgba(179,109,255,0.08); }
+}
+@keyframes studioPulseIcon {
+  0%,100% { box-shadow: 0 0 20px rgba(179,109,255,0.28), 0 0 40px rgba(255,45,111,0.08); transform: scale(1); }
+  50%      { box-shadow: 0 0 36px rgba(179,109,255,0.50), 0 0 64px rgba(255,45,111,0.18); transform: scale(1.06); }
+}
+@keyframes shimmerSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
 /* ─── Mobile Responsive ──────────────────────────────────────────── */

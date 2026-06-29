@@ -127,6 +127,14 @@ const IconLogout = ({ size = 16 }) => (
   </svg>
 )
 
+const SupportIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+)
+
 const ReelLogoIcon = () => (
   <svg width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     {/* V / Wings */}
@@ -162,6 +170,7 @@ const NAV_CONFIG = [
   { to: '/trending',    icon: TrendIcon,       labelKey: 'nav_trending'    },
   { to: '/performance', icon: IconPerformance, labelKey: 'nav_performance' },
   { to: '/calendar',    icon: CalendarIcon,    labelKey: 'nav_calendar'    },
+  { to: '/support',     icon: SupportIcon,     labelKey: 'nav_support'     },
 ]
 
 // Bottom nav: top 4 core items + Coach (most important for retention)
@@ -174,13 +183,58 @@ const MOBILE_NAV_CONFIG = [
 
 const planColors = { FREE: '#4A5C8A', STARTER: '#00C9A7', PRO: '#00C8FF' }
 
+const BADGE_META = {
+  FIRST_SCRIPT: { emoji: '🎬', label: 'First Script', desc: 'Generate your first script using the Script Generator' },
+  SCRIPTS_5:    { emoji: '🔥', label: '5 Scripts', desc: 'Generate 5 scripts in total' },
+  SCRIPTS_15:   { emoji: '📚', label: '15 Scripts', desc: 'Generate 15 scripts in total' },
+  SCRIPTS_50:   { emoji: '🏆', label: '50 Scripts', desc: 'Generate 50 scripts in total' },
+  STREAK_5:     { emoji: '🏃', label: '5-Day Streak', desc: 'Maintain a 5-day daily active streak' },
+  STREAK_15:    { emoji: '⚡', label: '15-Day Streak', desc: 'Maintain a 15-day daily active streak' },
+  STREAK_30:    { emoji: '👑', label: '30-Day Streak', desc: 'Maintain a 30-day daily active streak' },
+  PERFECT_HOOK: { emoji: '💯', label: 'Perfect Hook', desc: 'Get a hook score of 90 or higher on any hook' },
+  ANALYZER_5:   { emoji: '📊', label: '5 Analyses', desc: 'Analyze at least 5 video performance logs' },
+}
+
 /* ─── Layout Component ───────────────────────────────────────────── */
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const { t }            = useLang()
   const navigate         = useNavigate()
   const isMobile         = useIsMobile()
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vs_sidebar_collapsed') === 'true')
   const [moreOpen, setMoreOpen] = useState(false)
+  const [streakHype, setStreakHype] = useState(null)
+  const [badgeHype, setBadgeHype] = useState(null)
+
+  const toggleSidebar = () => {
+    setCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem('vs_sidebar_collapsed', String(next))
+      return next
+    })
+  }
+
+  useEffect(() => {
+    const handleStreak = (e) => {
+      const newStreak = e.detail;
+      if (newStreak > 0 && newStreak % 5 === 0) {
+        setStreakHype(newStreak);
+      }
+    }
+    const handleBadge = (e) => {
+      const type = e.detail;
+      const meta = BADGE_META[type];
+      if (meta) {
+        setBadgeHype({ type, ...meta });
+      }
+    }
+    window.addEventListener('streak-updated', handleStreak);
+    window.addEventListener('badge-earned', handleBadge);
+    return () => {
+      window.removeEventListener('streak-updated', handleStreak);
+      window.removeEventListener('badge-earned', handleBadge);
+    }
+  }, []);
 
   const handleLogout = () => { logout(); navigate('/') }
   const location     = useLocation()
@@ -189,22 +243,171 @@ export default function Layout({ children }) {
   const userName     = user?.name || user?.email?.split('@')[0] || 'Creator'
   const planColor    = planColors[user?.plan] || planColors.FREE
 
+  // Determine vibrant theme based on section
+  let featureTheme = 'default'
+  const path = location.pathname
+  if (['/generate', '/scripts', '/record', '/coach'].includes(path)) featureTheme = 'studio'
+  else if (['/captions', '/crosspost', '/templates', '/multiply', '/remix'].includes(path)) featureTheme = 'content'
+  else if (['/trending', '/performance', '/calendar', '/dashboard', '/score'].includes(path)) featureTheme = 'insights'
+
   return (
     <div style={styles.root}>
+      {streakHype && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)'
+        }} onClick={() => setStreakHype(null)}>
+          <style>{`
+            @keyframes streakPop {
+              0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+              100% { transform: scale(1) translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, var(--surface), var(--surface2))', padding: '40px', borderRadius: '24px',
+              textAlign: 'center', border: '1px solid var(--border)', boxShadow: '0 0 40px rgba(225,48,108,0.3)',
+              animation: 'streakPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}>
+            <div style={{ fontSize: '4.5rem', marginBottom: '10px' }}>🔥</div>
+            <h2 style={{ margin: '0 0 10px 0', fontSize: '2.5rem', fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg, #FCAF45, #E1306C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              {streakHype} Day Streak!
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', margin: '0 0 24px 0' }}>
+              You're on fire! Keep generating to maintain your streak.
+            </p>
+            <button 
+              onClick={() => setStreakHype(null)}
+              style={{ background: 'linear-gradient(135deg, #FCAF45, #E1306C)', border: 'none', padding: '14px 36px', borderRadius: '12px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', boxShadow: '0 4px 15px rgba(225,48,108,0.4)', transition: 'transform 0.15s ease' }}
+              onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              Awesome!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {badgeHype && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)'
+        }} onClick={() => setBadgeHype(null)}>
+          <style>{`
+            @keyframes badgePop {
+              0% { transform: scale(0.8) translateY(30px); opacity: 0; }
+              100% { transform: scale(1) translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, var(--surface), var(--surface2))', padding: '40px 32px', borderRadius: '24px',
+              textAlign: 'center', border: '2px solid var(--accent)', boxShadow: '0 0 50px rgba(255,140,0,0.35)',
+              animation: 'badgePop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              maxWidth: 420, width: '90%', position: 'relative', overflow: 'hidden'
+            }}>
+            {/* Background glow */}
+            <div style={{ position: 'absolute', top: -50, left: -50, right: -50, bottom: -50, background: 'radial-gradient(circle, rgba(255,140,0,0.15) 0%, transparent 60%)', zIndex: 0, pointerEvents: 'none' }} />
+            
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: '5rem', marginBottom: '16px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}>{badgeHype.emoji}</div>
+              <h2 style={{ margin: '0 0 8px 0', fontSize: '2rem', fontWeight: 900, color: '#fff', background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                Badge Unlocked!
+              </h2>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)' }}>
+                {badgeHype.label}
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: '0 0 28px 0', lineHeight: 1.5 }}>
+                {badgeHype.desc}
+              </p>
+              <button 
+                onClick={() => setBadgeHype(null)}
+                style={{ 
+                  background: 'linear-gradient(135deg, #FF8C00, #FF2D6F)', border: 'none', 
+                  padding: '12px 36px', borderRadius: '12px', color: '#fff', fontWeight: 800, 
+                  cursor: 'pointer', fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(255,45,111,0.4)', 
+                  transition: 'transform 0.15s ease' 
+                }}
+                onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Awesome, Let's Go!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       {!isMobile && (
-        <aside style={styles.sidebar} className="app-sidebar">
+        <aside
+          style={{
+            ...styles.sidebar,
+            width: collapsed ? '72px' : '240px',
+            padding: collapsed ? '20px 8px' : '20px 14px',
+            transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+          className="app-sidebar"
+        >
           {/* Logo */}
-          <div style={styles.logoWrap}>
-            <Logo size={36} showWordmark />
+          <div style={{
+            ...styles.logoWrap,
+            justifyContent: collapsed ? 'center' : 'space-between',
+            alignItems: 'center',
+            flexDirection: collapsed ? 'column' : 'row',
+            gap: collapsed ? 12 : 0,
+            padding: collapsed ? '6px 0 16px' : '6px 0 20px',
+          }}>
+            <Logo size={collapsed ? 32 : 36} showWordmark={!collapsed} />
+            <button
+              onClick={toggleSidebar}
+              style={{
+                background: 'var(--surface2)',
+                border: '1px solid var(--border-nav)',
+                borderRadius: '8px',
+                color: 'var(--text-muted)',
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                outline: 'none',
+              }}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="13 17 18 12 13 7"/>
+                  <polyline points="6 17 11 12 6 7"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="11 17 6 12 11 7"/>
+                  <polyline points="18 17 13 12 18 7"/>
+                </svg>
+              )}
+            </button>
           </div>
 
           {/* Navigation */}
           <nav style={styles.nav}>
             {NAV_CONFIG.map((item, idx) => {
               if (item.section) {
-                return (
+                return collapsed ? (
+                  <hr
+                    key={`divider-${idx}`}
+                    style={{
+                      border: 'none',
+                      borderTop: '1px solid var(--border-nav)',
+                      margin: '12px 6px 8px',
+                      opacity: 0.5,
+                    }}
+                  />
+                ) : (
                   <div key={`section-${idx}`} className={`nav-section-label ${item.sectionClass}`}>
                     {item.section}
                   </div>
@@ -218,7 +421,10 @@ export default function Layout({ children }) {
                   style={({ isActive }) => ({
                     ...styles.navItem,
                     ...(isActive ? styles.navItemActive : {}),
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    padding: collapsed ? '10px 0' : '10px 12px',
                   })}
+                  title={collapsed ? t(labelKey) : undefined}
                 >
                   {({ isActive }) => (
                     <>
@@ -229,10 +435,12 @@ export default function Layout({ children }) {
                       }}>
                         <Icon size={18} />
                       </span>
-                      <span style={{ color: isActive ? 'var(--text)' : 'var(--text-muted)', flex: 1 }}>
-                        {t(labelKey)}
-                      </span>
-                      {premium && (
+                      {!collapsed && (
+                        <span style={{ color: isActive ? 'var(--text)' : 'var(--text-muted)', flex: 1 }}>
+                          {t(labelKey)}
+                        </span>
+                      )}
+                      {!collapsed && premium && (
                         <span style={{
                           fontSize: '0.6rem', fontFamily: 'var(--font-mono)', fontWeight: 700,
                           padding: '2px 6px', borderRadius: 99, lineHeight: 1,
@@ -253,9 +461,14 @@ export default function Layout({ children }) {
 
           {/* User info */}
           <div
-            style={{ ...styles.userBlock, cursor: 'pointer' }}
+            style={{
+              ...styles.userBlock,
+              cursor: 'pointer',
+              padding: collapsed ? '8px 0' : '12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+            }}
             onClick={() => navigate('/profile')}
-            title="View profile"
+            title={collapsed ? "View profile" : undefined}
           >
             <div style={{
               ...styles.avatarCircle,
@@ -267,70 +480,116 @@ export default function Layout({ children }) {
                 ? <img src={user.avatar} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                 : userInitial}
             </div>
-            <div style={styles.userInfo}>
-              <div style={styles.userName}>{userName}</div>
-              <div style={styles.userPlan}>
-                <span style={{ ...styles.planDot, background: planColor, boxShadow: `0 0 6px ${planColor}` }} />
-                {user?.plan || 'FREE'} Plan
-              </div>
-            </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
+            {!collapsed && (
+              <>
+                <div style={styles.userInfo}>
+                  <div style={styles.userName}>{userName}</div>
+                  <div style={styles.userPlan}>
+                    <span style={{ ...styles.planDot, background: planColor, boxShadow: `0 0 6px ${planColor}` }} />
+                    {user?.plan || 'FREE'} Plan
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </>
+            )}
           </div>
 
           {/* Pricing link */}
           {user?.plan === 'FREE' && (
-            <button
-              onClick={() => navigate('/pricing')}
-              style={{
-                background: 'linear-gradient(135deg, #00E5FF 0%, #00C8FF 50%, #7B5CF0 100%)',
-                border: 'none',
-                borderRadius: 10,
-                padding: '11px 12px',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                fontFamily: 'var(--font-body)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                marginBottom: 4,
-                transition: 'all 0.18s ease',
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: '0 4px 18px rgba(0,200,255,0.35)',
-                letterSpacing: '-0.01em',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.boxShadow = '0 6px 26px rgba(0,200,255,0.55)'
-                e.currentTarget.style.transform = 'translateY(-1px)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,200,255,0.35)'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
-            >
-              <span style={{ fontSize: '1rem' }}>✦</span>
-              <span>Upgrade to Pro</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.68rem', opacity: 0.85, fontFamily: 'var(--font-mono)' }}>₹799/mo</span>
-            </button>
+            collapsed ? (
+              <button
+                onClick={() => navigate('/pricing')}
+                title="Unlock More Features"
+                style={{
+                  background: 'linear-gradient(135deg, #00E5FF 0%, #00C8FF 50%, #7B5CF0 100%)',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: '36px',
+                  height: '36px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 8px',
+                  boxShadow: '0 4px 14px rgba(0,200,255,0.3)',
+                  transition: 'all 0.18s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,200,255,0.5)'
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,200,255,0.3)'
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
+              >
+                ✦
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/pricing')}
+                style={{
+                  background: 'linear-gradient(135deg, #00E5FF 0%, #00C8FF 50%, #7B5CF0 100%)',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '11px 12px',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  marginBottom: 4,
+                  transition: 'all 0.18s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 18px rgba(0,200,255,0.35)',
+                  letterSpacing: '-0.01em',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 6px 26px rgba(0,200,255,0.55)'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,200,255,0.35)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
+              >
+                <span>Unlock More Features</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.68rem', opacity: 0.85, fontFamily: 'var(--font-mono)' }}>✦</span>
+              </button>
+            )
           )}
 
           {/* Language + Theme toggle row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', flexShrink: 0 }}>
-            <div style={{ flex: 1 }}>
-              <LanguageSelector compact />
+          {collapsed ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', width: '100%' }}>
+              <ThemeToggle size="sm" />
             </div>
-            <ThemeToggle size="sm" />
-          </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', flexShrink: 0 }}>
+              <div style={{ flex: 1 }}>
+                <LanguageSelector compact />
+              </div>
+              <ThemeToggle size="sm" />
+            </div>
+          )}
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            style={styles.logoutBtn}
+            style={{
+              ...styles.logoutBtn,
+              padding: collapsed ? '10px 0' : '9px 12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+            }}
+            title={collapsed ? t('sign_out') : undefined}
             onMouseEnter={e => {
               e.currentTarget.style.background = 'var(--surface2)'
               e.currentTarget.style.color = 'var(--text)'
@@ -343,13 +602,13 @@ export default function Layout({ children }) {
             }}
           >
             <IconLogout size={14} />
-            {t('sign_out')}
+            {!collapsed && t('sign_out')}
           </button>
         </aside>
       )}
 
       {/* ── Main content area ───────────────────────────────────── */}
-      <main style={styles.main}>
+      <main style={styles.main} className={`theme-${featureTheme}`}>
 
         {/* Mobile top header */}
         {isMobile && (
@@ -411,7 +670,6 @@ export default function Layout({ children }) {
             {[
               { section: 'Studio', items: [
                 { to: '/scripts',     icon: IconScripts,     label: t('nav_scripts')     },
-                { to: '/creator-dna', icon: VoiceIcon,       label: t('nav_my_voice')  },
               ]},
               { section: 'Content', items: [
                 { to: '/crosspost',   icon: RemixIcon,       label: t('nav_remix')       },

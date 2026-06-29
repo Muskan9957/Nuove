@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useLang } from '../i18n.jsx'
@@ -137,7 +137,7 @@ export default function Templates() {
     } else if (template.type === 'hook') {
       navigate('/score', { state: { hook: template.content } })
     } else {
-      // CTA or others — go to generate with content note
+      // CTA or others ,  go to generate with content note
       localStorage.setItem('arc_prefill_topic', template.name)
       navigate('/generate', { state: { topic: template.name } })
     }

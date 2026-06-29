@@ -3,31 +3,38 @@ const aiService = require('../services/aiService');
 const planService = require('../services/planService');
 const { updateStreak } = require('../services/badgeService');
 
-const titleFrom = (msg) => {
-  const t = (msg || '').trim().replace(/\s+/g, ' ');
-  return t.length > 48 ? t.slice(0, 48).trim() + '…' : (t || 'New chat');
-};
-
 // ─── POST /api/coach/chat ─────────────────────────────────────────
 const chat = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    let { message, history, context, language, conversationId } = req.body;
+    const { message, history, context, language } = req.body;
 
     if (!message || !message.trim()) {
       return res.status(400).json({ error: 'message is required' });
     }
-    message = message.trim();
 
-    // Build userContext from DB (in parallel)
+    // Build userContext from DB (do in parallel)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const [user, scriptsCount, hookScores, recentScripts] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId }, select: { streak: true, plan: true } }),
+      prisma.user.findUnique({
+        where : { id: userId },
+        select: { streak: true, plan: true },
+      }),
       prisma.script.count({ where: { userId } }),
-      prisma.hookScore.findMany({ where: { userId }, select: { score: true }, orderBy: { createdAt: 'desc' }, take: 20 }),
-      prisma.script.findMany({ where: { userId, createdAt: { gte: thirtyDaysAgo } }, select: { topic: true }, orderBy: { createdAt: 'desc' }, take: 5 }),
+      prisma.hookScore.findMany({
+        where  : { userId },
+        select : { score: true },
+        orderBy: { createdAt: 'desc' },
+        take   : 20,
+      }),
+      prisma.script.findMany({
+        where  : { userId, createdAt: { gte: thirtyDaysAgo } },
+        select : { topic: true },
+        orderBy: { createdAt: 'desc' },
+        take   : 5,
+      }),
     ]);
 
     let avgHookScore = 0;
@@ -41,89 +48,86 @@ const chat = async (req, res, next) => {
       streak      : user?.streak || 0,
       plan        : user?.plan   || 'FREE',
       recentTopics: recentScripts.map(s => s.topic),
-      onboardingContext: context || '',
+      onboardingContext: context || '', // niches + goals + platform from onboarding
     };
 
-    // Resolve the conversation (verify ownership) or create a new one titled
-    // from the first message.
-    let conversation = null;
-    if (conversationId) {
-      conversation = await prisma.conversation.findFirst({ where: { id: conversationId, userId } });
-    }
-    if (!conversation) {
-      conversation = await prisma.conversation.create({ data: { userId, title: titleFrom(message) } });
-    }
-
-    // Save the user message
+    // Save user message to DB
     await prisma.chatMessage.create({
-      data: { userId, conversationId: conversation.id, role: 'user', content: message },
+      data: { userId, role: 'user', content: message.trim() },
     });
 
+    // Trim history to last 10 messages
     const trimmedHistory = Array.isArray(history) ? history.slice(-10) : [];
 
-    const [{ reply }, newStreak] = await Promise.all([
-      aiService.coachChat({ message, history: trimmedHistory, userContext, language: language || 'en' }),
-      updateStreak(userId),
+    // Get AI reply and update streak
+    const [ { reply }, newStreak ] = await Promise.all([
+      aiService.coachChat({
+        message    : message.trim(),
+        history    : trimmedHistory,
+        userContext,
+        language   : language || 'en',
+      }),
+      updateStreak(userId)
     ]);
 
+    // Save assistant message to DB
     await prisma.chatMessage.create({
-      data: { userId, conversationId: conversation.id, role: 'assistant', content: reply },
+      data: { userId, role: 'assistant', content: reply },
     });
-    await prisma.conversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
 
     planService.incrementFeature(userId, 'coach').catch(() => {});
 
-    return res.json({ reply, newStreak, conversationId: conversation.id, title: conversation.title });
+    return res.json({ reply, newStreak });
   } catch (err) {
     next(err);
   }
 };
 
-// ─── GET /api/coach/conversations ─────────────────────────────────
-const listConversations = async (req, res, next) => {
+// ─── GET /api/coach/history ───────────────────────────────────────
+const getHistory = async (req, res, next) => {
   try {
-    const conversations = await prisma.conversation.findMany({
-      where  : { userId: req.user.id },
-      orderBy: { updatedAt: 'desc' },
-      take   : 50,
-      select : { id: true, title: true, updatedAt: true },
-    });
-    return res.json({ conversations });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ─── GET /api/coach/conversations/:id ─────────────────────────────
-const getConversation = async (req, res, next) => {
-  try {
-    const conversation = await prisma.conversation.findFirst({
-      where : { id: req.params.id, userId: req.user.id },
-      select: { id: true, title: true },
-    });
-    if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+    const userId = req.user.id;
 
     const messages = await prisma.chatMessage.findMany({
-      where  : { conversationId: conversation.id },
-      orderBy: { createdAt: 'asc' },
-      select : { id: true, role: true, content: true, createdAt: true },
+      where  : { userId },
+      orderBy: { createdAt: 'desc' },
+      take   : 20,
+      select : {
+        id       : true,
+        role     : true,
+        content  : true,
+        createdAt: true,
+      },
     });
-    return res.json({ conversation, messages });
+
+    // Return in chronological order (oldest first)
+    return res.json({ messages: messages.reverse() });
   } catch (err) {
     next(err);
   }
 };
 
-// ─── DELETE /api/coach/conversations/:id ──────────────────────────
-const deleteConversation = async (req, res, next) => {
+// ─── POST /api/coach/history (save message) ───────────────────────
+const saveMessage = async (req, res, next) => {
   try {
-    const conversation = await prisma.conversation.findFirst({ where: { id: req.params.id, userId: req.user.id } });
-    if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
-    await prisma.conversation.delete({ where: { id: conversation.id } }); // cascades messages
-    return res.json({ success: true });
+    const userId = req.user.id;
+    const { role, content } = req.body;
+
+    if (!role || !['user', 'assistant'].includes(role)) {
+      return res.status(400).json({ error: 'role must be "user" or "assistant"' });
+    }
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'content is required' });
+    }
+
+    const message = await prisma.chatMessage.create({
+      data: { userId, role, content: content.trim() },
+    });
+
+    return res.status(201).json({ message });
   } catch (err) {
     next(err);
   }
 };
 
-module.exports = { chat, listConversations, getConversation, deleteConversation };
+module.exports = { chat, getHistory, saveMessage };

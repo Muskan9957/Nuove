@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store'
@@ -66,9 +67,9 @@ const PRESET_AVATARS = [
 ]
 
 const PLAN_META = {
-  FREE:    { label: 'Free',    color: '#6B6B90', bg: 'rgba(107,107,144,0.12)', limit: 10  },
-  STARTER: { label: 'Starter', color: '#00D4B1', bg: 'rgba(0,212,177,0.12)',   limit: 50  },
-  PRO:     { label: 'Pro',     color: '#00C8FF', bg: 'rgba(0,200,255,0.12)',   limit: 999 },
+  FREE:    { label: 'Free',    color: '#FF2D6F', bg: 'rgba(255,45,111,0.12)', limit: 10  },
+  STARTER: { label: 'Starter', color: '#00D4B1', bg: 'rgba(0,212,177,0.12)',  limit: 50  },
+  PRO:     { label: 'Pro',     color: '#B36DFF', bg: 'rgba(179,109,255,0.12)', limit: 999 },
 }
 
 function Avatar({ user, size = 80 }) {
@@ -191,9 +192,34 @@ export default function Profile() {
   const navigate           = useNavigate()
   const toast              = useToast()
   const [liveStreak, setLiveStreak] = useState(null)
+  const [totalScripts, setTotalScripts] = useState(0)
+  const [totalLogs, setTotalLogs]       = useState(0)
+  const [totalBadges, setTotalBadges]   = useState(0)
 
   useEffect(() => {
-    api.getUserProfile().then(p => { if (p?.streak != null) setLiveStreak(p.streak) }).catch(() => {})
+    api.getUserProfile().then(p => {
+      const s = p?.user?.streak ?? p?.streak
+      if (s != null) setLiveStreak(s)
+    }).catch(() => {})
+
+    api.getScripts().then(s => {
+      if (s?.scripts) setTotalScripts(s.scripts.length)
+    }).catch(() => {})
+
+    api.perfHistory().then(p => {
+      if (p?.logs) setTotalLogs(p.logs.length)
+    }).catch(() => {})
+
+    api.getBadges().then(b => {
+      if (b?.badges) setTotalBadges(b.badges.length)
+    }).catch(() => {})
+
+    // Listen for real-time streak updates from other pages
+    const onStreakUpdate = (e) => {
+      if (e.detail != null) setLiveStreak(e.detail)
+    }
+    window.addEventListener('streak-updated', onStreakUpdate)
+    return () => window.removeEventListener('streak-updated', onStreakUpdate)
   }, [])
 
   const [showDanger, setShowDanger]         = useState(false)
@@ -217,7 +243,7 @@ export default function Profile() {
     setCancelling(true)
     try {
       await api.cancelSubscription()
-      toast('Subscription cancelled — you keep access until the end of your billing period.', 'success')
+      toast('Subscription cancelled ,  you keep access until the end of your billing period.', 'success')
       setCancelConfirm(false)
       // Refresh subscription data
       const d = await api.getSubscription()
@@ -243,12 +269,31 @@ export default function Profile() {
   const prefs = (() => { try { return JSON.parse(localStorage.getItem('vs_prefs') || '{}') } catch { return {} } })()
   const planMeta = PLAN_META[user?.plan] || PLAN_META.FREE
   const usagePercent = Math.min(100, Math.round((user?.generationsUsed / planMeta.limit) * 100))
-  const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+  const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : ', '
 
   const handleLogout = () => {
     logout()
     navigate('/')
-    toast.success('Logged out successfully')
+    toast('Logged out successfully', 'success')
+  }
+
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting]       = useState(false)
+  const [showDeleteWarning, setShowDeleteWarning] = useState(false)
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'DELETE') return
+    setDeleting(true)
+    try {
+      await api.deleteAccount()
+      logout()
+      navigate('/')
+      toast('Your account has been permanently deleted.', 'success')
+    } catch (err) {
+      toast(err.message || 'Could not delete account. Try again.', 'error')
+      setDeleting(false)
+    }
   }
 
   const handleSaveAvatar = async () => {
@@ -358,11 +403,13 @@ export default function Profile() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(108px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'Day Streak',    value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Generate, score or analyse daily' },
-          { label: 'Scripts Made',  value: user?.generationsUsed || 0,   sub: 'Total all time' },
-          { label: 'Member Since',  value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
+          { label: 'Day Streak',       value: `${liveStreak ?? user?.streak ?? 0}🔥`,    sub: 'Active daily' },
+          { label: 'Scripts Written',  value: totalScripts,   sub: 'All time' },
+          { label: 'Videos Analysed',  value: totalLogs,      sub: 'All time' },
+          { label: 'Badges Earned',    value: totalBadges,    sub: 'Achievements' },
+          { label: 'Member Since',     value: joinDate.split(' ')[2] || '2025', sub: joinDate.split(' ').slice(0,2).join(' ') },
         ].map(s => (
           <div key={s.label} style={{
             background: 'var(--surface)',
@@ -391,12 +438,12 @@ export default function Profile() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '8px 24px', marginBottom: 16 }}>
         <Section title="Account">
           <Row icon="👤" label="Full name"    value={user?.name || 'Not set'} />
-          <Row icon="📧" label="Email"        value={user?.email || '—'} />
+          <Row icon="📧" label="Email"        value={user?.email || ', '} />
           <Row icon="🌐" label="Language" value={user?.language === 'hi' ? 'Hindi' : user?.language === 'en-IN' ? 'Hinglish' : 'English'} />
           <Row
             icon="📍"
             label="Content Region"
-            value={REGIONS.find(r => r.value === region)?.label || '— Not set —'}
+            value={REGIONS.find(r => r.value === region)?.label || ',  Not set , '}
             action={
               <select
                 value={region}
@@ -412,28 +459,9 @@ export default function Profile() {
                   fontFamily: 'var(--font-body)',
                 }}
               >
-                <option value="">— Select —</option>
+                <option value="">,  Select , </option>
                 {REGIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
-            }
-          />
-          <Row
-            icon="🎯"
-            label="Niche"
-            value={
-              Array.isArray(prefs.niches) && prefs.niches.length
-                ? prefs.niches.map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(', ')
-                : prefs.niche
-                  ? prefs.niche.charAt(0).toUpperCase() + prefs.niche.slice(1)
-                  : 'Not set'
-            }
-            action={
-              <button
-                onClick={() => { localStorage.removeItem('vs_onboarded'); navigate('/onboarding') }}
-                style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'var(--font-body)' }}
-              >
-                Edit
-              </button>
             }
           />
           <Row icon="📅" label="Joined"       value={joinDate} />
@@ -496,7 +524,7 @@ export default function Profile() {
                   Unlock unlimited scripts
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Go Pro for ₹799/month — unlimited AI scripts, Content Remix, Creator Advisor & more.
+                  Go Pro for unlimited AI scripts, Content Remix, Creator Advisor & more.
                 </div>
               </div>
             </div>
@@ -644,11 +672,7 @@ export default function Profile() {
                     </div>
                   )}
                 </>
-              ) : (
-                <div style={{ padding: '14px 0', fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                  Subscription details unavailable — contact support if this persists.
-                </div>
-              )}
+              ) : null}
             </>
           )}
         </Section>
@@ -680,9 +704,9 @@ export default function Profile() {
         </Section>
       </div>
 
-      {/* Danger zone */}
+      {/* Account Actions */}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,70,70,0.15)', borderRadius: 20, padding: '8px 24px' }}>
-        <Section title="⚠ Danger Zone">
+        <Section title="⚠ Account Actions">
           {!showDanger ? (
             <button
               onClick={() => setShowDanger(true)}
@@ -723,6 +747,22 @@ export default function Profile() {
               </div>
             </div>
           )}
+
+          {/* Account deletion (privacy / compliance) */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18 }}>
+            <button
+              onClick={() => setShowDeleteWarning(true)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                background: 'transparent',
+                border: '1px solid rgba(255,70,70,0.3)', color: '#ff6b6b',
+                fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              Permanently delete your account
+            </button>
+          </div>
         </Section>
       </div>
 
@@ -934,6 +974,60 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Warning Modal (Step 1) */}
+      {showDeleteWarning && createPortal(
+        <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(4,5,18,0.88)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowDeleteWarning(false) }}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border-bright)', borderRadius:24, padding:'24px', width:'100%', maxWidth:420, boxShadow:'0 32px 80px rgba(0,0,0,0.7)', textAlign:'center' }}>
+            <h2 style={{ fontFamily:'var(--font-head)', fontSize:'1.25rem', fontWeight:800, color:'var(--text)', margin:'0 0 16px' }}>Are you sure?</h2>
+            <p style={{ color:'var(--text-muted)', fontSize:'0.95rem', marginBottom:24, lineHeight:1.5 }}>
+              Deleting your account is permanent. You will immediately lose access to all your generated scripts, captions, and account data.
+            </p>
+            <div style={{ display:'flex', gap:12 }}>
+              <button onClick={() => setShowDeleteWarning(false)} className="btn btn-ghost" style={{ flex:1, padding:'12px', borderRadius:12 }}>Go Back</button>
+              <button onClick={() => { setShowDeleteWarning(false); setShowDeleteConfirmModal(true) }} className="btn btn-primary" style={{ flex:1, padding:'12px', borderRadius:12, background:'#ff4646', color:'#fff', border:'none' }}>Confirm</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal (Step 2) */}
+      {showDeleteConfirmModal && createPortal(
+        <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(4,5,18,0.88)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowDeleteConfirmModal(false) }}>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border-bright)', borderRadius:24, padding:'24px', width:'100%', maxWidth:420, boxShadow:'0 32px 80px rgba(0,0,0,0.7)', textAlign:'center' }}>
+            <h2 style={{ fontFamily:'var(--font-head)', fontSize:'1.25rem', fontWeight:800, color:'#ff4646', margin:'0 0 16px' }}>Final Confirmation</h2>
+            <p style={{ color:'var(--text-muted)', fontSize:'0.9rem', marginBottom:16, lineHeight:1.5 }}>
+              Type <strong>DELETE</strong> below to permanently erase your account. This action cannot be reversed.
+            </p>
+            <input
+              className="input"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder="Type DELETE"
+              style={{ width:'100%', marginBottom: 20, textAlign:'center', fontWeight:'bold' }}
+            />
+            <div style={{ display:'flex', gap:12 }}>
+              <button onClick={() => setShowDeleteConfirmModal(false)} className="btn btn-ghost" style={{ flex:1, padding:'12px', borderRadius:12 }}>Go Back</button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE'}
+                style={{
+                  flex:1, padding:'12px', borderRadius:12,
+                  background: deleteConfirm.trim().toUpperCase() === 'DELETE' ? '#ff4646' : 'var(--surface2)',
+                  color: deleteConfirm.trim().toUpperCase() === 'DELETE' ? '#fff' : 'var(--text-faint)',
+                  border:'none', fontWeight: 700, cursor: (deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE') ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {deleting ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
