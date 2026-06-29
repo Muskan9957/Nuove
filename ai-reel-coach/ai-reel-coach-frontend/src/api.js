@@ -9,11 +9,20 @@ let fpCache = null
 const getFingerprint = async () => {
   if (fpCache) return fpCache
   try {
-    const fp = await fpPromise.load()
-    const result = await fp.get()
-    fpCache = result.visitorId
+    // Add a strict 1.5-second timeout so FingerprintJS never blocks the user's requests if it hangs or is blocked by adblockers
+    const fingerprintPromise = (async () => {
+      const fp = await fpPromise.load()
+      const result = await fp.get()
+      return result.visitorId
+    })()
+
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 1500))
+
+    fpCache = await Promise.race([fingerprintPromise, timeoutPromise])
     return fpCache
-  } catch (err) { return null }
+  } catch (err) { 
+    return null 
+  }
 }
 
 const getToken = () => localStorage.getItem('arc_token')
