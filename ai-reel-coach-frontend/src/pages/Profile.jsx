@@ -672,11 +672,7 @@ export default function Profile() {
                     </div>
                   )}
                 </>
-              ) : (
-                <div style={{ padding: '14px 0', fontSize: '0.82rem', color: 'var(--text-faint)' }}>
-                  Subscription details unavailable ,  contact support if this persists.
-                </div>
-              )}
+              ) : null}
             </>
           )}
         </Section>

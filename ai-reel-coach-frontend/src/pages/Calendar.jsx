@@ -6,9 +6,9 @@ import { MicButton } from '../components/VoiceAssistant'
 
 // Status configuration
 const STATUS_CONFIG = {
-  planned:   { color: '#FFD60A', bg: 'rgba(255,214,10,0.15)',   label_key: 'planned'   },
-  drafted:   { color: '#FF9F43', bg: 'rgba(255,159,67,0.15)',   label_key: 'drafted'   },
-  published: { color: '#00C9A7', bg: 'rgba(0,201,167,0.15)',    label_key: 'published' },
+  PLANNED:   { color: '#FFD60A', bg: 'rgba(255,214,10,0.15)',   label_key: 'planned'   },
+  DRAFTED:   { color: '#FF9F43', bg: 'rgba(255,159,67,0.15)',   label_key: 'drafted'   },
+  PUBLISHED: { color: '#00C9A7', bg: 'rgba(0,201,167,0.15)',    label_key: 'published' },
 }
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -49,12 +49,12 @@ function buildCalendarGrid(year, month) {
 function EntryPanel({ date, entries, onClose, onSave, onDelete }) {
   const { t }   = useLang()
   const toast   = useToast()
-  const [form, setForm] = useState({ title: '', status: 'planned', note: '' })
+  const [form, setForm] = useState({ title: '', status: 'PLANNED', note: '' })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
 
   const openNew = () => {
-    setForm({ title: '', status: 'planned', note: '' })
+    setForm({ title: '', status: 'PLANNED', note: '' })
     setEditId(null)
   }
 
@@ -107,7 +107,7 @@ function EntryPanel({ date, entries, onClose, onSave, onDelete }) {
         {entries.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             {entries.map(entry => {
-              const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.planned
+              const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.PLANNED
               return (
                 <div key={entry.id} style={{ ...panelStyles.entryRow, borderLeft: `3px solid ${cfg.color}` }}>
                   <div style={{ flex: 1 }}>
@@ -334,7 +334,7 @@ export default function Calendar() {
                         </div>
                         <div style={calStyles.chipsWrap}>
                           {dayEntries.slice(0, 3).map((entry, i) => {
-                            const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.planned
+                            const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.PLANNED
                             return (
                               <div
                                 key={i}
