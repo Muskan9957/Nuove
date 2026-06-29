@@ -300,7 +300,7 @@ export default function Demo() {
           <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
             <div style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: '#4A6A9A', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>Available in 11 Languages</div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              {['🇺🇸 English','🇪🇸 Spanish','🇫🇷 French','🇧🇷 Portuguese','🇩🇪 German','🇸🇦 Arabic','🇮🇩 Indonesian','🇯🇵 Japanese','🇰🇷 Korean','🇮🇳 Hindi','🤙 Hinglish'].map(l => (
+              {['English','Spanish','French','Portuguese','German','Arabic','Indonesian','Japanese','Korean','Hindi','Hinglish'].map(l => (
                 <span key={l} style={{ fontSize: '0.8rem', color: '#8BA4CC', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 99, padding: '5px 14px' }}>{l}</span>
               ))}
             </div>

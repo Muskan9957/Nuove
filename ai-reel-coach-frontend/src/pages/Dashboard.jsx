@@ -365,8 +365,8 @@ function TrendingBrief({ userName }) {
             }}
           >
             <span style={{ whiteSpace: 'nowrap' }}>{scope === 'global'
-              ? (REGIONS.find(r => r.value === 'Global')?.label || '🌐 Global')
-              : (REGIONS.find(r => r.value === region)?.label || `📍 ${region}`)}</span>
+              ? (REGIONS.find(r => r.value === 'Global')?.label || 'Global')
+              : (REGIONS.find(r => r.value === region)?.label || region)}</span>
             <svg style={{ width: 13, height: 13, opacity: 0.6 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
           </button>
           <div style={{
