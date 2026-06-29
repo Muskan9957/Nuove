@@ -77,9 +77,9 @@ const register = async (req, res, next) => {
     // 6-digit one-time code — entered on the same screen, so no new tab/window opens
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
 
-    // Determine initial generations usage based on trust
+    // Determine initial generations usage based on device history
     let initialGenerationsUsed = 0;
-    if (trustProfile.trustLevel === 'RESTRICTED' && trustProfile.existingUsage) {
+    if (trustProfile.existingUsage) {
       initialGenerationsUsed = trustProfile.existingUsage.generationsUsed;
     }
 
