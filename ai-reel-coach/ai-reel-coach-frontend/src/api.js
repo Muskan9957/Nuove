@@ -4,12 +4,27 @@ const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api'
 
+import fpPromise from '@fingerprintjs/fingerprintjs'
+let fpCache = null
+const getFingerprint = async () => {
+  if (fpCache) return fpCache
+  try {
+    const fp = await fpPromise.load()
+    const result = await fp.get()
+    fpCache = result.visitorId
+    return fpCache
+  } catch (err) { return null }
+}
+
 const getToken = () => localStorage.getItem('arc_token')
 
 const req = async (method, path, body) => {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
+  const deviceFp = await getFingerprint()
+  
   if (token) headers['Authorization'] = `Bearer ${token}`
+  if (deviceFp) headers['X-Device-Fingerprint'] = deviceFp
 
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -59,13 +74,15 @@ export const api = {
 
   // Scripts
   // Calls the Vercel Edge Function — true streaming, no Railway buffering
-  generateStream: (body) => {
+  generateStream: async (body) => {
     const token = getToken()
+    const deviceFp = await getFingerprint()
     return fetch(`/api/generate-stream`, {
       method : 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(deviceFp ? { 'X-Device-Fingerprint': deviceFp } : {}),
       },
       body: JSON.stringify(body),
     })
