@@ -193,17 +193,17 @@
   --stat-border-raw: rgba(180,80,0,0.16);
 
   /* ── Card backgrounds ── */
-  --surface-card:      linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(255,244,232,0.95) 100%);
-  --surface-card-alt:  linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(255,240,250,0.95) 100%);
-  --surface-card-deep: rgba(255,255,255,0.98);
+  --surface-card:      linear-gradient(135deg, #FFFFFF 0%, #FFF9F3 100%);
+  --surface-card-alt:  linear-gradient(135deg, #FFFFFF 0%, #FFF5FA 100%);
+  --surface-card-deep: #FFFFFF;
   --card-shadow:
-    0 2px 24px rgba(60,20,0,0.10),
-    0 1px 0 rgba(255,255,255,0.98) inset,
-    0 0 0 1px rgba(180,80,0,0.09);
+    0 10px 30px -10px rgba(120, 40, 0, 0.06), 
+    0 1px 0 rgba(255, 255, 255, 0.9) inset, 
+    0 0 0 1px rgba(200, 80, 0, 0.05);
   --card-shadow-hover:
-    0 14px 44px rgba(180,60,0,0.17),
-    0 1px 0 rgba(255,255,255,1) inset,
-    0 0 0 1px rgba(200,80,0,0.20);
+    0 20px 40px -15px rgba(200, 80, 0, 0.14),
+    0 0 20px rgba(200, 80, 0, 0.03),
+    0 1px 0 rgba(255, 255, 255, 1) inset;
 
   /* ── Logo colours — light mode ── */
   --logo-v1:     #C45500;
@@ -215,13 +215,77 @@
 }
 
 /* ─── Light Theme — Component Overrides ─────────────────────────── */
-[data-theme="light"] .glass-card { border: 1px solid rgba(180,80,0,0.18); box-shadow: 0 8px 40px rgba(80,30,0,0.12); }
-[data-theme="light"] .glass-card:nth-child(6n+1) { background: linear-gradient(145deg, rgba(255,235,200,0.92) 0%, rgba(255,255,255,0.88) 100%); }
-[data-theme="light"] .glass-card:nth-child(6n+2) { background: linear-gradient(145deg, rgba(255,220,235,0.92) 0%, rgba(255,255,255,0.88) 100%); }
-[data-theme="light"] .glass-card:nth-child(6n+3) { background: linear-gradient(145deg, rgba(220,255,220,0.92) 0%, rgba(255,255,255,0.88) 100%); }
-[data-theme="light"] .glass-card:nth-child(6n+4) { background: linear-gradient(145deg, rgba(240,225,255,0.92) 0%, rgba(255,255,255,0.88) 100%); }
-[data-theme="light"] .glass-card:nth-child(6n+5) { background: linear-gradient(145deg, rgba(255,248,200,0.92) 0%, rgba(255,255,255,0.88) 100%); }
-[data-theme="light"] .glass-card:nth-child(6n+6) { background: linear-gradient(145deg, rgba(220,255,235,0.92) 0%, rgba(255,255,255,0.88) 100%); }
+[data-theme="light"] .glass-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 80, 0, 0.12) !important;
+  box-shadow: 0 10px 30px -10px rgba(120, 40, 0, 0.06), 0 1px 0 rgba(255, 255, 255, 0.8) inset !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s !important;
+}
+
+[data-theme="light"] .glass-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(200, 80, 0, 0.25) !important;
+  box-shadow: 
+    0 20px 40px -15px rgba(200, 80, 0, 0.14),
+    0 0 20px rgba(200, 80, 0, 0.03),
+    0 1px 0 rgba(255, 255, 255, 1) inset !important;
+}
+
+[data-theme="light"] .glass-card:nth-child(6n+1) { background: linear-gradient(145deg, rgba(255,240,225,0.75) 0%, rgba(255,255,255,0.85) 100%) !important; }
+[data-theme="light"] .glass-card:nth-child(6n+2) { background: linear-gradient(145deg, rgba(255,230,240,0.75) 0%, rgba(255,255,255,0.85) 100%) !important; }
+[data-theme="light"] .glass-card:nth-child(6n+3) { background: linear-gradient(145deg, rgba(230,255,235,0.75) 0%, rgba(255,255,255,0.85) 100%) !important; }
+[data-theme="light"] .glass-card:nth-child(6n+4) { background: linear-gradient(145deg, rgba(245,235,255,0.75) 0%, rgba(255,255,255,0.85) 100%) !important; }
+[data-theme="light"] .glass-card:nth-child(6n+5) { background: linear-gradient(145deg, rgba(255,252,230,0.75) 0%, rgba(255,255,255,0.85) 100%) !important; }
+[data-theme="light"] .glass-card:nth-child(6n+6) { background: linear-gradient(145deg, rgba(230,250,255,0.75) 0%, rgba(255,255,255,0.85) 100%) !important; }
+
+[data-theme="light"] .card {
+  background:
+    radial-gradient(ellipse 65% 55% at -8% -8%,  rgba(200,80,0,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 108% 108%, rgba(200,0,74,0.04) 0%, transparent 55%),
+    var(--surface-card-deep);
+  border: 1px solid rgba(200, 80, 0, 0.12);
+  box-shadow: 
+    0 10px 30px -10px rgba(120, 40, 0, 0.06), 
+    0 1px 0 rgba(255, 255, 255, 0.9) inset, 
+    0 0 0 1px rgba(200, 80, 0, 0.05);
+}
+
+[data-theme="light"] .card::after {
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,255,255,0.8),
+    rgba(255,255,255,1),
+    rgba(255,255,255,0.8),
+    transparent);
+}
+
+[data-theme="light"] .card:hover {
+  border-color: rgba(200, 80, 0, 0.28);
+  box-shadow: 
+    0 20px 40px -15px rgba(200, 80, 0, 0.14),
+    0 0 20px rgba(200, 80, 0, 0.03),
+    0 1px 0 rgba(255, 255, 255, 1) inset;
+  transform: translateY(-3px);
+}
+
+[data-theme="light"] .card-accent {
+  border-color: rgba(200, 80, 0, 0.35);
+  box-shadow: 
+    0 0 40px rgba(200, 80, 0, 0.08), 
+    0 8px 30px rgba(120, 40, 0, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+[data-theme="light"] .card-grad-border {
+  background:
+    radial-gradient(ellipse 65% 55% at -8% -8%,  rgba(200,80,0,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 108% 108%, rgba(200,0,74,0.04) 0%, transparent 55%),
+    var(--surface-card-deep);
+  box-shadow: 
+    0 10px 30px -10px rgba(120, 40, 0, 0.06), 
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
 
 /* (nth-child rainbow backgrounds removed — uniform warm white now) */
 
