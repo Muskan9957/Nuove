@@ -204,4 +204,27 @@ const sendVerificationEmail = async ({ to, name, code }) => {
   });
 };
 
-module.exports = { sendPasswordReset, sendWelcome, sendVerificationEmail };
+const sendSupportTicket = async ({ fromEmail, fromName, message }) => {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[EMAIL SKIPPED — add RESEND_API_KEY to .env] Support query from ${fromEmail}: ${message}`);
+    return;
+  }
+  await resend.emails.send({
+    from    : FROM,
+    replyTo : fromEmail,
+    to      : REPLY_TO,
+    subject : `[Nuove Support] Ticket from ${fromName || 'User'}`,
+    html    : layout(`
+      <div style="padding:32px 40px;">
+        <h2 style="color:#FF5F1F; margin-top:0; font-size:22px; font-weight:800;">New Support Request</h2>
+        <p style="color:#6B6B90; font-size:14px; margin: 4px 0;"><strong>Name:</strong> ${fromName || 'N/A'}</p>
+        <p style="color:#6B6B90; font-size:14px; margin: 4px 0;"><strong>Email:</strong> ${fromEmail}</p>
+        <div style="background:#161626; border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:20px; color:#F0F0F8; font-family:monospace; white-space:pre-wrap; line-height:1.6; margin-top:20px;">${message}</div>
+      </div>
+    `)
+  });
+};
+
+module.exports = { sendPasswordReset, sendWelcome, sendVerificationEmail, sendSupportTicket };
+

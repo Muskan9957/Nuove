@@ -146,6 +146,7 @@ export const api = {
   saveAvatar:      (url)      => req('PATCH', '/user/avatar', { url }),
   pingStreak:      ()         => req('POST',  '/user/streak/ping'),
   deleteAccount:   ()         => req('DELETE', '/user/account'),
+  submitSupport:   (message)  => req('POST',  '/user/support', { message }),
   exportMyData:    async () => {
     const res = await fetch(`${BASE}/user/export`, {
       headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
