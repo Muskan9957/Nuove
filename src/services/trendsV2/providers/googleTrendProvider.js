@@ -145,6 +145,18 @@ async function fetchTrends(region, niche) {
     } else {
       queries = queries.map(q => `(${q}) AND NOT (India OR Indian)`)
     }
+  } else if (niche === 'sports') {
+    if (geo === 'IN' || geo === 'PK') {
+      queries = [
+        `cricket OR IPL OR T20 OR ODI OR "Womens Cricket" OR WPL OR BCCI OR "Indian cricket team"`,
+        `football OR F1 OR tennis OR badminton OR Olympics`
+      ]
+    } else if (geo === 'US' || geo === 'CA') {
+      queries = [
+        `NBA OR NFL OR NHL OR MLB OR MLS OR soccer OR "world cup" OR F1 OR tennis`,
+        `sports match league champions playoffs`
+      ]
+    }
   }
   const locale = NEWS_LOCALE[geo] || NEWS_LOCALE.US
   const urls = [
