@@ -768,9 +768,6 @@ export default function Generate() {
                 <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.05rem', margin: 0, whiteSpace: 'nowrap' }}>
                   {t('generate_your_script')}
                 </h2>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
-                  {form.topic}
-                </span>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <SpeakButton text={result.script?.fullScript} />
@@ -800,31 +797,23 @@ export default function Generate() {
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C8FF' }}>
                   🎣 {t('generate_hook')} — {form.scriptLang === 'hi' ? 'पहले 3 सेकंड' : 'First 3 sec'}
                 </span>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTweakSection(activeTweakSection === 'hook' ? null : 'hook'); setTweakValue('') }}
-                    style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.06)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.06)' }}
-                  >✏️ Tweak</button>
-                  {result.script?.id && (
-                    <button
-                      type="button"
-                      onClick={improveHook}
-                      disabled={hookImproving}
-                      style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.08)', color: '#00C8FF', cursor: hookImproving ? 'not-allowed' : 'pointer', opacity: hookImproving ? 0.55 : 1, display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s', flexShrink: 0 }}
-                      onMouseEnter={e => { if (!hookImproving) e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.08)' }}
-                    >
-                      {hookImproving ? <><span className="spinner" style={{ width: 9, height: 9, borderColor: 'rgba(0,200,255,0.2)', borderTopColor: '#00C8FF' }} /> Improving…</> : '⚡ Smart Improve'}
-                    </button>
-                  )}
-                </div>
+              </div>
+
+              <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.hook}</p>
+
+              {/* Tweak Button below right */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTweakSection(activeTweakSection === 'hook' ? null : 'hook'); setTweakValue('') }}
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.06)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.06)' }}
+                >✏️ Tweak</button>
               </div>
 
               {activeTweakSection === 'hook' && (
-                <div style={{ display: 'flex', gap: 8, marginBlock: '8px 12px' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <input
                     type="text"
                     placeholder="e.g. make the hook a dramatic question"
@@ -859,34 +848,6 @@ export default function Generate() {
                   </button>
                 </div>
               )}
-              <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.hook}</p>
-
-              {/* Inline suggestion */}
-              {hookSuggestion && (
-                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(0,200,255,0.18)' }}>
-                  <div style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(0,200,255,0.7)', marginBottom: 8 }}>
-                    ✨ Suggested rewrite
-                  </div>
-                  <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: '0 0 6px', fontStyle: 'italic' }}>
-                    {hookSuggestion.rewrittenHook}
-                  </p>
-                  {hookSuggestion.changes && (
-                    <p style={{ fontSize: '0.76rem', color: 'var(--text-faint)', margin: '0 0 12px', lineHeight: 1.5 }}>
-                      {hookSuggestion.changes}
-                    </p>
-                  )}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="button" onClick={acceptHookImprovement} disabled={hookAccepting}
-                      className="btn btn-primary btn-sm" style={{ fontSize: '0.78rem', height: 32, paddingInline: 14 }}>
-                      {hookAccepting ? <><span className="spinner" style={{ width: 9, height: 9 }} /> Applying…</> : '✓ Use this hook'}
-                    </button>
-                    <button type="button" onClick={() => setHookSuggestion(null)}
-                      className="btn btn-ghost btn-sm" style={{ fontSize: '0.78rem', height: 32, paddingInline: 14 }}>
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Body */}
@@ -895,17 +856,23 @@ export default function Generate() {
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00C9A7' }}>
                   📖 {t('generate_body')} — {form.scriptLang === 'hi' ? 'मुख्य मूल्य' : 'Main value'}
                 </span>
+              </div>
+
+              <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
+
+              {/* Tweak Button below right */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'body' ? null : 'body'); setTweakValue('') }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,201,167,0.3)', background: 'rgba(0,201,167,0.06)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,201,167,0.3)', background: 'rgba(0,201,167,0.06)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.18)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.06)' }}
                 >✏️ Tweak</button>
               </div>
 
               {activeTweakSection === 'body' && (
-                <div style={{ display: 'flex', gap: 8, marginBlock: '8px 12px' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <input
                     type="text"
                     placeholder="e.g. explain the third point in more detail"
@@ -940,7 +907,6 @@ export default function Generate() {
                   </button>
                 </div>
               )}
-              <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
             </div>
 
             {/* CTA */}
@@ -949,17 +915,23 @@ export default function Generate() {
                 <span style={{ fontSize: '0.66rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#FFD60A' }}>
                   📣 {t('generate_cta')}
                 </span>
+              </div>
+
+              <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.cta}</p>
+
+              {/* Tweak Button below right */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'cta' ? null : 'cta'); setTweakValue('') }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(255,214,10,0.3)', background: 'rgba(255,214,10,0.06)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(255,214,10,0.3)', background: 'rgba(255,214,10,0.06)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.18)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.06)' }}
                 >✏️ Tweak</button>
               </div>
 
               {activeTweakSection === 'cta' && (
-                <div style={{ display: 'flex', gap: 8, marginBlock: '8px 12px' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <input
                     type="text"
                     placeholder="e.g. make the call to action sound more casual"
@@ -994,7 +966,6 @@ export default function Generate() {
                   </button>
                 </div>
               )}
-              <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.cta}</p>
             </div>
 
             {/* Footer */}
