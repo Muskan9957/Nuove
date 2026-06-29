@@ -136,6 +136,7 @@ export default function Generate() {
   const [rerolling, setRerolling]     = useState(false)
   const [customRefinement, setCustomRefinement] = useState('')
   const [tweakChanges, setTweakChanges] = useState(null)   // AI summary of what changed
+  const [rerollCount, setRerollCount] = usePersistentState('arc_gen_rerolls', 0)   // free retakes used (max 5 per topic)
   const customRefineRef = useRef(null)
   const [activeTweakSection, setActiveTweakSection] = useState(null)
   const [tweakValue, setTweakValue] = useState('')
