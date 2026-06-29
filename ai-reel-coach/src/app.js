@@ -2,6 +2,7 @@ const express   = require('express');
 const cors      = require('cors');
 const helmet    = require('helmet');
 const morgan    = require('morgan');
+const cookieParser = require('cookie-parser');
 const passport  = require('./config/passport');
 
 const authRoutes        = require('./routes/auth');
@@ -61,6 +62,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(morgan('dev'));
+app.use(cookieParser());
 app.use(passport.initialize());
 
 // ─── Body Parsing ─────────────────────────────────────────────────

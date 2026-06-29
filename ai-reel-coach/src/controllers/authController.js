@@ -5,6 +5,7 @@ const dns              = require('dns').promises;
 const { validationResult } = require('express-validator');
 const prisma           = require('../config/prisma');
 const { sendPasswordReset, sendWelcome, sendVerificationEmail } = require('../services/emailService');
+const abuseService     = require('../services/abuseService');
 
 // ─── Validate email domain has MX records ────────────────────────
 const isValidEmailDomain = async (email) => {
@@ -56,9 +57,31 @@ const register = async (req, res, next) => {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
 
+    // Abuse Assessment
+    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    const clientFingerprint = req.headers['x-device-fingerprint'] || req.cookies?.arc_device_token;
+    
+    const trustProfile = await abuseService.assessRegistrationTrust({
+      email,
+      ip,
+      userAgent,
+      clientFingerprint
+    });
+
+    if (trustProfile.isDisposable) {
+      return res.status(403).json({ error: 'Registration from temporary email providers is not allowed.' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
     // 6-digit one-time code — entered on the same screen, so no new tab/window opens
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Determine initial generations usage based on device history
+    let initialGenerationsUsed = 0;
+    if (trustProfile.existingUsage) {
+      initialGenerationsUsed = trustProfile.existingUsage.generationsUsed;
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -67,7 +90,40 @@ const register = async (req, res, next) => {
         name,
         emailVerified          : false,
         emailVerificationToken : verificationCode,
+        deviceHash             : trustProfile.deviceHash,
+        generationsUsed        : initialGenerationsUsed
       },
+    });
+
+    // Upsert DeviceUsage profile
+    await prisma.deviceUsage.upsert({
+      where: { deviceHash: trustProfile.deviceHash },
+      create: {
+        deviceHash: trustProfile.deviceHash,
+        trustLevel: trustProfile.trustLevel,
+        riskScore: trustProfile.riskScore,
+        accountCount: 1,
+        lastIpHash: trustProfile.ipHash,
+        lastUserAgentHash: trustProfile.uaHash,
+        lastRegistrationAt: new Date()
+      },
+      update: {
+        trustLevel: trustProfile.trustLevel,
+        riskScore: trustProfile.riskScore,
+        accountCount: { increment: 1 },
+        lastIpHash: trustProfile.ipHash,
+        lastUserAgentHash: trustProfile.uaHash,
+        lastRegistrationAt: new Date(),
+        lastSeenAt: new Date()
+      }
+    });
+
+    // Set signed cookie for trusted device tracking
+    res.cookie('arc_device_token', trustProfile.deviceHash, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 90 * 24 * 60 * 60 * 1000 // 90 days
     });
 
     // Send verification email with the code (non-blocking)
@@ -122,6 +178,21 @@ const login = async (req, res, next) => {
         .catch(err => console.error('[LOGIN] Failed to send verification email:', err.message));
 
       return res.status(403).json({ error: 'Please verify your email before logging in. We have sent a new link to your inbox.', needsVerification: true });
+    }
+
+    if (user.deviceHash) {
+      // Refresh token cookie
+      res.cookie('arc_device_token', user.deviceHash, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 90 * 24 * 60 * 60 * 1000
+      });
+      // Update last seen
+      await prisma.deviceUsage.updateMany({
+        where: { deviceHash: user.deviceHash },
+        data: { lastSeenAt: new Date() }
+      }).catch(() => {});
     }
 
     const token = signToken(user);

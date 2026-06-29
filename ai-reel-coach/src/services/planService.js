@@ -40,10 +40,24 @@ const checkGenerationLimit = async (userId) => {
  * Increments the generation counter after a successful generation.
  */
 const incrementGenerations = async (userId) => {
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: userId },
     data : { generationsUsed: { increment: 1 } },
+    select: { generationsUsed: true, deviceHash: true }
   });
+
+  if (user.deviceHash) {
+    const device = await prisma.deviceUsage.findUnique({ where: { deviceHash: user.deviceHash } });
+    if (device && user.generationsUsed > device.generationsUsed) {
+      await prisma.deviceUsage.update({
+        where: { deviceHash: user.deviceHash },
+        data: { 
+          generationsUsed: user.generationsUsed,
+          lastSeenAt: new Date()
+        }
+      }).catch(() => {});
+    }
+  }
 };
 
 // ─── Per-feature monthly limits (FREE tier) ──────────────────────────
