@@ -8,7 +8,7 @@ const instagramSignalProvider = require('./providers/instagramSignalProvider');
 const spotifyTrendProvider = require('./providers/spotifyTrendProvider');
 const staticFallbackProvider = require('./providers/staticFallbackProvider');
 const { normalizeNiche, normalizeRegion, normalizeScope } = require('./trendTaxonomy');
-const { cleanTrendText, sanitizeSignal, dedupeSignals, calculateCreatorRelevance, classifyTrend, TREND_TYPE_PRIORITIES, calculateQualityScore, abstractTrendTopic } = require('./trendSanitizer');
+const { cleanTrendText, sanitizeSignal, dedupeSignals, calculateCreatorRelevance, classifyTrend, TREND_TYPE_PRIORITIES, calculateQualityScore, abstractTrendTopic, calculateRegionalRelevanceScore, applyTimeDecay } = require('./trendSanitizer');
 
 const NICHE_PRIORITIES = {
   'photography': { primary: ['google-trends', 'youtube'], secondary: [], deprioritized: ['twitter', 'spotify', 'instagram'] },
@@ -30,114 +30,148 @@ function generateId(title) {
   return 'tr_' + crypto.createHash('md5').update(title).digest('hex').substring(0, 10);
 }
 
+function extractJsonArray(content) {
+  if (!content) return null;
+  let s = String(content).trim().replace(/```(?:json)?/gi, '').replace(/```/g, '');
+  const start = s.indexOf('[');
+  const end = s.lastIndexOf(']');
+  if (start === -1 || end === -1 || end < start) return null;
+  let jsonStr = s.substring(start, end + 1).replace(/,\s*([\]}])/g, '$1'); // strip trailing commas
+  try { return JSON.parse(jsonStr); } catch { return null; }
+}
+
 async function askClaude(prompt) {
-  // Routes to the configured provider (Gemini/Claude). 'fast' tier — title cleanup is simple.
-  const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
-  try {
-    const jsonStr = content.substring(content.indexOf('['), content.lastIndexOf(']') + 1);
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.error('LLM output that failed to parse:', content);
-    throw new Error('Failed to parse LLM response as JSON');
+  // Routes to the configured provider (Gemini/Claude). Retries once on a parse
+  // failure — Gemini occasionally emits slightly-malformed JSON.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const content = await llm.complete(prompt, { maxTokens: 4000, tier: 'fast' });
+    const parsed = extractJsonArray(content);
+    if (Array.isArray(parsed)) return parsed;
+    if (attempt === 0) {
+      prompt += '\n\nIMPORTANT: your previous reply was not valid JSON. Reply with ONLY a valid JSON array — no markdown fences, no commentary.';
+      continue;
+    }
+    console.error('LLM output that failed to parse:', String(content).slice(0, 300));
   }
+  throw new Error('Failed to parse LLM response as JSON');
 }
 
 // Map provider signals to the final trend schema without inventing trend titles.
 function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
-  const allItems = [];
+  const rawItems = [];
 
   for (const provider of Object.keys(filteredData)) {
     const items = filteredData[provider] || [];
     for (const item of items) {
       const sanitized = sanitizeSignal(item, niche);
       if (!sanitized) continue;
-
-      const title = sanitized.title;
-      const description = sanitized.description || item.snippet || '';
-
-      // 1. Calculate Quality Score (Quality Gate)
-      const qualityScore = calculateQualityScore(title, description, scope);
-      if (qualityScore < 40) continue; // Drop signal entirely if low quality
-
-      // 2. Trend Abstraction Layer
-      const abstractTitle = abstractTrendTopic(title, niche);
-
-      // 3. Calculate creator relevance score (0-100) using raw title for key matches
-      const creatorRelevanceScore = calculateCreatorRelevance(title, description, niche, scope);
-      if (creatorRelevanceScore <= 20) continue; // Drop heavily penalized news items
-
-      // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
-      const trendType = classifyTrend(title, description);
-
-      // 5. Compute normalized base raw score across providers
-      let baseScore = 0;
-      if (provider === 'youtube') {
-        // Scale down YouTube views (e.g., 2M views -> 100k score cap)
-        baseScore = Math.min((item.viewCount || 0) / 20, 100000);
-      } else if (provider === 'spotify') {
-        // Scale up Spotify popularity (0-100 -> 0-100k)
-        baseScore = (item.popularity || 0) * 1000;
-      } else {
-        // Google Trends/News sourceScore is already in a 0-200k range
-        baseScore = sanitized.sourceScore || sanitized.value || 0;
-      }
-
-      // 6. Adjust rank score based on relevance multiplier, trend type weight, and quality score weighting
-      const relevanceMultiplier = creatorRelevanceScore / 50.0;
-      const typeWeight = TREND_TYPE_PRIORITIES[trendType] || 1.0;
-      const qualityMultiplier = qualityScore / 100.0;
-      const adjustedRankScore = baseScore * relevanceMultiplier * typeWeight * qualityMultiplier;
-
-      allItems.push({
-        ...sanitized,
-        _originalTitle: title,
-        title: abstractTitle, // Use abstract title as default
-        _sourceProvider: provider,
-        _creatorRelevanceScore: creatorRelevanceScore,
-        _trendType: trendType,
-        _rankScore: adjustedRankScore,
-        _qualityScore: qualityScore,
-      });
+      
+      sanitized._sourceProvider = provider;
+      rawItems.push(sanitized);
     }
   }
 
-  const selectedItems = dedupeSignals(allItems)
+  // Cross-Source Verification & Aggregation
+  // Group signals that represent the same core concept across different platforms
+  const groupedConcepts = {};
+  for (const item of rawItems) {
+    const title = item.title;
+    const titleKey = title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!titleKey) continue;
+    
+    // Simplistic concept hash for aggregation (first 2 words > 3 chars)
+    const words = titleKey.split(' ').filter(w => w.length > 3);
+    const conceptSig = words.length >= 2 ? words.slice(0, 2).sort().join('_') : titleKey;
+
+    if (!groupedConcepts[conceptSig]) {
+      groupedConcepts[conceptSig] = {
+        masterTitle: title,
+        description: item.description || item.snippet || '',
+        providers: new Set(),
+        maxViewCount: 0,
+        bestPublishedAt: null,
+        evidence: []
+      };
+    }
+
+    const group = groupedConcepts[conceptSig];
+    group.providers.add(item._sourceProvider);
+    group.maxViewCount = Math.max(group.maxViewCount, item.viewCount || item.value || 0);
+    if (item.publishedAt && (!group.bestPublishedAt || new Date(item.publishedAt) > new Date(group.bestPublishedAt))) {
+      group.bestPublishedAt = item.publishedAt; // Keep the freshest date
+    }
+    
+    group.evidence.push({
+      source: item._sourceProvider,
+      title: item.title,
+      value: item.viewCount || item.value || undefined,
+      publishedAt: item.publishedAt
+    });
+  }
+
+  const allItems = [];
+  
+  for (const conceptSig in groupedConcepts) {
+    const group = groupedConcepts[conceptSig];
+    const title = group.masterTitle;
+    const description = group.description;
+
+    // 1. Calculate Quality Score (Quality Gate)
+    const qualityScore = calculateQualityScore(title, description, niche, scope);
+    if (qualityScore < 40) continue; // Drop signal entirely if low quality
+
+    // 2. Calculate Regional Relevance Score
+    const regionalScore = calculateRegionalRelevanceScore(title, description, region);
+
+    // 3. Calculate creator relevance score (0-100) using raw title for key matches
+    const creatorRelevanceScore = calculateCreatorRelevance(title, description, niche);
+    if (creatorRelevanceScore <= 20) continue; // Drop heavily penalized news items
+
+    // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
+    const trendType = classifyTrend(title, description);
+
+    // 5. Compute base raw score (with Time Decay)
+    let baseScore = group.maxViewCount || 100; // fallback base score if no views available
+    baseScore = applyTimeDecay(group.bestPublishedAt, baseScore);
+
+    // Cross-Source Multiplier
+    const multiSourceBoost = group.providers.size >= 2 ? 1.5 : 1.0;
+
+    const rankScore = baseScore * multiSourceBoost * (qualityScore / 100.0) * (creatorRelevanceScore / 50.0) * (regionalScore / 50.0);
+
+    allItems.push({
+      title,
+      description,
+      _creatorRelevanceScore: creatorRelevanceScore,
+      _trendType: trendType,
+      _qualityScore: qualityScore,
+      _rankScore: rankScore,
+      _sources: Array.from(group.providers),
+      _evidence: group.evidence
+    });
+  }
+
+  const selectedItems = allItems
     .sort((a, b) => (b._rankScore || 0) - (a._rankScore || 0))
     .slice(0, 10);
 
   return selectedItems.map(item => {
-    const title = cleanTrendText(item.title || item.query || item.topic || item.name || item.artist);
-    let description = cleanTrendText(item.description || item.snippet || '');
+    let description = cleanTrendText(item.description || '');
 
     if (!description) {
-      if (item._sourceProvider === 'youtube') description = `Popular recent YouTube signal for ${niche} in ${region}.`;
-      else if (item._sourceProvider === 'google-trends') description = `Google Trends is showing search interest for this ${niche} topic in ${region}.`;
-      else if (item._sourceProvider === 'spotify') description = `Spotify viral audio signal for music creators in ${region}.`;
-      else if (item._sourceProvider === 'twitter') description = `Fast-moving public conversation in the ${niche} space.`;
-      else description = `Live provider signal in the ${niche} space.`;
+      description = `Live cross-platform creator opportunity in the ${niche} space.`;
     }
 
-    let keywords = item.keywords || item.tags || [];
-    if (!Array.isArray(keywords)) keywords = [];
-    if (item.query) keywords.push(item.query);
-    if (item.artist) keywords.push(item.artist);
-    if (keywords.length === 0) keywords = [niche.toLowerCase(), item._sourceProvider];
+    const isMultiSource = item._sources.length > 1;
 
     return {
-      title,
+      title: item.title,
       description,
-      keywords: [...new Set(keywords.map(cleanTrendText).filter(Boolean))].slice(0, 5),
-      category: item.category || niche,
-      sources: [item._sourceProvider],
-      evidence: [{
-        source: item._sourceProvider,
-        title: item._originalTitle || title, // original title for evidence
-        value: item.value || item.viewCount || item.popularity || undefined,
-        growth: item.growth || undefined,
-        channelTitle: item.channelTitle || undefined,
-        publishedAt: item.publishedAt || undefined,
-      }],
-      confidence: item.growth === 'exploding' || item.viewCount > 100000 ? 'High' : 'Medium',
+      keywords: [niche.toLowerCase(), ...item._sources].slice(0, 5),
+      category: niche,
+      sources: item._sources,
+      evidence: item._evidence,
+      confidence: isMultiSource ? 'High' : 'Medium',
       nicheRelevanceScore: 95,
       creatorRelevanceScore: item._creatorRelevanceScore,
       trendType: item._trendType,
@@ -166,57 +200,110 @@ async function getTrendsV2(region, niche, scope = 'local') {
     'spotify': spotifyData
   };
 
-  // FIX 1: Enforce Niche Priorities
+  // For Global, drop anything that is ALSO trending locally in India, so the
+  // Global tab stays distinct from Local — even for globally-viral Indian
+  // content (e.g. a Punjabi song trending in both US/UK and India).
+  if (normalizedScope === 'global') {
+    try {
+      // Exclude whatever is trending in the user's OWN country (their Local tab).
+      const localRegion = (normalizedRegion && normalizedRegion !== 'Global') ? normalizedRegion : 'India';
+      const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      const [inYt, inGg] = await Promise.all([
+        youtubeTrendProvider.fetchTrends(localRegion, normalizedNiche).catch(() => []),
+        googleTrendProvider.fetchTrends(localRegion, normalizedNiche).catch(() => []),
+      ]);
+      const localItems = [...inYt, ...inGg].map(it => norm(it.title)).filter(Boolean);
+      const localWordSets = localItems.map(t => new Set(t.split(' ').filter(w => w.length > 3)));
+      const isLocal = (title) => {
+        const t = norm(title);
+        if (!t) return false;
+        if (localItems.includes(t)) return true;
+        const w = new Set(t.split(' ').filter(x => x.length > 3));
+        return localWordSets.some(ls => [...w].filter(x => ls.has(x)).length >= 2);
+      };
+      for (const prov of Object.keys(rawData)) {
+        rawData[prov] = (rawData[prov] || []).filter(it => !isLocal(it.title));
+      }
+    } catch (e) { /* if the India comparison fetch fails, keep global as-is */ }
+  }
+
   const priorityData = {};
   const allowedProviders = [...priorities.primary, ...priorities.secondary];
   let hasProviderData = false;
+
+  // Calculate Signal Coverage Score
+  let totalRawSignals = 0;
+  let freshSignals = 0;
   
   for (const provider of allowedProviders) {
     if (rawData[provider] && rawData[provider].length > 0) {
       priorityData[provider] = rawData[provider];
       hasProviderData = true;
+      
+      for (const item of rawData[provider]) {
+        totalRawSignals++;
+        if (item.publishedAt) {
+          const hoursOld = (Date.now() - new Date(item.publishedAt).getTime()) / (1000 * 60 * 60);
+          if (hoursOld <= 72) freshSignals++;
+        }
+      }
     }
   }
 
-  // If we have absolutely no priority provider data, use static fallback
-  if (!hasProviderData) {
-    console.log(`[TrendEngineV2] No priority provider data found for ${normalizedNiche}, falling back to static.`);
-    return staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope);
+  const signalCoverageScore = freshSignals; // Number of fresh, real-world signals collected
+
+  console.log(`[TrendEngineV2] Signal Coverage Score for ${normalizedNiche} in ${queryRegion}: ${signalCoverageScore} fresh signals (${totalRawSignals} total raw)`);
+
+  if (!hasProviderData || signalCoverageScore < 3) {
+    console.warn(`[TrendEngineV2] Weak Signal Coverage (${signalCoverageScore}) for ${normalizedNiche}. Triggering broadened discovery inside the niche.`);
+    // We already fetch broadly via EVENT and CREATOR queries. If it's still weak, 
+    // it implies an extremely slow news day for this niche in this specific region.
+    // Rather than falling back to General News (which is prohibited) or Static Data (prohibited),
+    // we will proceed with the signals we have, trusting the dual-stream to surface the best available.
   }
 
   // We are skipping the Claude filterRawSignals step to ensure it runs even when Claude is down/out of credits
-  // If you wish, you can add a try-catch around filterRawSignals and fall back to priorityData
   const filteredData = priorityData;
 
   // 2. Synthesize Programmatically FIRST
   let synthesizedTrends = programmaticSynthesizeTrends(filteredData, normalizedNiche, normalizedRegion, normalizedScope);
   
   if (synthesizedTrends.length === 0) {
-     return staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope);
+     console.warn(`[TrendEngineV2] 0 synthesized trends for ${normalizedNiche}. Returning empty array to prevent General News fallback.`);
+     return [];
   }
 
-  // Use Claude to extract the broad topic title and move specific viral video references to the description.
-  if (true) { // Always enable Claude enrichment to fix the viral video clickbait issue
+  // Clean up titles via the LLM. We send ONLY the titles/descriptions (tiny
+  // payload) — sending the full objects was slow and the model often corrupted
+  // the large JSON, which dropped us back to raw clickbait titles.
+  if (synthesizedTrends.length > 0) {
     try {
-      const prompt = `You are a social media trend analyzer. You will be given an array of trend objects.
-Some of these trends are derived from specific viral YouTube videos with clickbait or overly specific titles (e.g., "I BOUGHT A NEW CAMERA!", or "This video is getting viral").
-Your job is to:
-1. Change the 'title' to be the broad, generic topic being discussed (e.g., "New Camera Gear Trends", "Fitness Diet Hacks").
-2. Change the 'description' to briefly explain the trend, and you may mention that a specific video about this is currently going viral.
-Do NOT change the evidence array or any other IDs.
-Return ONLY a valid JSON array of objects with the updated 'title' and 'description' fields corresponding to the input array: ${JSON.stringify(synthesizedTrends)}`;
+      const slim = synthesizedTrends.map((t, i) => ({ i, title: t.title, description: t.description || '' }));
+      const prompt = `You are a social-media trend editor for creators. Below is a JSON array of REAL trends from live YouTube and Google Trends data.
+For EACH item, rewrite "title" into a clean, specific, headline-style topic (about 4-9 words) reflecting what a creator should make content about:
+- Remove clickbait, ALL-CAPS, emojis, channel names, hashtags, publisher suffixes and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
+- KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten into a vague category (avoid "Sports News", "Fitness Content", "Demand For X Is Rising").
+- IMPORTANT: Preserve authentic regional names and cultural festivals (e.g., 'Ganesh Chaturthi', 'Tokyo Game Show', 'Oktoberfest'). Do not genericize them into "Local Festival".
+- If the title is NOT in English (e.g. Japanese, Korean, Arabic), TRANSLATE it into clear, natural English while keeping proper nouns.
+- Rewrite "description" to one short factual sentence on what the trend is and why it's a good short-form video topic.
+Return ONLY a JSON array, each item exactly {"i": <same index number>, "title": "...", "description": "..."} — same length and order.
+Input: ${JSON.stringify(slim)}`;
 
-      const enrichedTrends = await askClaude(prompt);
-      if (Array.isArray(enrichedTrends) && enrichedTrends.length > 0) {
-        synthesizedTrends = synthesizedTrends.map((trend, index) => ({
-          ...trend,
-          title: cleanTrendText(enrichedTrends[index]?.title) || trend.title,
-          description: cleanTrendText(enrichedTrends[index]?.description) || trend.description,
-        }));
+      const enriched = await askClaude(prompt);
+      if (Array.isArray(enriched) && enriched.length) {
+        const byIndex = {};
+        enriched.forEach((e, k) => { const idx = (e && Number.isInteger(e.i)) ? e.i : k; byIndex[idx] = e; });
+        synthesizedTrends = synthesizedTrends.map((trend, index) => {
+          const e = byIndex[index] || {};
+          return {
+            ...trend,
+            title: cleanTrendText(e.title) || trend.title,
+            description: cleanTrendText(e.description) || trend.description,
+          };
+        });
       }
     } catch (err) {
-      console.log('[TrendEngineV2] Claude description enrichment failed or skipped.');
-      console.error(err.message || err);
+      console.log('[TrendEngineV2] Trend title enrichment failed, using cleaned raw titles.');
     }
   }
 
@@ -257,6 +344,10 @@ Return ONLY a valid JSON array of objects with the updated 'title' and 'descript
       createdAt: new Date().toISOString()
     };
   });
+
+  // We no longer fallback to static data if < 3 cards, because we must ensure 
+  // we only show real, verified signals (per user requirement). If the niche
+  // only has 1 or 2 real opportunities today, we only show those.
 
   return finalTrends;
 }
