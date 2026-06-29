@@ -273,6 +273,9 @@ export default function Generate() {
       const reader  = res.body.getReader()
       const decoder = new TextDecoder()
       let   buffer  = ''
+      
+      let pendingText = ''
+      let flushTimeout = null
 
       while (true) {
         const { done, value } = await reader.read()
@@ -288,8 +291,19 @@ export default function Generate() {
           try {
             const event = JSON.parse(line.slice(5).trim())
             if (event.type === 'chunk') {
-              setStreamText(prev => prev + event.text)
+              pendingText += event.text
+              if (!flushTimeout) {
+                flushTimeout = setTimeout(() => {
+                  setStreamText(prev => prev + pendingText)
+                  pendingText = ''
+                  flushTimeout = null
+                }, 40) // ~25 fps update rate to prevent lag
+              }
             } else if (event.type === 'script') {
+              if (flushTimeout) { clearTimeout(flushTimeout); flushTimeout = null }
+              setStreamText(prev => prev + pendingText) // flush remaining
+              pendingText = ''
+              
               setStreaming(false)
               setResult({ script: event.data, usage: event.usage, newBadges: event.newBadges })
               if (event.newStreak !== undefined) {
