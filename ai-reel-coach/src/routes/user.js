@@ -33,13 +33,25 @@ router.delete('/account', auth, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where : { id: req.user.id },
-      select: { stripeSubId: true, plan: true },
+      select: { stripeSubId: true, plan: true, deviceHash: true, generationsUsed: true },
     })
     // Cancel any active paid subscription first (best-effort — don't block deletion)
     if (user?.stripeSubId && user.plan !== 'FREE') {
       try { await razorpayService.cancelSubscription(user.stripeSubId, false) }
       catch (e) { console.error('[delete-account] subscription cancel failed:', e.message) }
     }
+
+    // Sync final usage back to DeviceUsage before destroying the User record
+    if (user?.deviceHash) {
+      const device = await prisma.deviceUsage.findUnique({ where: { deviceHash: user.deviceHash } })
+      if (device && user.generationsUsed > device.generationsUsed) {
+        await prisma.deviceUsage.update({
+          where: { deviceHash: user.deviceHash },
+          data: { generationsUsed: user.generationsUsed }
+        }).catch(() => {})
+      }
+    }
+
     // Cascade-deletes scripts, chats, templates, usage counters, etc.
     await prisma.user.delete({ where: { id: req.user.id } })
     return res.json({ ok: true, message: 'Your account and all associated data have been permanently deleted.' })

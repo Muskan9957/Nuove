@@ -34,6 +34,7 @@ model User {
   creatorStyle            String?   // JSON: AI-extracted voice fingerprint (premium feature)
   emailVerified           Boolean   @default(false)
   emailVerificationToken  String?
+  deviceHash              String?
 
   scripts          Script[]
   hookScores       HookScore[]
@@ -44,6 +45,23 @@ model User {
   weeklyReports    WeeklyReport[]
   chatMessages     ChatMessage[]
   usageCounters    UsageCounter[]
+}
+
+model DeviceUsage {
+  deviceHash          String   @id
+  trustLevel          String   @default("NORMAL") // TRUSTED | NORMAL | SUSPICIOUS | RESTRICTED
+  generationsUsed     Int      @default(0)
+  accountCount        Int      @default(1)
+  riskScore           Int      @default(0)
+  
+  lastSeenAt          DateTime @default(now())
+  lastRegistrationAt  DateTime @default(now())
+  lastIpHash          String?
+  lastUserAgentHash   String?
+  lastCountry         String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 // Per-feature monthly usage (captions, coach, remix, …). Scripts keep using
