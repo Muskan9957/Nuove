@@ -92,14 +92,30 @@ function sanitizeSignal(item, niche) {
 }
 
 function dedupeSignals(items) {
-  const seen = new Set()
+  const seenTitles = new Set();
+  const seenConcepts = new Set(); // For Diversity Constraint
+
   return items.filter(item => {
-    const title = cleanTrendText(item?.title || item?.query || '')
-    const key = title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-    if (!key || seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+    const title = cleanTrendText(item?.title || item?.query || '');
+    const titleKey = title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!titleKey || seenTitles.has(titleKey)) return false;
+    seenTitles.add(titleKey);
+
+    // Extract core words for diversity constraint (e.g. "GTA 6 Gameplay" vs "GTA 6 Trailer")
+    // Keep words > 3 chars
+    const words = titleKey.split(' ').filter(w => w.length > 3);
+    if (words.length >= 2) {
+      // Create a signature of the first 2 significant words
+      const conceptSig = words.slice(0, 2).sort().join('_');
+      if (seenConcepts.has(conceptSig)) {
+        // We already have a highly similar concept, enforce diversity
+        return false;
+      }
+      seenConcepts.add(conceptSig);
+    }
+
+    return true;
+  });
 }
 
 const TUTORIAL_KEYWORDS = [
@@ -108,50 +124,49 @@ const TUTORIAL_KEYWORDS = [
   'diy', 'lesson', 'lessons', 'teach', 'teaching'
 ];
 
-const CHALLENGE_KEYWORDS = [
-  'challenge', 'challenges', 'vs', 'experiment', 'test', 'attempt', 'trying', 'routine',
-  'routines', 'workout routine', 'ppl', 'split', 'reset', 'day challenge', 'days challenge',
-  'attempting', 'testing'
-];
-
-const TOOL_KEYWORDS = [
-  'tool', 'tools', 'software', 'app', 'apps', 'gear', 'equipment', 'camera', 'lens', 'lenses',
-  'preset', 'presets', 'lightroom', 'premiere', 'davinci', 'capcut', 'photoshop', 'plugin',
-  'plugins', 'gadget', 'gadgets', 'setup', 'rig', 'microphones', 'mic'
-];
-
 const WORKFLOW_KEYWORDS = [
   'workflow', 'workflows', 'process', 'pipeline', 'method', 'methods', 'editing style',
   'editing workflow', 'routine', 'routines', 'automation', 'automations', 'automate',
-  'system', 'systems', 'production'
+  'system', 'systems', 'production', 'productivity', 'efficiency'
 ];
 
-const TECHNIQUE_KEYWORDS = [
-  'technique', 'techniques', 'composition', 'cinematography', 'color grade', 'color grading',
-  'lighting', 'b-roll', 'storytelling', 'nomad', 'framing', 'grading', 'grade', 'shot list'
+const CHALLENGE_KEYWORDS = [
+  'challenge', 'challenges', 'experiment', 'test', 'attempt', 'trying',
+  'day challenge', 'days challenge', 'attempting', 'testing'
 ];
 
-const DISCUSSION_KEYWORDS = [
-  'discussion', 'debate', 'trend', 'trends', 'hype', 'nomad trends', 'strategies', 'strategy',
-  'growth', 'personal finance', 'talk', 'opinion', 'opinions', 'review', 'reviews', 'ideas',
-  'idea', 'thoughts', 'podcast', 'interview'
+const PRODUCT_LAUNCH_KEYWORDS = [
+  'launch', 'launches', 'announcement', 'announces', 'new feature', 'new product',
+  'release', 'released', 'revealed', 'unveiled', 'update', 'patch'
 ];
 
-const INDUSTRY_NEWS_KEYWORDS = [
-  'launch', 'launches', 'announcement', 'announces', 'earnings', 'funding', 'startup',
-  'startups', 'investment', 'investments', 'stock market', 'etf', 'tournament', 'tournaments',
-  'match', 'matches', 'league', 'ipl', 'world cup', 'acquisition', 'acquired', 'merger',
-  'raise', 'raised', 'funding round', 'new product'
+const FESTIVAL_SEASONAL_KEYWORDS = [
+  'festival', 'festivals', 'pride', 'oktoberfest', 'tomorrowland', 'chaturthi', 'puja',
+  'season', 'seasonal', 'holiday', 'christmas', 'halloween', 'summer', 'winter', 'spring', 'autumn'
+];
+
+const DESTINATION_EXPERIENCE_KEYWORDS = [
+  'destination', 'destinations', 'experience', 'experiences', 'visit', 'visiting', 'travel',
+  'hidden gem', 'hidden gems', 'cafe', 'restaurant', 'hotel', 'resort', 'beach', 'mountain'
+];
+
+const REVIEW_COMPARISON_KEYWORDS = [
+  'review', 'reviews', 'vs', 'versus', 'comparison', 'compare', 'comparing', 'worth it',
+  'verdict', 'reaction', 'reacts', 'reacting'
+];
+
+const COMMUNITY_DISCUSSION_KEYWORDS = [
+  'discussion', 'debate', 'trend', 'trends', 'hype', 'strategies', 'strategy',
+  'growth', 'talk', 'opinion', 'opinions', 'ideas', 'idea', 'thoughts', 'podcast', 'interview'
 ];
 
 const BREAKING_NEWS_KEYWORDS = [
   'murder', 'murders', 'killed', 'kill', 'killing', 'dead', 'death', 'arrest', 'arrested',
-  'arrests', 'crime', 'crimes', 'court', 'case', 'cases', 'lawsuit', 'lawsuits', 'sue',
-  'sued', 'sues', 'scandal', 'scandals', 'controversy', 'controversies', 'theft', 'thefts',
-  'steal', 'stolen', 'robbery', 'robbed', 'incident', 'incidents', 'accident', 'accidents',
-  'crash', 'crashed', 'police', 'shoot', 'shooting', 'shootings', 'stab', 'stabbed', 'assault',
-  'assaulted', 'victim', 'suspect', 'guilty', 'jail', 'prison', 'disaster', 'disasters',
-  'layoff', 'layoffs', 'drama'
+  'crime', 'crimes', 'court', 'case', 'cases', 'lawsuit', 'lawsuits', 'sue', 'sued', 'sues',
+  'scandal', 'scandals', 'controversy', 'controversies', 'theft', 'thefts', 'steal', 'stolen',
+  'robbery', 'robbed', 'incident', 'incidents', 'accident', 'accidents', 'crash', 'crashed',
+  'police', 'shoot', 'shooting', 'shootings', 'stab', 'stabbed', 'assault', 'assaulted',
+  'victim', 'suspect', 'guilty', 'jail', 'prison', 'disaster', 'disasters', 'layoff', 'layoffs'
 ];
 
 const CREATOR_BOOSTS = {
@@ -252,14 +267,16 @@ const GENERIC_NEWS_DEPRIORITIZE = [
 ];
 
 const TREND_TYPE_PRIORITIES = {
-  'Tutorial': 1.5,
-  'Challenge': 1.35,
-  'Tool': 1.2,
-  'Workflow': 1.1,
-  'Technique': 1.05,
-  'Discussion': 1.0,
-  'Industry News': 0.8,
-  'Breaking News': 0.4
+  'Tutorial / How-to': 1.5,
+  'Workflow / Productivity': 1.4,
+  'Challenge': 1.3,
+  'New Feature / Product Launch': 1.2,
+  'Festival / Seasonal Event': 1.15,
+  'Destination / Experience': 1.1,
+  'Review / Comparison': 1.05,
+  'Community Discussion': 1.0,
+  'Trend / Meme': 0.8,
+  'Breaking News': 0.2
 };
 
 function matchesAny(text, keywords) {
@@ -287,46 +304,101 @@ function countKeywordMatches(text, keywords) {
 function classifyTrend(title, description) {
   const text = `${title} ${description || ''}`.toLowerCase();
   
-  if (matchesAny(text, TUTORIAL_KEYWORDS)) return 'Tutorial';
+  if (matchesAny(text, TUTORIAL_KEYWORDS)) return 'Tutorial / How-to';
+  if (matchesAny(text, WORKFLOW_KEYWORDS)) return 'Workflow / Productivity';
   if (matchesAny(text, CHALLENGE_KEYWORDS)) return 'Challenge';
-  if (matchesAny(text, TOOL_KEYWORDS)) return 'Tool';
-  if (matchesAny(text, WORKFLOW_KEYWORDS)) return 'Workflow';
-  if (matchesAny(text, TECHNIQUE_KEYWORDS)) return 'Technique';
-  if (matchesAny(text, DISCUSSION_KEYWORDS)) return 'Discussion';
-  if (matchesAny(text, INDUSTRY_NEWS_KEYWORDS)) return 'Industry News';
-  return 'Breaking News';
+  if (matchesAny(text, PRODUCT_LAUNCH_KEYWORDS)) return 'New Feature / Product Launch';
+  if (matchesAny(text, FESTIVAL_SEASONAL_KEYWORDS)) return 'Festival / Seasonal Event';
+  if (matchesAny(text, DESTINATION_EXPERIENCE_KEYWORDS)) return 'Destination / Experience';
+  if (matchesAny(text, REVIEW_COMPARISON_KEYWORDS)) return 'Review / Comparison';
+  if (matchesAny(text, COMMUNITY_DISCUSSION_KEYWORDS)) return 'Community Discussion';
+  if (matchesAny(text, BREAKING_NEWS_KEYWORDS)) return 'Breaking News';
+  return 'Trend / Meme';
 }
 
-function calculateCreatorRelevance(title, description, niche, scope = 'local') {
-  const normalizedNiche = normalizeNiche(niche);
-  const text = `${title} ${description || ''}`;
+function calculateRegionalRelevanceScore(title, description, region = 'Global') {
+  if (region === 'Global') return 50; // Neutral baseline for global
 
+  const text = `${title} ${description || ''}`.toLowerCase();
   let score = 50;
 
-  if (scope === 'global') {
-    const geoTerms = ['india', 'indian', 'indians', 'delhi', 'mumbai', 'bangalore', 'pune', 'chennai', 'kerala', 'goa', 'bollywood', 'bengaluru', 'hyderabad', 'kolkata', 'leh', 'ladakh', 'rupee', 'himalaya', 'himalayas', 'rajasthan'];
-    const geoRegex = new RegExp(`\\b(${geoTerms.join('|')})\\b`, 'gi');
+  // Example mappings; ideally this should be imported from a geo dictionary, but this covers major bases
+  const geoTerms = {
+    'India': ['india', 'indian', 'indians', 'delhi', 'mumbai', 'bangalore', 'pune', 'chennai', 'kerala', 'goa', 'bollywood', 'bengaluru', 'hyderabad', 'kolkata', 'leh', 'ladakh', 'rupee', 'himalaya', 'himalayas', 'rajasthan'],
+    'Spain': ['spain', 'spanish', 'madrid', 'barcelona', 'valencia', 'seville', 'andalusia', 'ibiza', 'mallorca', 'euro', 'europe'],
+    'UAE': ['uae', 'emirates', 'dubai', 'abudhabi', 'abu dhabi', 'sharjah', 'middle east', 'arab', 'dirham'],
+    'Japan': ['japan', 'japanese', 'tokyo', 'kyoto', 'osaka', 'hokkaido', 'anime', 'manga', 'yen', 'asia'],
+    'US': ['us', 'usa', 'america', 'american', 'new york', 'california', 'texas', 'florida', 'los angeles', 'chicago', 'dollar']
+  };
+
+  const terms = geoTerms[region];
+  if (terms) {
+    const geoRegex = new RegExp(`\\b(${terms.join('|')})\\b`, 'i');
     if (geoRegex.test(text)) {
-      return 0;
+      score += 30;
     }
   }
 
-  const specificBoosts = CREATOR_BOOSTS[normalizedNiche] || [];
-  const specificDeprioritize = CREATOR_DEPRIORITIZE[normalizedNiche] || [];
-
-  score += countKeywordMatches(text, specificBoosts) * 15;
-  score += countKeywordMatches(text, GENERIC_CREATOR_BOOSTS) * 10;
-  
-  score -= countKeywordMatches(text, specificDeprioritize) * 30;
-  score -= countKeywordMatches(text, GENERIC_NEWS_DEPRIORITIZE) * 20;
+  // Penalize if it explicitly mentions a DIFFERENT major region heavily, but don't outright reject
+  const otherRegions = Object.keys(geoTerms).filter(r => r !== region);
+  for (const other of otherRegions) {
+    const otherRegex = new RegExp(`\\b(${geoTerms[other].join('|')})\\b`, 'i');
+    if (otherRegex.test(text)) {
+      score -= 20;
+    }
+  }
 
   return Math.max(0, Math.min(100, score));
 }
 
-function calculateQualityScore(title, description, scope = 'local') {
+function calculateCreatorRelevance(title, description, niche) {
+  const normalizedNiche = normalizeNiche(niche);
+  const text = `${title} ${description || ''}`;
+  const trendType = classifyTrend(title, description);
+  const typeMultiplier = TREND_TYPE_PRIORITIES[trendType] || 1.0;
+
+  let baseScore = 50;
+
+  const specificBoosts = CREATOR_BOOSTS[normalizedNiche] || [];
+  const specificDeprioritize = CREATOR_DEPRIORITIZE[normalizedNiche] || [];
+
+  baseScore += countKeywordMatches(text, specificBoosts) * 15;
+  baseScore += countKeywordMatches(text, GENERIC_CREATOR_BOOSTS) * 10;
+  
+  baseScore -= countKeywordMatches(text, specificDeprioritize) * 30;
+  baseScore -= countKeywordMatches(text, GENERIC_NEWS_DEPRIORITIZE) * 20;
+
+  let finalScore = baseScore * typeMultiplier;
+
+  // Heavily penalize concepts that violate niche intent
+  if (finalScore < 30) {
+    finalScore *= 0.5;
+  }
+
+  return Math.max(0, Math.min(100, finalScore));
+}
+
+function applyTimeDecay(publishedAt, baseScore) {
+  if (!publishedAt) return baseScore;
+  const pubDate = new Date(publishedAt);
+  if (isNaN(pubDate.getTime())) return baseScore;
+
+  const hoursOld = (Date.now() - pubDate.getTime()) / (1000 * 60 * 60);
+  
+  if (hoursOld <= 24) return baseScore * 1.5; // Massive boost for today
+  if (hoursOld <= 72) return baseScore * 1.2; // Medium boost for last 3 days
+  if (hoursOld <= 168) return baseScore * 1.0; // Neutral for last 7 days
+  
+  // Exponential decay for older trends
+  const decayFactor = Math.pow(0.9, (hoursOld - 168) / 24); 
+  return baseScore * Math.max(decayFactor, 0.2); // Never drop below 20%
+}
+
+function calculateQualityScore(title, description, niche, scope = 'local') {
   const cleanTitle = cleanTrendText(title || '');
   const cleanDesc = cleanTrendText(description || '');
   const text = `${cleanTitle} ${cleanDesc}`.toLowerCase();
+  const normalizedNiche = normalizeNiche(niche);
 
   // 1. REJECTION CRITERIA (Instant Score = 0)
   
@@ -345,6 +417,12 @@ function calculateQualityScore(title, description, scope = 'local') {
   // Clickbait begging / personal phrases
   const clickbaitBeggingRegex = /\b(dontflop|blowup|makemefamous|viral\s*video|subscribe\s*now|click\s*here|follow\s*me|support\s*me|like\s*share|sub\s*to|pls\s*sub|plz\s*sub)\b/i;
   if (clickbaitBeggingRegex.test(text)) return 0;
+
+  // Strict Rejection: Crime, Court, Scandal (Unless Geopolitics)
+  if (normalizedNiche !== 'geopolitics') {
+    const crimePoliticsRegex = /\b(murder|killed|assassinated|arrested|rape|molest|lawsuit|sues|sued|scandal|court|jail|prison|crash|accident|death|dead)\b/i;
+    if (crimePoliticsRegex.test(text)) return 0;
+  }
 
   // Hinglish / regional slang particles (word boundaries)
   const regionalSlangRegex = /\b(yrr|yaar|bhai|bro\b|plz|pls|guys\b)/i;
@@ -366,7 +444,6 @@ function calculateQualityScore(title, description, scope = 'local') {
   if (pipeCount >= 2 || commaCount >= 3 || slashCount >= 3) return 0;
 
   // 2. SCORING DEDUCTIONS
-
   let score = 100;
 
   // Shouting (all uppercase)
@@ -385,14 +462,6 @@ function calculateQualityScore(title, description, scope = 'local') {
   const clickbaitPhrases = /\b(omg|shocking|unbelievable|you\s*won't\s*believe|revealed|secret\s*revealed|exposed)\b/i;
   if (clickbaitPhrases.test(text)) {
     score -= 25;
-  }
-
-  // Global Feed strictness penalty
-  if (scope === 'global') {
-    const regionalMarkers = /\b(hindi|tamil|telugu|kannada|malayalam|bhojpuri|punjabi|marathi|gujarati|bengali|urdu|arabic|indonesian|malay)\b/i;
-    if (regionalMarkers.test(text)) {
-      score = Math.min(score, 10); // cap score at 10 for regional content in global scope
-    }
   }
 
   return Math.max(0, score);
@@ -707,6 +776,8 @@ module.exports = {
   dedupeSignals,
   classifyTrend,
   calculateCreatorRelevance,
+  calculateRegionalRelevanceScore,
+  applyTimeDecay,
   TREND_TYPE_PRIORITIES,
   calculateQualityScore,
   abstractTrendTopic,

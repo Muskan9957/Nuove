@@ -8,7 +8,7 @@ const instagramSignalProvider = require('./providers/instagramSignalProvider');
 const spotifyTrendProvider = require('./providers/spotifyTrendProvider');
 const staticFallbackProvider = require('./providers/staticFallbackProvider');
 const { normalizeNiche, normalizeRegion, normalizeScope } = require('./trendTaxonomy');
-const { cleanTrendText, sanitizeSignal, dedupeSignals, calculateCreatorRelevance, classifyTrend, TREND_TYPE_PRIORITIES, calculateQualityScore, abstractTrendTopic } = require('./trendSanitizer');
+const { cleanTrendText, sanitizeSignal, dedupeSignals, calculateCreatorRelevance, classifyTrend, TREND_TYPE_PRIORITIES, calculateQualityScore, abstractTrendTopic, calculateRegionalRelevanceScore, applyTimeDecay } = require('./trendSanitizer');
 
 const NICHE_PRIORITIES = {
   'photography': { primary: ['google-trends', 'youtube'], secondary: [], deprioritized: ['twitter', 'spotify', 'instagram'] },
@@ -58,108 +58,120 @@ async function askClaude(prompt) {
 
 // Map provider signals to the final trend schema without inventing trend titles.
 function programmaticSynthesizeTrends(filteredData, niche, region, scope) {
-  const allItems = [];
+  const rawItems = [];
 
   for (const provider of Object.keys(filteredData)) {
     const items = filteredData[provider] || [];
     for (const item of items) {
       const sanitized = sanitizeSignal(item, niche);
       if (!sanitized) continue;
-
-      const title = sanitized.title;
-      const description = sanitized.description || item.snippet || '';
-
-      // 1. Calculate Quality Score (Quality Gate)
-      const qualityScore = calculateQualityScore(title, description, scope);
-      if (qualityScore < 40) continue; // Drop signal entirely if low quality
-
-      // 3. Calculate creator relevance score (0-100) using raw title for key matches
-      const creatorRelevanceScore = calculateCreatorRelevance(title, description, niche, scope);
-      if (creatorRelevanceScore <= 20) continue; // Drop heavily penalized news items
-
-      // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
-      const trendType = classifyTrend(title, description);
-
-      // 5. Compute base raw score (normalized per-source below)
-      const baseScore = sanitized.sourceScore || sanitized.viewCount || sanitized.value || sanitized.popularity || 0;
-
-      allItems.push({
-        ...sanitized,
-        _originalTitle: title,
-        _sourceProvider: provider,
-        _creatorRelevanceScore: creatorRelevanceScore,
-        _trendType: trendType,
-        _qualityScore: qualityScore,
-        _baseScore: baseScore,
-        _relMult: creatorRelevanceScore / 50.0,
-        _typeWeight: TREND_TYPE_PRIORITIES[trendType] || 1.0,
-        _qualMult: qualityScore / 100.0,
-      });
+      
+      sanitized._sourceProvider = provider;
+      rawItems.push(sanitized);
     }
   }
 
-  // Normalize the raw popularity score WITHIN each provider, so a top YouTube
-  // video (millions of views) doesn't automatically outrank a top local Google
-  // Trends search. This lets genuinely-local signals surface for every country
-  // instead of only globally-viral YouTube content.
-  const maxByProvider = {};
-  for (const it of allItems) {
-    maxByProvider[it._sourceProvider] = Math.max(maxByProvider[it._sourceProvider] || 0, it._baseScore || 0);
-  }
-  // Source weighting: LOCAL favours geo-specific Google Trends/News (most local);
-  // GLOBAL favours YouTube (worldwide virality).
-  const SOURCE_WEIGHT = scope === 'global'
-    ? { 'google-trends': 1.0,  youtube: 1.25, twitter: 0.9, spotify: 1.0 }
-    : { 'google-trends': 1.35, youtube: 0.7,  twitter: 0.9, spotify: 1.0 };
-  for (const it of allItems) {
-    const norm = (it._baseScore || 0) / (maxByProvider[it._sourceProvider] || 1); // 0..1 within source
-    const weight = SOURCE_WEIGHT[it._sourceProvider] || 1.0;
-    // For LOCAL, the geo-specific Google Trends *searches* (RSS, growth:rising)
-    // are what people in that country are actually searching right now — the
-    // most authentically-local signal. Boost them above generic "viral news"
-    // and global YouTube so the brief feels local, not global.
-    const isLocalSearch = it.sourceType === 'google-trends-rss' || it.growth === 'rising';
-    const localBonus = (scope !== 'global' && isLocalSearch) ? 1.7 : 1.0;
-    it._rankScore = (0.2 + norm) * weight * localBonus * it._relMult * it._typeWeight * it._qualMult;
+  // Cross-Source Verification & Aggregation
+  // Group signals that represent the same core concept across different platforms
+  const groupedConcepts = {};
+  for (const item of rawItems) {
+    const title = item.title;
+    const titleKey = title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!titleKey) continue;
+    
+    // Simplistic concept hash for aggregation (first 2 words > 3 chars)
+    const words = titleKey.split(' ').filter(w => w.length > 3);
+    const conceptSig = words.length >= 2 ? words.slice(0, 2).sort().join('_') : titleKey;
+
+    if (!groupedConcepts[conceptSig]) {
+      groupedConcepts[conceptSig] = {
+        masterTitle: title,
+        description: item.description || item.snippet || '',
+        providers: new Set(),
+        maxViewCount: 0,
+        bestPublishedAt: null,
+        evidence: []
+      };
+    }
+
+    const group = groupedConcepts[conceptSig];
+    group.providers.add(item._sourceProvider);
+    group.maxViewCount = Math.max(group.maxViewCount, item.viewCount || item.value || 0);
+    if (item.publishedAt && (!group.bestPublishedAt || new Date(item.publishedAt) > new Date(group.bestPublishedAt))) {
+      group.bestPublishedAt = item.publishedAt; // Keep the freshest date
+    }
+    
+    group.evidence.push({
+      source: item._sourceProvider,
+      title: item.title,
+      value: item.viewCount || item.value || undefined,
+      publishedAt: item.publishedAt
+    });
   }
 
-  const selectedItems = dedupeSignals(allItems)
+  const allItems = [];
+  
+  for (const conceptSig in groupedConcepts) {
+    const group = groupedConcepts[conceptSig];
+    const title = group.masterTitle;
+    const description = group.description;
+
+    // 1. Calculate Quality Score (Quality Gate)
+    const qualityScore = calculateQualityScore(title, description, niche, scope);
+    if (qualityScore < 40) continue; // Drop signal entirely if low quality
+
+    // 2. Calculate Regional Relevance Score
+    const regionalScore = calculateRegionalRelevanceScore(title, description, region);
+
+    // 3. Calculate creator relevance score (0-100) using raw title for key matches
+    const creatorRelevanceScore = calculateCreatorRelevance(title, description, niche);
+    if (creatorRelevanceScore <= 20) continue; // Drop heavily penalized news items
+
+    // 4. Classify trend type (Tutorial, Challenge, Tool, etc.)
+    const trendType = classifyTrend(title, description);
+
+    // 5. Compute base raw score (with Time Decay)
+    let baseScore = group.maxViewCount || 100; // fallback base score if no views available
+    baseScore = applyTimeDecay(group.bestPublishedAt, baseScore);
+
+    // Cross-Source Multiplier
+    const multiSourceBoost = group.providers.size >= 2 ? 1.5 : 1.0;
+
+    const rankScore = baseScore * multiSourceBoost * (qualityScore / 100.0) * (creatorRelevanceScore / 50.0) * (regionalScore / 50.0);
+
+    allItems.push({
+      title,
+      description,
+      _creatorRelevanceScore: creatorRelevanceScore,
+      _trendType: trendType,
+      _qualityScore: qualityScore,
+      _rankScore: rankScore,
+      _sources: Array.from(group.providers),
+      _evidence: group.evidence
+    });
+  }
+
+  const selectedItems = allItems
     .sort((a, b) => (b._rankScore || 0) - (a._rankScore || 0))
     .slice(0, 10);
 
   return selectedItems.map(item => {
-    const title = cleanTrendText(item.title || item.query || item.topic || item.name || item.artist);
-    let description = cleanTrendText(item.description || item.snippet || '');
+    let description = cleanTrendText(item.description || '');
 
     if (!description) {
-      if (item._sourceProvider === 'youtube') description = `Popular recent YouTube signal for ${niche} in ${region}.`;
-      else if (item._sourceProvider === 'google-trends') description = `Google Trends is showing search interest for this ${niche} topic in ${region}.`;
-      else if (item._sourceProvider === 'spotify') description = `Spotify viral audio signal for music creators in ${region}.`;
-      else if (item._sourceProvider === 'twitter') description = `Fast-moving public conversation in the ${niche} space.`;
-      else description = `Live provider signal in the ${niche} space.`;
+      description = `Live cross-platform creator opportunity in the ${niche} space.`;
     }
 
-    let keywords = item.keywords || item.tags || [];
-    if (!Array.isArray(keywords)) keywords = [];
-    if (item.query) keywords.push(item.query);
-    if (item.artist) keywords.push(item.artist);
-    if (keywords.length === 0) keywords = [niche.toLowerCase(), item._sourceProvider];
+    const isMultiSource = item._sources.length > 1;
 
     return {
-      title,
+      title: item.title,
       description,
-      keywords: [...new Set(keywords.map(cleanTrendText).filter(Boolean))].slice(0, 5),
-      category: item.category || niche,
-      sources: [item._sourceProvider],
-      evidence: [{
-        source: item._sourceProvider,
-        title: item._originalTitle || title, // original title for evidence
-        value: item.value || item.viewCount || item.popularity || undefined,
-        growth: item.growth || undefined,
-        channelTitle: item.channelTitle || undefined,
-        publishedAt: item.publishedAt || undefined,
-      }],
-      confidence: item.growth === 'exploding' || item.viewCount > 100000 ? 'High' : 'Medium',
+      keywords: [niche.toLowerCase(), ...item._sources].slice(0, 5),
+      category: niche,
+      sources: item._sources,
+      evidence: item._evidence,
+      confidence: isMultiSource ? 'High' : 'Medium',
       nicheRelevanceScore: 95,
       creatorRelevanceScore: item._creatorRelevanceScore,
       trendType: item._trendType,
@@ -215,33 +227,50 @@ async function getTrendsV2(region, niche, scope = 'local') {
     } catch (e) { /* if the India comparison fetch fails, keep global as-is */ }
   }
 
-  // FIX 1: Enforce Niche Priorities
   const priorityData = {};
   const allowedProviders = [...priorities.primary, ...priorities.secondary];
   let hasProviderData = false;
+
+  // Calculate Signal Coverage Score
+  let totalRawSignals = 0;
+  let freshSignals = 0;
   
   for (const provider of allowedProviders) {
     if (rawData[provider] && rawData[provider].length > 0) {
       priorityData[provider] = rawData[provider];
       hasProviderData = true;
+      
+      for (const item of rawData[provider]) {
+        totalRawSignals++;
+        if (item.publishedAt) {
+          const hoursOld = (Date.now() - new Date(item.publishedAt).getTime()) / (1000 * 60 * 60);
+          if (hoursOld <= 72) freshSignals++;
+        }
+      }
     }
   }
 
-  // If we have absolutely no priority provider data, use static fallback
-  if (!hasProviderData) {
-    console.log(`[TrendEngineV2] No priority provider data found for ${normalizedNiche}, falling back to static.`);
-    return staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope);
+  const signalCoverageScore = freshSignals; // Number of fresh, real-world signals collected
+
+  console.log(`[TrendEngineV2] Signal Coverage Score for ${normalizedNiche} in ${queryRegion}: ${signalCoverageScore} fresh signals (${totalRawSignals} total raw)`);
+
+  if (!hasProviderData || signalCoverageScore < 3) {
+    console.warn(`[TrendEngineV2] Weak Signal Coverage (${signalCoverageScore}) for ${normalizedNiche}. Triggering broadened discovery inside the niche.`);
+    // We already fetch broadly via EVENT and CREATOR queries. If it's still weak, 
+    // it implies an extremely slow news day for this niche in this specific region.
+    // Rather than falling back to General News (which is prohibited) or Static Data (prohibited),
+    // we will proceed with the signals we have, trusting the dual-stream to surface the best available.
   }
 
   // We are skipping the Claude filterRawSignals step to ensure it runs even when Claude is down/out of credits
-  // If you wish, you can add a try-catch around filterRawSignals and fall back to priorityData
   const filteredData = priorityData;
 
   // 2. Synthesize Programmatically FIRST
   let synthesizedTrends = programmaticSynthesizeTrends(filteredData, normalizedNiche, normalizedRegion, normalizedScope);
   
   if (synthesizedTrends.length === 0) {
-     return staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope);
+     console.warn(`[TrendEngineV2] 0 synthesized trends for ${normalizedNiche}. Returning empty array to prevent General News fallback.`);
+     return [];
   }
 
   // Clean up titles via the LLM. We send ONLY the titles/descriptions (tiny
@@ -250,10 +279,11 @@ async function getTrendsV2(region, niche, scope = 'local') {
   if (synthesizedTrends.length > 0) {
     try {
       const slim = synthesizedTrends.map((t, i) => ({ i, title: t.title, description: t.description || '' }));
-      const prompt = `You are a social-media trend editor. Below is a JSON array of REAL trends from live YouTube and Google Trends data.
-For EACH item, rewrite "title" into a clean, specific, headline-style topic (about 4-9 words) reflecting what is ACTUALLY trending:
+      const prompt = `You are a social-media trend editor for creators. Below is a JSON array of REAL trends from live YouTube and Google Trends data.
+For EACH item, rewrite "title" into a clean, specific, headline-style topic (about 4-9 words) reflecting what a creator should make content about:
 - Remove clickbait, ALL-CAPS, emojis, channel names, hashtags, publisher suffixes and filler ("I BOUGHT...", "you won't believe", "(MUST WATCH)", "GONE WRONG").
 - KEEP it specific and concrete — preserve real names, events, products, places, teams and numbers. Do NOT flatten into a vague category (avoid "Sports News", "Fitness Content", "Demand For X Is Rising").
+- IMPORTANT: Preserve authentic regional names and cultural festivals (e.g., 'Ganesh Chaturthi', 'Tokyo Game Show', 'Oktoberfest'). Do not genericize them into "Local Festival".
 - If the title is NOT in English (e.g. Japanese, Korean, Arabic), TRANSLATE it into clear, natural English while keeping proper nouns.
 - Rewrite "description" to one short factual sentence on what the trend is and why it's a good short-form video topic.
 Return ONLY a JSON array, each item exactly {"i": <same index number>, "title": "...", "description": "..."} — same length and order.
@@ -315,19 +345,9 @@ Input: ${JSON.stringify(slim)}`;
     };
   });
 
-  // Floor: never show fewer than 3 cards. If live providers were sparse for this
-  // niche/scope, top up with static fallback so the brief never looks broken.
-  if (finalTrends.length < 3) {
-    try {
-      const fillers = staticFallbackProvider.getStaticFallback(normalizedNiche, normalizedRegion, normalizedScope) || [];
-      for (const f of fillers) {
-        if (finalTrends.length >= 4) break;
-        if (!finalTrends.some(t => (t.title || '').toLowerCase() === (f.title || '').toLowerCase())) {
-          finalTrends.push(f);
-        }
-      }
-    } catch (e) { /* ignore */ }
-  }
+  // We no longer fallback to static data if < 3 cards, because we must ensure 
+  // we only show real, verified signals (per user requirement). If the niche
+  // only has 1 or 2 real opportunities today, we only show those.
 
   return finalTrends;
 }

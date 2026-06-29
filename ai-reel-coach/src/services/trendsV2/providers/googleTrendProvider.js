@@ -4,20 +4,36 @@ const { regionConfig } = require('../regions')
 
 const getGeo = (region) => regionConfig(region).yt
 
-const NICHE_QUERIES = {
-  'ai & technology': ['OpenAI OR Claude OR Gemini OR AI tools', 'artificial intelligence technology'],
-  gaming: ['"esports" OR "pc gaming" OR streamer OR twitch OR valorant OR csgo OR bgmi', '"gaming industry" OR "gaming setup" OR gameplay'],
-  'business & finance': ['investing OR startups OR "stock market" OR "venture capital" OR SaaS', 'funding OR "personal finance" OR crypto OR "business growth" OR "market trends"'],
-  fitness: ['fitness OR workout OR gym OR protein', 'health fitness training'],
-  photography: ['camera OR Lightroom OR portrait photography OR lens', 'photography editing camera'],
-  filmmaking: ['"filmmaking tutorial" OR "behind the scenes" OR "how it was shot" OR cinematography OR "video editing"', '"film production" OR capcut OR premiere pro'],
-  geopolitics: ['elections OR diplomacy OR defense OR geopolitics', 'world news international relations'],
-  travel: ['"hidden beaches" OR "trek no one talks about" OR "hidden gems" OR "secret hikes"', '"travel itinerary" OR "backpacking guide" OR "budget travel" OR "travel hacks" OR offbeat'],
-  food: ['food OR recipe OR restaurant OR street food', 'cooking viral food'],
-  sports: ['football OR cricket OR FIFA OR F1 OR tennis', 'sports match league'],
-  music: ['music OR Spotify OR song OR album OR concert', 'viral songs'],
-  'movies & entertainment': ['movie OR trailer OR OTT OR box office OR series', 'entertainment celebrity'],
-  general: ['trending news viral'],
+const EVENT_TOPICS = {
+  'ai & technology':        'topic/TECHNOLOGY',
+  gaming:                   'topic/TECHNOLOGY', // Closest match, combined with creator queries
+  'business & finance':     'topic/BUSINESS',
+  fitness:                  'topic/HEALTH',
+  photography:              'topic/ENTERTAINMENT', // Fallback
+  filmmaking:               'topic/ENTERTAINMENT',
+  geopolitics:              'topic/WORLD',
+  travel:                   'topic/NATION', // Fallback
+  food:                     'topic/HEALTH', // Fallback
+  sports:                   'topic/SPORTS',
+  music:                    'topic/ENTERTAINMENT',
+  'movies & entertainment': 'topic/ENTERTAINMENT',
+  general:                  'topic/WORLD',
+}
+
+const CREATOR_QUERIES = {
+  'ai & technology':        ['viral AI workflow', 'new AI tool', 'AI update', 'productivity trend'],
+  gaming:                   ['gaming trend', 'viral gameplay', 'speedrun record'],
+  'business & finance':     ['startup trend', 'business trend', 'side hustle trend'],
+  fitness:                  ['workout routine trend', 'viral workout', 'fitness challenge 2026', 'fitness trend'],
+  photography:              ['viral photography trend', 'new Lightroom feature', 'creator challenge', 'shooting trend'],
+  filmmaking:               ['viral editing trend', 'new editing workflow', 'cinematic trend', 'creator tool trend'],
+  geopolitics:              ['geopolitics analysis', 'political trend'],
+  travel:                   ['viral travel destination', 'travel trend', 'festival', 'visa announcement'],
+  food:                     ['viral recipe', 'viral dish', 'new cooking trend', 'food challenge'],
+  sports:                   ['sports tactics trend', 'viral training drill', 'athlete workout trend'],
+  music:                    ['viral song', 'trending audio', 'tiktok music trend'],
+  'movies & entertainment': ['viral movie review', 'fan theory trend', 'behind the scenes trend'],
+  general:                  ['viral trend', 'trending challenge', 'social media trend'],
 }
 
 function decodeXml(value = '') {
@@ -71,49 +87,35 @@ async function fetchRss(url) {
 }
 
 function newsUrl(query, locale) {
-  const q = `${query} when:7d`
+  const q = `${query} when:3d` // 72 hours max freshness
   return `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${locale.hl}&gl=${locale.gl}&ceid=${locale.ceid}`
 }
 
+function newsTopicUrl(topicPath, locale) {
+  return `https://news.google.com/news/rss/headlines/section/${topicPath}?hl=${locale.hl}&gl=${locale.gl}&ceid=${locale.ceid}`
+}
+
 async function fetchTrends(region, niche) {
-  // "Global" = worldwide blend, deliberately EXCLUDING India (and other
-  // South-Asian-heavy regions) so it stays distinct from the Local (India) tab.
+  // Global Mode Aggregation across major macro-regions
   if (region === 'Global') {
-    const regions = ['US', 'UK']
+    const regions = ['US', 'BR', 'UK', 'UAE', 'India', 'Japan', 'Nigeria', 'Australia']
     const results = await Promise.all(regions.map(r => fetchTrends(r, niche).catch(() => [])))
     return dedupeSignals(results.flat())
       .sort((a, b) => (b.value || 0) - (a.value || 0))
-      .slice(0, 10)
+      .slice(0, 15)
   }
 
   const geo = getGeo(region)
   const newsLocale = regionConfig(region).news
-  let queries = NICHE_QUERIES[niche] || NICHE_QUERIES.general
+  const eventTopic = EVENT_TOPICS[niche] || EVENT_TOPICS.general
+  const creatorQueries = CREATOR_QUERIES[niche] || CREATOR_QUERIES.general
   
-  if (niche === 'travel') {
-    if (geo === 'IN') {
-      queries = [
-        `("hidden beaches" OR "trek no one talks about" OR "hidden gems" OR "secret hikes") AND (India OR Goa OR Himalayas OR Ladakh OR Western Ghats OR Kerala OR Himachal)`,
-        `("travel itinerary" OR "backpacking guide" OR "budget travel" OR "travel hacks" OR offbeat) AND (India OR Indian OR Delhi OR Mumbai OR Bangalore)`
-      ]
-    } else {
-      queries = [
-        `("hidden beaches" OR "trek no one talks about" OR "hidden gems" OR "secret hikes") AND NOT (India OR Goa OR Himalayas OR Ladakh)`,
-        `("travel itinerary" OR "backpacking guide" OR "budget travel" OR "travel hacks" OR offbeat) AND NOT (India OR Indian OR Delhi OR Mumbai OR Bangalore)`
-      ]
-    }
-  } else if (niche === 'fitness') {
-    if (geo === 'IN') {
-      queries = queries.map(q => `(${q}) AND (India OR Indian)`)
-    } else {
-      queries = queries.map(q => `(${q}) AND NOT (India OR Indian)`)
-    }
-  }
   const urls = [
     `https://trends.google.com/trending/rss?geo=${geo}`,
-    ...queries.slice(0, 2).map(query => newsUrl(query, newsLocale)),
-    // Inject a dedicated query that specifically hunts for viral Instagram Reels in this niche!
-    newsUrl(`(${queries[0]}) AND (Instagram OR Reels OR TikTok OR viral)`, newsLocale)
+    newsTopicUrl(eventTopic, newsLocale),
+    ...creatorQueries.slice(0, 3).map(query => newsUrl(query, newsLocale)),
+    // Focus specifically on creator platforms like Instagram/TikTok for this niche
+    newsUrl(`(${creatorQueries.join(' OR ')}) AND (Instagram OR TikTok OR YouTube OR viral)`, newsLocale)
   ]
 
   try {
