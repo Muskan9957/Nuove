@@ -323,10 +323,22 @@ export default function Record() {
     setCameraErr('')
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
-      })
+      
+      let stream
+      try {
+        // Try forcing exact facingMode (required on iOS Safari and some Android browsers to switch)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        })
+      } catch (err) {
+        // Fallback for desktops/laptops which may not support exact facingMode constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        })
+      }
+
       streamRef.current = stream
       if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}) }
       // Keep the hidden video in sync too — this is our stable canvas draw source
