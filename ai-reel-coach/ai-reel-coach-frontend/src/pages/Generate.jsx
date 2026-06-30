@@ -805,7 +805,7 @@ export default function Generate() {
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.hook}</p>
 
               {/* Tweak & Approve Buttons below right */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setApprovedSections(prev => ({ ...prev, hook: !prev.hook }))}
@@ -904,7 +904,7 @@ export default function Generate() {
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line' }}>{result.script.body}</p>
 
               {/* Tweak & Approve Buttons below right */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setApprovedSections(prev => ({ ...prev, body: !prev.body }))}
@@ -1003,7 +1003,7 @@ export default function Generate() {
               <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text)', margin: 0 }}>{result.script.cta}</p>
 
               {/* Tweak & Approve Buttons below right */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setApprovedSections(prev => ({ ...prev, cta: !prev.cta }))}
