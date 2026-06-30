@@ -1260,3 +1260,56 @@ h1, h2, h3, h4 {
   .btn-lg { min-height: 52px; font-size: 1rem; }
   .stat-value { font-size: 1.7rem; }
 }
+
+/* ─── Tweak Pills & Inline Options High Contrast Styling ─────────── */
+.tweak-btn-hook {
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  background: rgba(0, 200, 255, 0.06);
+  color: #00C8FF;
+}
+.tweak-btn-hook:hover {
+  background: rgba(0, 200, 255, 0.18) !important;
+}
+[data-theme="light"] .tweak-btn-hook {
+  border: 1px solid rgba(0, 80, 200, 0.35);
+  background: rgba(0, 80, 200, 0.07);
+  color: #0050C8;
+}
+[data-theme="light"] .tweak-btn-hook:hover {
+  background: rgba(0, 80, 200, 0.16) !important;
+}
+
+.tweak-btn-body {
+  border: 1px solid rgba(0, 201, 167, 0.35);
+  background: rgba(0, 201, 167, 0.06);
+  color: #00C9A7;
+}
+.tweak-btn-body:hover {
+  background: rgba(0, 201, 167, 0.18) !important;
+}
+[data-theme="light"] .tweak-btn-body {
+  border: 1px solid rgba(0, 110, 80, 0.35);
+  background: rgba(0, 110, 80, 0.07);
+  color: #006E50;
+}
+[data-theme="light"] .tweak-btn-body:hover {
+  background: rgba(0, 110, 80, 0.16) !important;
+}
+
+.tweak-btn-cta {
+  border: 1px solid rgba(255, 214, 10, 0.45);
+  background: rgba(255, 214, 10, 0.06);
+  color: #FFD60A;
+}
+.tweak-btn-cta:hover {
+  background: rgba(255, 214, 10, 0.18) !important;
+}
+[data-theme="light"] .tweak-btn-cta {
+  border: 1px solid rgba(160, 100, 0, 0.40);
+  background: rgba(160, 100, 0, 0.07);
+  color: #8C5500;
+}
+[data-theme="light"] .tweak-btn-cta:hover {
+  background: rgba(160, 100, 0, 0.16) !important;
+}
+

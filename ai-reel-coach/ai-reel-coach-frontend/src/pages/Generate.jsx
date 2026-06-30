@@ -827,9 +827,8 @@ export default function Generate() {
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'hook' ? null : 'hook'); setTweakValue('') }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,200,255,0.3)', background: 'rgba(0,200,255,0.06)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.18)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.06)' }}
+                  className="tweak-btn-hook"
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 0.15s' }}
                 >✏️ Tweak</button>
               </div>
 
@@ -883,9 +882,8 @@ export default function Generate() {
                           refine(`Improve only the hook: ${opt.val}`)
                           setActiveTweakSection(null)
                         }}
-                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, border: '1px solid rgba(0,200,255,0.25)', background: 'rgba(0,200,255,0.05)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.15)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.05)' }}
+                        className="tweak-btn-hook"
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
                       >
                         {opt.label}
                       </button>
@@ -928,9 +926,8 @@ export default function Generate() {
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'body' ? null : 'body'); setTweakValue('') }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(0,201,167,0.3)', background: 'rgba(0,201,167,0.06)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.18)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.06)' }}
+                  className="tweak-btn-body"
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 0.15s' }}
                 >✏️ Tweak</button>
               </div>
 
@@ -984,9 +981,8 @@ export default function Generate() {
                           refine(`Improve only the body: ${opt.val}`)
                           setActiveTweakSection(null)
                         }}
-                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, border: '1px solid rgba(0,201,167,0.25)', background: 'rgba(0,201,167,0.05)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.15)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.05)' }}
+                        className="tweak-btn-body"
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
                       >
                         {opt.label}
                       </button>
@@ -1029,9 +1025,8 @@ export default function Generate() {
                 <button
                   type="button"
                   onClick={() => { setActiveTweakSection(activeTweakSection === 'cta' ? null : 'cta'); setTweakValue('') }}
-                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid rgba(255,214,10,0.3)', background: 'rgba(255,214,10,0.06)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.18)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.06)' }}
+                  className="tweak-btn-cta"
+                  style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 0.15s' }}
                 >✏️ Tweak</button>
               </div>
 
@@ -1085,9 +1080,8 @@ export default function Generate() {
                           refine(`Improve only the CTA: ${opt.val}`)
                           setActiveTweakSection(null)
                         }}
-                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, border: '1px solid rgba(255,214,10,0.25)', background: 'rgba(255,214,10,0.05)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.15)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.05)' }}
+                        className="tweak-btn-cta"
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
                       >
                         {opt.label}
                       </button>
