@@ -9,6 +9,7 @@ const AuthCtx = createContext(null)
 const STALE_USER_KEYS = [
   'arc_gen_form', 'arc_gen_result', 'arc_gen_versions', 'arc_gen_activeVer', 'arc_gen_rerolls', 'arc_prefill_topic',
   'dash_scripts', 'dash_logs', 'dash_badges', 'dash_profile', 'vs_prefs',
+  'rc_script', 'rc_visual', 'rc_text_overlay', 'rc_music_vibe', 'rc_songs',
 ]
 export const clearStaleUserData = () => {
   STALE_USER_KEYS.forEach(k => { try { localStorage.removeItem(k) } catch {} })
