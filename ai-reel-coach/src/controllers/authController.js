@@ -58,7 +58,7 @@ const register = async (req, res, next) => {
     }
 
     // Abuse Assessment
-    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.connection?.remoteAddress || '127.0.0.1';
     const userAgent = req.headers['user-agent'];
     const clientFingerprint = req.headers['x-device-fingerprint'] || req.cookies?.arc_device_token;
     
