@@ -350,6 +350,8 @@ export default function Record() {
   // production overlay metadata
   const [availableSongs] = useState(() => {
     try {
+      const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
+      if (!activeScript) return []
       const stored = localStorage.getItem('rc_songs')
       const parsed = stored ? JSON.parse(stored) : []
       return Array.isArray(parsed) ? parsed : []
@@ -359,6 +361,8 @@ export default function Record() {
   })
   const [selectedSong, setSelectedSong] = useState(() => {
     try {
+      const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
+      if (!activeScript) return null
       const stored = localStorage.getItem('rc_songs')
       const parsed = stored ? JSON.parse(stored) : []
       return Array.isArray(parsed) ? (parsed.find(s => s.previewUrl) || null) : null
@@ -368,10 +372,16 @@ export default function Record() {
   })
   const [mixMusic, setMixMusic] = useState(!!selectedSong)
   const [isPlayingPreview, setIsPlayingPreview] = useState(false)
-  const [textOverlay] = useState(() => localStorage.getItem('rc_text_overlay') || '')
+  const [textOverlay] = useState(() => {
+    const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
+    if (!activeScript) return ''
+    return localStorage.getItem('rc_text_overlay') || ''
+  })
   const [burnOverlay, setBurnOverlay] = useState(true)
   const [visualDirection] = useState(() => {
     try {
+      const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
+      if (!activeScript) return null
       const stored = localStorage.getItem('rc_visual')
       return stored ? JSON.parse(stored) : null
     } catch {
