@@ -22,17 +22,27 @@ const LANG = {
   ko      : 'IMPORTANT: Write ALL content entirely in Korean.',
 }
 
-// Approx 130 words per minute of speaking
+// Map user duration (in minutes) to target word counts as requested:
+// - Default / <= 1 min: 90 words
+// - 2 min: 120 words
+// - 3 min: 150 words
+// - 4 min: 200 words
+// - 5 min: 230 words
 function durationToWords(duration) {
-  let mins = parseFloat(duration)
-  if (!mins || isNaN(mins)) mins = 1 // Default to 1 minute if no duration is provided
-  if (mins > 5) mins = 5 // Cap duration at 5 minutes to prevent edge function timeouts
-  const words = Math.round(mins * 130)
-  return {
-    min  : Math.max(80, Math.round(words * 0.9)),
-    max  : Math.round(words * 1.1),
-    label: `${mins} minute${mins !== 1 ? 's' : ''}`,
+  const mins = parseFloat(duration)
+  if (!mins || isNaN(mins) || mins <= 1.0) {
+    return { min: 80, max: 100, label: '90 words' }
   }
+  if (mins <= 2.0) {
+    return { min: 110, max: 130, label: '120 words' }
+  }
+  if (mins <= 3.0) {
+    return { min: 140, max: 160, label: '150 words' }
+  }
+  if (mins <= 4.0) {
+    return { min: 185, max: 215, label: '200 words' }
+  }
+  return { min: 215, max: 245, label: '230 words' }
 }
 
 function parseScript(fullText) {
@@ -75,19 +85,19 @@ Write a short-form video script with EXACTLY these three sections labelled HOOK:
 Topic   : ${topic}
 Niche   : ${niche || 'general'}
 Tone    : ${tone  || 'conversational'}
-Duration: ${wc.label} (${wc.min}–${wc.max} spoken words)
+Target Length: ${wc.label} (${wc.min}–${wc.max} spoken words in total)
 ${voice}
 
 HOOK:
-[1-2 sentences. First 3 seconds. Curiosity, bold claim, or shocking statement that stops the scroll.]
+[1-2 sentences. First 3 seconds. Scroll-stopping statement.]
 
 BODY:
-[The core content. For a ${wc.label} video this MUST be about ${wc.min}–${wc.max} spoken words — write the full length with several points, a fuller story, or step-by-step detail. Do not write a short script for a long duration. Engaging, no filler, but reach the target.]
+[The core value. Keep sentences short. No filler words.]
 
 CTA:
-[One clear action for the last 5 seconds: follow, comment, save, or share.]
+[One clear action for the last 5 seconds.]
 
-Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The whole script MUST total about ${wc.min}–${wc.max} spoken words to fill a ${wc.label} video — this length is a hard requirement, especially the BODY. Write like talking to a friend. No hashtags, no emojis.`
+Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The entire script (HOOK + BODY + CTA) MUST total ${wc.min}–${wc.max} spoken words — this length is a hard requirement. No hashtags, no emojis.`
 }
 
 // ── Stream tokens from Gemini (SSE) — yields text deltas ─────────────

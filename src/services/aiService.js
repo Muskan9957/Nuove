@@ -182,10 +182,25 @@ ${voiceProfile.promptInstruction}
 Ignore generic "best practice" advice above if it conflicts with the creator's established voice. Their authenticity > textbook hooks.\n`
     : ''
 
-  let parsedDur = parseFloat(duration)
-  if (!parsedDur || isNaN(parsedDur)) parsedDur = 1 // Default to 1 minute if no duration is provided
-  if (parsedDur > 5) parsedDur = 5
-  const durationInstruction = `- Target Duration: ${parsedDur} minute${parsedDur === 1 ? '' : 's'} — calibrate the script length precisely for this. A 0.5 min script is ~75 words, 1 min ~150 words, 2 min ~300 words. Match the word count accordingly.`
+  const durationToWords = (d) => {
+    const mins = parseFloat(d)
+    if (!mins || isNaN(mins) || mins <= 1.0) {
+      return { min: 80, max: 100, label: '90 words' }
+    }
+    if (mins <= 2.0) {
+      return { min: 110, max: 130, label: '120 words' }
+    }
+    if (mins <= 3.0) {
+      return { min: 140, max: 160, label: '150 words' }
+    }
+    if (mins <= 4.0) {
+      return { min: 185, max: 215, label: '200 words' }
+    }
+    return { min: 215, max: 245, label: '230 words' }
+  }
+
+  const wc = durationToWords(duration)
+  const durationInstruction = `- Target Length: ${wc.label} (${wc.min}–${wc.max} spoken words in total). Calibrate the script length precisely for this. The entire script (HOOK + BODY + CTA) MUST fit within this word count range.`
 
   const prompt = `
 You are an expert viral content strategist who writes Grade A hooks that score 85+ on Instagram Reels and YouTube Shorts.
