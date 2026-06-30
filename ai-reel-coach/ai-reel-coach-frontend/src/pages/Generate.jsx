@@ -781,11 +781,38 @@ export default function Generate() {
                   className="btn btn-sm"
                   style={{ background: '#E1306C', color: '#fff', border: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
                   onClick={() => {
-                    const full = buildCanonicalSections(result.script, t)
+                    const broll = (result.script?.visual && Array.isArray(result.script.visual.broll)) ? result.script.visual.broll : []
+                    const sections = buildCanonicalSections(result.script, t)
                       .filter(s => ['hook', 'body', 'cta'].includes(s.id))
-                      .map(s => s.text)
-                      .join('\n\n')
+                      .map((s, idx) => {
+                        const cue = broll[idx]
+                        if (cue) {
+                          return `[B-Roll: ${cue}]\n${s.text}`
+                        }
+                        return s.text
+                      })
+                    const full = sections.join('\n\n')
                     setPersistentState('rc_script', full)
+
+                    // Save production & overlay metadata
+                    if (result.script?.visual) {
+                      localStorage.setItem('rc_visual', JSON.stringify(result.script.visual))
+                      localStorage.setItem('rc_text_overlay', result.script.visual.textOverlay || '')
+                    } else {
+                      localStorage.removeItem('rc_visual')
+                      localStorage.removeItem('rc_text_overlay')
+                    }
+                    if (result.script?.music) {
+                      localStorage.setItem('rc_music_vibe', JSON.stringify(result.script.music))
+                    } else {
+                      localStorage.removeItem('rc_music_vibe')
+                    }
+                    if (songs && songs.length > 0) {
+                      localStorage.setItem('rc_songs', JSON.stringify(songs))
+                    } else {
+                      localStorage.removeItem('rc_songs')
+                    }
+
                     navigate('/record')
                   }}
                 >

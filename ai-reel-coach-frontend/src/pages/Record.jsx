@@ -259,6 +259,62 @@ const FILTERS = [
   },
 ]
 
+/* ─────────────────── canvas overlay helper ─────────────────── */
+function drawHookCard(ctx, text, W, H) {
+  const maxW = Math.round(W * 0.7)
+  const fontSize = 28
+  ctx.font = `bold ${fontSize}px "Plus Jakarta Sans", sans-serif`
+  ctx.textAlign = 'center'
+
+  const words = text.split(' ')
+  const lines = []
+  let line = ''
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line)
+      line = w
+    } else {
+      line = test
+    }
+  }
+  if (line) lines.push(line)
+
+  const lineH = fontSize * 1.38
+  const totalH = lines.length * lineH
+  const padX = 28, padY = 16
+  const boxW = Math.max(Math.min(W - 80, maxW + padX * 2), 320)
+  const boxH = totalH + padY * 2
+  const boxX = (W - boxW) / 2
+  const boxY = H - 100 - boxH
+
+  // Shadow effect
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'
+  ctx.shadowBlur = 18
+  ctx.shadowOffsetY = 6
+
+  // Draw gradient box (Saffron to Magenta: #FF8C00 to #FF2D6F)
+  const grad = ctx.createLinearGradient(boxX, boxY, boxX + boxW, boxY + boxH)
+  grad.addColorStop(0, 'rgba(255, 140, 0, 0.92)')
+  grad.addColorStop(1, 'rgba(255, 45, 111, 0.92)')
+  ctx.fillStyle = grad
+  ctx.beginPath()
+  ctx.roundRect(boxX, boxY, boxW, boxH, 16)
+  ctx.fill()
+
+  // Reset shadow for text drawing
+  ctx.shadowColor = 'transparent'
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetY = 0
+
+  // Draw text lines
+  ctx.fillStyle = '#ffffff'
+  lines.forEach((ln, idx) => {
+    const y = boxY + padY + idx * lineH + fontSize * 0.88
+    ctx.fillText(ln, W / 2, y)
+  })
+}
+
 /* ─────────────────── component ─────────────────── */
 export default function Record() {
   // script
@@ -291,7 +347,40 @@ export default function Record() {
   const [downloading, setDownloading] = useState(false)
   const [processing, setProcessing] = useState(false) // true while WebCodecs flushes after stop
 
+  // production overlay metadata
+  const [availableSongs] = useState(() => {
+    try {
+      const stored = localStorage.getItem('rc_songs')
+      const parsed = stored ? JSON.parse(stored) : []
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
+  const [selectedSong, setSelectedSong] = useState(() => {
+    try {
+      const stored = localStorage.getItem('rc_songs')
+      const parsed = stored ? JSON.parse(stored) : []
+      return Array.isArray(parsed) ? (parsed.find(s => s.previewUrl) || null) : null
+    } catch {
+      return null
+    }
+  })
+  const [mixMusic, setMixMusic] = useState(!!selectedSong)
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false)
+  const [textOverlay] = useState(() => localStorage.getItem('rc_text_overlay') || '')
+  const [burnOverlay, setBurnOverlay] = useState(true)
+  const [visualDirection] = useState(() => {
+    try {
+      const stored = localStorage.getItem('rc_visual')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
+
   // refs
+  const bgMusicRef    = useRef(null)
   const videoRef      = useRef(null)   // camera preview (visible)
   const hiddenVideoRef = useRef(null)   // off-screen video used as canvas draw source
   const streamRef     = useRef(null)
@@ -358,8 +447,23 @@ export default function Record() {
       clearInterval(timerRef.current)
       clearInterval(countdownRef.current)
       canvasLoopRef.current = false
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause()
+      }
     }
   }, []) // eslint-disable-line
+
+  /* ── toggle preview music ── */
+  const togglePreviewMusic = () => {
+    if (!bgMusicRef.current) return
+    if (isPlayingPreview) {
+      bgMusicRef.current.pause()
+      setIsPlayingPreview(false)
+    } else {
+      bgMusicRef.current.play().catch(e => console.warn('Preview block:', e))
+      setIsPlayingPreview(true)
+    }
+  }
 
   /* ── flip camera ── */
   const flipCamera = async () => {
@@ -426,6 +530,8 @@ export default function Record() {
     const drawFrame = () => {
       if (!canvasLoopRef.current) return
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Draw filtered camera input
       ctx.filter = activeFilter
       ctx.save()
       if (mirror) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
@@ -434,6 +540,15 @@ export default function Record() {
         ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
       }
       ctx.restore()
+
+      // Reset filter for graphic overlay card
+      ctx.filter = 'none'
+      
+      // Draw Hook Card overlay if enabled, exists, and within first 4 seconds
+      if (burnOverlay && textOverlay && elapsedRef.current < 4) {
+        drawHookCard(ctx, textOverlay, canvas.width, canvas.height)
+      }
+
       requestAnimationFrame(drawFrame)
     }
     requestAnimationFrame(drawFrame)
@@ -442,7 +557,42 @@ export default function Record() {
     const canvasStream = canvas.captureStream(30)
     const audioTrack   = stream.getAudioTracks()[0]
     const tracks = [...canvasStream.getVideoTracks()]
-    if (audioTrack) tracks.push(audioTrack)
+
+    let finalAudioTrack = audioTrack
+    let audioCtx = null
+    if (mixMusic && selectedSong && selectedSong.previewUrl && audioTrack) {
+      try {
+        if (bgMusicRef.current) {
+          bgMusicRef.current.pause()
+          setIsPlayingPreview(false)
+          bgMusicRef.current.currentTime = 0
+        }
+
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+        const destNode = audioCtx.createMediaStreamDestination()
+
+        const micSource = audioCtx.createMediaStreamSource(new MediaStream([audioTrack]))
+        micSource.connect(destNode)
+
+        if (bgMusicRef.current) {
+          const bgMusicNode = audioCtx.createMediaElementSource(bgMusicRef.current)
+          const bgGain = audioCtx.createGain()
+          bgGain.gain.value = 0.12
+
+          bgMusicNode.connect(bgGain)
+          bgGain.connect(destNode)
+          bgGain.connect(audioCtx.destination) // Routes backing music into headphones/earbuds for monitoring
+
+          bgMusicRef.current.play().catch(e => console.warn('Record music play failed:', e))
+        }
+
+        finalAudioTrack = destNode.stream.getAudioTracks()[0]
+      } catch (err) {
+        console.warn('Web Audio mixing failed, falling back to mic-only:', err)
+      }
+    }
+
+    if (finalAudioTrack) tracks.push(finalAudioTrack)
     const combinedStream = new MediaStream(tracks)
 
     // Pick the best available MIME type
@@ -457,6 +607,14 @@ export default function Record() {
 
     rec.onstop = () => {
       canvasLoopRef.current = false
+
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause()
+        bgMusicRef.current.currentTime = 0
+      }
+      if (audioCtx) {
+        audioCtx.close().catch(() => {})
+      }
 
       const rawBlob = new Blob(chunksRef.current, { type: mime })
       const capturedElapsed = elapsedRef.current
@@ -724,6 +882,13 @@ export default function Record() {
         style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none', top: -9999, left: -9999 }}
       />
 
+      <audio
+        ref={bgMusicRef}
+        src={selectedSong?.previewUrl || ''}
+        loop
+        style={{ display: 'none' }}
+      />
+
       {/* ─── SETUP PHASE ─── */}
       {phase === 'setup' && (
         <div style={S.setupWrap}>
@@ -764,6 +929,103 @@ export default function Record() {
                 </button>
               )}
             </div>
+
+            {/* Production Directions Panel */}
+            {visualDirection && (
+              <div style={{
+                marginTop: 20,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-card)',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 8 }}>
+                  🎥 Production Directions
+                </div>
+                {visualDirection.background && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text)', marginBottom: 6 }}>
+                    <strong>Background:</strong> {visualDirection.background}
+                  </div>
+                )}
+                {visualDirection.style && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text)', marginBottom: 6 }}>
+                    <strong>Shooting Style:</strong> {visualDirection.style}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Music Preview and Mixing Card */}
+            {selectedSong && (
+              <div style={{
+                marginTop: 16,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background: 'var(--surface2)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-card)',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 10 }}>
+                  🎵 Background Music Pick
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 8, background: '#E1306C',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
+                    boxShadow: '0 2px 8px rgba(225,48,108,0.2)', color: '#fff'
+                  }}>
+                    💿
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedSong.title}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedSong.artist}
+                    </div>
+                  </div>
+                  {selectedSong.previewUrl && (
+                    <button
+                      type="button"
+                      onClick={togglePreviewMusic}
+                      style={{
+                        background: isPlayingPreview ? 'rgba(225,48,108,0.1)' : 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '50%',
+                        width: 34, height: 34,
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.8rem',
+                        color: isPlayingPreview ? '#E1306C' : 'var(--text)'
+                      }}
+                    >
+                      {isPlayingPreview ? '⏸' : '▶'}
+                    </button>
+                  )}
+                </div>
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={mixMusic}
+                      onChange={e => setMixMusic(e.target.checked)}
+                      style={{ accentColor: 'var(--accent)' }}
+                    />
+                    Mix backing track into video
+                  </label>
+                  {mixMusic && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', fontStyle: 'italic', paddingLeft: 22 }}>
+                      🎧 Headphones recommended for best results.
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right: Camera preview + settings */}
@@ -834,6 +1096,20 @@ export default function Record() {
                   </button>
                 </div>
               </div>
+              {textOverlay && (
+                <div style={{ ...S.settingGroup, gridColumn: 'span 2' }}>
+                  <div style={S.settingLabel}>Hook Overlay Card</div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)', cursor: 'pointer', marginTop: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={burnOverlay}
+                      onChange={e => setBurnOverlay(e.target.checked)}
+                      style={{ accentColor: 'var(--accent)' }}
+                    />
+                    Burn overlay graphic into final video
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* ── Filter Picker with arrows ── */}
@@ -903,7 +1179,23 @@ export default function Record() {
           >
             {/* padding top so first word starts at centre of screen */}
             <div style={{ height: '45vh' }} />
-            <p style={S.scriptText}>{script}</p>
+            <div style={S.scriptText}>
+              {script.split('\n').map((line, idx) => {
+                const trimmed = line.trim()
+                if (trimmed.startsWith('[B-Roll:') || trimmed.startsWith('[B-roll:')) {
+                  return (
+                    <div key={idx} style={S.scriptBrollLine}>
+                      🎬 {trimmed.replace(/^\[B-roll:\s*/i, '').replace(/\]$/, '')}
+                    </div>
+                  )
+                }
+                return (
+                  <div key={idx} style={{ marginBottom: 16 }}>
+                    {line}
+                  </div>
+                )
+              })}
+            </div>
             {/* padding bottom so last word can scroll fully up */}
             <div style={{ height: '55vh' }} />
           </div>
@@ -1194,6 +1486,20 @@ const S = {
     margin: 0, color: '#fff', fontWeight: 700, lineHeight: 1.65,
     textAlign: 'center', textShadow: '0 2px 12px rgba(0,0,0,0.9)',
     whiteSpace: 'pre-wrap',
+  },
+  scriptBrollLine: {
+    color: '#00E5FF',
+    background: 'rgba(0, 229, 255, 0.09)',
+    border: '1px dashed rgba(0, 229, 255, 0.35)',
+    borderRadius: 8,
+    padding: '6px 12px',
+    margin: '14px auto',
+    fontWeight: 800,
+    fontSize: '0.85em',
+    maxWidth: '85%',
+    textAlign: 'center',
+    textShadow: 'none',
+    boxShadow: '0 2px 10px rgba(0,229,255,0.05)',
   },
 
   hud: {
