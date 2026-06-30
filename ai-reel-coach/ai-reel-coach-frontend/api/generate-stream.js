@@ -22,27 +22,31 @@ const LANG = {
   ko      : 'IMPORTANT: Write ALL content entirely in Korean.',
 }
 
-// Map user duration (in minutes) to target word counts as requested:
-// - Default / <= 1 min: 90 words
-// - 2 min: 120 words
-// - 3 min: 150 words
-// - 4 min: 200 words
-// - 5 min: 230 words
+// Map user duration (in minutes) to realistic speaking-rate word counts (approx 130 words per minute):
+// - Default (no input): ~100 words (45-second reel)
+// - 1 min: ~130 words
+// - 2 min: ~260 words
+// - 3 min: ~390 words (approx 20-25 lines of script)
+// - 4 min: ~520 words
+// - 5 min: ~650 words
 function durationToWords(duration) {
   const mins = parseFloat(duration)
-  if (!mins || isNaN(mins) || mins <= 1.0) {
-    return { min: 80, max: 100, label: '90 words' }
+  if (!mins || isNaN(mins)) {
+    return { min: 90, max: 110, label: '100 words (45-second video)' }
+  }
+  if (mins <= 1.0) {
+    return { min: 120, max: 140, label: '130 words (1-minute video)' }
   }
   if (mins <= 2.0) {
-    return { min: 110, max: 130, label: '120 words' }
+    return { min: 240, max: 280, label: '260 words (2-minute video)' }
   }
   if (mins <= 3.0) {
-    return { min: 140, max: 160, label: '150 words' }
+    return { min: 360, max: 420, label: '390 words (3-minute video)' }
   }
   if (mins <= 4.0) {
-    return { min: 185, max: 215, label: '200 words' }
+    return { min: 480, max: 560, label: '520 words (4-minute video)' }
   }
-  return { min: 215, max: 245, label: '230 words' }
+  return { min: 600, max: 700, label: '650 words (5-minute video)' }
 }
 
 function parseScript(fullText) {
