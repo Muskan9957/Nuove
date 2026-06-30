@@ -25,7 +25,7 @@ const LANG = {
 // Approx 130 words per minute of speaking
 function durationToWords(duration) {
   let mins = parseFloat(duration)
-  if (!mins || isNaN(mins)) return { min: 150, max: 225, label: '60-90 seconds' }
+  if (!mins || isNaN(mins)) mins = 1 // Default to 1 minute if no duration is provided
   if (mins > 5) mins = 5 // Cap duration at 5 minutes to prevent edge function timeouts
   const words = Math.round(mins * 130)
   return {
