@@ -1384,23 +1384,16 @@ export default function Generate() {
                       key={i}
                       type="button"
                       onClick={() => { switchVersion(i); setTweakChanges(null) }}
+                      className={i === activeVer ? 'take-btn-active' : 'take-btn'}
                       style={{
                         padding: '7px 16px',
                         borderRadius: 20,
                         fontSize: '0.76rem',
                         fontFamily: 'var(--font-mono)',
                         fontWeight: 600,
-                        border: i === activeVer ? '1px solid rgba(155,114,255,0.6)' : '1px solid var(--border)',
-                        background: i === activeVer
-                          ? 'linear-gradient(135deg, rgba(123,92,240,0.30), rgba(0,200,255,0.12))'
-                          : 'transparent',
-                        color: i === activeVer ? '#C4ABFF' : 'var(--text-faint)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                        boxShadow: i === activeVer ? '0 2px 14px rgba(123,92,240,0.25)' : 'none',
                       }}
                     >
-                      {i === activeVer && <span style={{ marginRight: 4, fontSize: '0.55rem', verticalAlign: 'middle' }}>▶</span>}
+                      {i === activeVer && <span style={{ marginRight: 6, fontSize: '0.55rem', verticalAlign: 'middle', color: '#fff' }}>▶</span>}
                       {v.label}
                     </button>
                   ))}

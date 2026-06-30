@@ -1313,3 +1313,49 @@ h1, h2, h3, h4 {
   background: rgba(160, 100, 0, 0.16) !important;
 }
 
+/* ─── Takes History Buttons Styling ────────────────────────────── */
+.take-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.take-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+[data-theme="light"] .take-btn {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+[data-theme="light"] .take-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+}
+
+.take-btn-active {
+  background: linear-gradient(135deg, #FF8C00 0%, #FF2D6F 100%);
+  border: 1px solid transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 18px rgba(255, 140, 0, 0.25);
+}
+.take-btn-active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(255, 140, 0, 0.38);
+}
+[data-theme="light"] .take-btn-active {
+  background: linear-gradient(135deg, #C85000 0%, #C8004A 100%);
+  box-shadow: 0 4px 18px rgba(200, 80, 0, 0.20);
+}
+[data-theme="light"] .take-btn-active:hover {
+  box-shadow: 0 6px 22px rgba(200, 80, 0, 0.32);
+}
+
+
