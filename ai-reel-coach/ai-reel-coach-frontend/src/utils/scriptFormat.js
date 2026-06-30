@@ -80,7 +80,11 @@ export const buildCanonicalSections = (script, t = (k) => k) => {
 }
 
 export const copyCanonicalScript = (script, t = (k) => k) => {
-  const sections = buildCanonicalSections(script, t).filter(s => ['hook', 'body', 'cta'].includes(s.id))
-  const plainText = sections.map(s => `${s.emoji} ${s.label.toUpperCase()}\n\n${s.text}`).join('\n\n-------------------\n\n')
+  if (!script) return
+  const parts = []
+  if (script.hook) parts.push(script.hook)
+  if (script.body) parts.push(script.body)
+  if (script.cta)  parts.push(script.cta)
+  const plainText = parts.join('\n\n')
   navigator.clipboard.writeText(plainText)
 }
