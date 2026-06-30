@@ -834,39 +834,63 @@ export default function Generate() {
               </div>
 
               {activeTweakSection === 'hook' && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <input
-                    type="text"
-                    placeholder="e.g. make the hook a dramatic question"
-                    value={tweakValue}
-                    onChange={e => setTweakValue(e.target.value)}
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none' }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && tweakValue.trim()) {
-                        refine(`Improve only the hook: ${tweakValue}`)
-                        setActiveTweakSection(null)
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      if (tweakValue.trim()) {
-                        refine(`Improve only the hook: ${tweakValue}`)
-                        setActiveTweakSection(null)
-                      }
-                    }}
-                    className="btn btn-primary btn-xs"
-                    style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
-                  >
-                    Apply
-                  </button>
-                  <button
-                    onClick={() => setActiveTweakSection(null)}
-                    className="btn btn-ghost btn-xs"
-                    style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
-                  >
-                    Cancel
-                  </button>
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="e.g. make the hook a dramatic question"
+                      value={tweakValue}
+                      onChange={e => setTweakValue(e.target.value)}
+                      style={{ flex: 1, padding: '6px 12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none' }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && tweakValue.trim()) {
+                          refine(`Improve only the hook: ${tweakValue}`)
+                          setActiveTweakSection(null)
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (tweakValue.trim()) {
+                          refine(`Improve only the hook: ${tweakValue}`)
+                          setActiveTweakSection(null)
+                        }
+                      }}
+                      className="btn btn-primary btn-xs"
+                      style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      onClick={() => setActiveTweakSection(null)}
+                      className="btn btn-ghost btn-xs"
+                      style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {[
+                      { label: '🎣 Shocking Stat', val: 'Start with a shocking statistic' },
+                      { label: '❓ Question', val: 'Open with a compelling question' },
+                      { label: '🔥 Audience Callout', val: 'Open with a direct callout to my target audience' },
+                      { label: '⏳ Story Opener', val: 'Start with a storytelling hook' }
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          refine(`Improve only the hook: ${opt.val}`)
+                          setActiveTweakSection(null)
+                        }}
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, border: '1px solid rgba(0,200,255,0.25)', background: 'rgba(0,200,255,0.05)', color: '#00C8FF', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.15)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,200,255,0.05)' }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -911,39 +935,63 @@ export default function Generate() {
               </div>
 
               {activeTweakSection === 'body' && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <input
-                    type="text"
-                    placeholder="e.g. explain the third point in more detail"
-                    value={tweakValue}
-                    onChange={e => setTweakValue(e.target.value)}
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none' }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && tweakValue.trim()) {
-                        refine(`Improve only the body: ${tweakValue}`)
-                        setActiveTweakSection(null)
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      if (tweakValue.trim()) {
-                        refine(`Improve only the body: ${tweakValue}`)
-                        setActiveTweakSection(null)
-                      }
-                    }}
-                    className="btn btn-primary btn-xs"
-                    style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
-                  >
-                    Apply
-                  </button>
-                  <button
-                    onClick={() => setActiveTweakSection(null)}
-                    className="btn btn-ghost btn-xs"
-                    style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
-                  >
-                    Cancel
-                  </button>
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="e.g. explain the third point in more detail"
+                      value={tweakValue}
+                      onChange={e => setTweakValue(e.target.value)}
+                      style={{ flex: 1, padding: '6px 12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none' }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && tweakValue.trim()) {
+                          refine(`Improve only the body: ${tweakValue}`)
+                          setActiveTweakSection(null)
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (tweakValue.trim()) {
+                          refine(`Improve only the body: ${tweakValue}`)
+                          setActiveTweakSection(null)
+                        }
+                      }}
+                      className="btn btn-primary btn-xs"
+                      style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      onClick={() => setActiveTweakSection(null)}
+                      className="btn btn-ghost btn-xs"
+                      style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {[
+                      { label: '📋 Add Bullets', val: 'Format body with clean bullet points' },
+                      { label: '⚡ Make Punchy', val: 'Make the body structure more punchy and concise' },
+                      { label: '🧠 Add Statistic', val: 'Insert a supporting statistic or proof point' },
+                      { label: '📖 Simplify Language', val: 'Simplify the language and make it easier to understand' }
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          refine(`Improve only the body: ${opt.val}`)
+                          setActiveTweakSection(null)
+                        }}
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, border: '1px solid rgba(0,201,167,0.25)', background: 'rgba(0,201,167,0.05)', color: '#00C9A7', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.15)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,201,167,0.05)' }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -988,39 +1036,63 @@ export default function Generate() {
               </div>
 
               {activeTweakSection === 'cta' && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <input
-                    type="text"
-                    placeholder="e.g. make the call to action sound more casual"
-                    value={tweakValue}
-                    onChange={e => setTweakValue(e.target.value)}
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none' }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && tweakValue.trim()) {
-                        refine(`Improve only the CTA: ${tweakValue}`)
-                        setActiveTweakSection(null)
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      if (tweakValue.trim()) {
-                        refine(`Improve only the CTA: ${tweakValue}`)
-                        setActiveTweakSection(null)
-                      }
-                    }}
-                    className="btn btn-primary btn-xs"
-                    style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
-                  >
-                    Apply
-                  </button>
-                  <button
-                    onClick={() => setActiveTweakSection(null)}
-                    className="btn btn-ghost btn-xs"
-                    style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
-                  >
-                    Cancel
-                  </button>
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="e.g. make the call to action sound more casual"
+                      value={tweakValue}
+                      onChange={e => setTweakValue(e.target.value)}
+                      style={{ flex: 1, padding: '6px 12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text)', fontSize: '0.85rem', outline: 'none' }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && tweakValue.trim()) {
+                          refine(`Improve only the CTA: ${tweakValue}`)
+                          setActiveTweakSection(null)
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (tweakValue.trim()) {
+                          refine(`Improve only the CTA: ${tweakValue}`)
+                          setActiveTweakSection(null)
+                        }
+                      }}
+                      className="btn btn-primary btn-xs"
+                      style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      onClick={() => setActiveTweakSection(null)}
+                      className="btn btn-ghost btn-xs"
+                      style={{ height: '32px', borderRadius: '8px', paddingInline: '12px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {[
+                      { label: '📣 Casual CTA', val: 'Make the call-to-action sound very casual' },
+                      { label: '⏳ Urgent CTA', val: 'Make the call-to-action feel urgent' },
+                      { label: '🎯 Direct CTA', val: 'Make the call-to-action direct and clear' },
+                      { label: '💬 Comment Trigger', val: 'Add a call-to-action asking viewers to comment below' }
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          refine(`Improve only the CTA: ${opt.val}`)
+                          setActiveTweakSection(null)
+                        }}
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 500, border: '1px solid rgba(255,214,10,0.25)', background: 'rgba(255,214,10,0.05)', color: '#FFD60A', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.15)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,214,10,0.05)' }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
