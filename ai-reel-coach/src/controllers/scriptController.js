@@ -71,7 +71,7 @@ const generateStream = async (req, res, next) => {
       return res.end()
     }
 
-    const { topic, niche, tone, language, voiceInstruction } = req.body
+    const { topic, niche, tone, language, voiceInstruction, audience } = req.body
 
     const userRow = await prisma.user.findUnique({
       where : { id: req.user.id },
@@ -117,8 +117,8 @@ const generateStream = async (req, res, next) => {
       newBadges: newBadges.length > 0 ? newBadges : undefined,
     })
 
-    // 6. Score hook in background — don't block, send when ready
-    aiService.scoreHook(hook, language)
+    // 6. Score hook and generate visuals in background — don't block, send when ready
+    const hookPromise = aiService.scoreHook(hook, language)
       .then(async (hookScoreData) => {
         send({ type: 'hookScore', data: hookScoreData })
 
@@ -138,6 +138,14 @@ const generateStream = async (req, res, next) => {
         ])
       })
       .catch(() => {})
+
+    const visualPromise = aiService.generateVisualMusic({ topic, niche, hook, audience: audience || 'India' })
+      .then((visualMusicData) => {
+        send({ type: 'extras', data: visualMusicData })
+      })
+      .catch(() => {})
+
+    Promise.all([hookPromise, visualPromise])
       .finally(() => res.end())
 
   } catch (err) {
