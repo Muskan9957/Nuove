@@ -1277,6 +1277,8 @@ export default function Record() {
               ref={doneVideoRef}
               src={outputUrl || ''}
               controls
+              disablePictureInPicture
+              controlsList="nodownload noremoteplayback"
               style={{ width: '100%', maxWidth: 440, borderRadius: 12, background: '#000' }}
             />
 
