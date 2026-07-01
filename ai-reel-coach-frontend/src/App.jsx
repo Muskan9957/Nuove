@@ -1,3 +1,4 @@
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './store'
 import { ToastProvider } from './components/Toast'
@@ -7,28 +8,37 @@ import Layout from './components/Layout'
 import Logo from './components/Logo'
 import Auth from './pages/Auth'
 import Landing from './pages/Landing'
-import Dashboard from './pages/Dashboard'
-import Generate from './pages/Generate'
-import Score from './pages/Score'
-import Performance from './pages/Performance'
-import Calendar from './pages/Calendar'
-import Trending from './pages/Trending'
-import Templates from './pages/Templates'
-import Captions from './pages/Captions'
-import Crosspost from './pages/Crosspost'
-import Coach from './pages/Coach'
-import Onboarding from './pages/Onboarding'
-import Profile from './pages/Profile'
-import Pricing from './pages/Pricing'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword from './pages/ResetPassword'
-import Demo from './pages/Demo'
-import Scripts from './pages/Scripts'
-import PrivacyPolicy from './pages/PrivacyPolicy'
-import Terms from './pages/Terms'
-import Record from './pages/Record'
-import Support from './pages/Support'
-import VerifyEmail from './pages/VerifyEmail'
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Generate = React.lazy(() => import('./pages/Generate'));
+const Score = React.lazy(() => import('./pages/Score'));
+const Performance = React.lazy(() => import('./pages/Performance'));
+const Calendar = React.lazy(() => import('./pages/Calendar'));
+const Trending = React.lazy(() => import('./pages/Trending'));
+const Templates = React.lazy(() => import('./pages/Templates'));
+const Captions = React.lazy(() => import('./pages/Captions'));
+const Crosspost = React.lazy(() => import('./pages/Crosspost'));
+const Coach = React.lazy(() => import('./pages/Coach'));
+const Onboarding = React.lazy(() => import('./pages/Onboarding'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Pricing = React.lazy(() => import('./pages/Pricing'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
+const Demo = React.lazy(() => import('./pages/Demo'));
+const Scripts = React.lazy(() => import('./pages/Scripts'));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
+const Terms = React.lazy(() => import('./pages/Terms'));
+const Record = React.lazy(() => import('./pages/Record'));
+const Support = React.lazy(() => import('./pages/Support'));
+const VerifyEmail = React.lazy(() => import('./pages/VerifyEmail'));
+
+
+const PageLoader = () => (
+  <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+      <div className="page-spinner" style={{ width: 40, height: 40, border: '3px solid var(--surface3)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    </div>
+  </div>
+);
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -73,14 +83,32 @@ function OnboardingRoute() {
   return <Onboarding />
 }
 
+
+function prefetchRoutes() {
+  const routesToPrefetch = [
+    () => import('./pages/Dashboard'),
+    () => import('./pages/Generate'),
+    () => import('./pages/Trending'),
+    () => import('./pages/Profile')
+  ];
+  routesToPrefetch.forEach(importFn => {
+    importFn().catch(() => {});
+  });
+}
+
 export default function App() {
+  useEffect(() => {
+    // Prefetch critical routes after initial load
+    setTimeout(prefetchRoutes, 2000);
+  }, []);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <LangProvider>
             <ToastProvider>
-              <Routes>
+              <Suspense fallback={<PageLoader />}><Routes>
                 <Route path="/"             element={<LandingRoute />} />
                 <Route path="/auth"         element={<AuthRoute />} />
                 <Route path="/pricing"          element={<Pricing />} />
@@ -111,7 +139,7 @@ export default function App() {
                 <Route path="/creator-dna"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="/my-voice"     element={<Navigate to="/dashboard" replace />} />
                 <Route path="*"             element={<Navigate to="/" replace />} />
-              </Routes>
+              </Routes></Suspense>
             </ToastProvider>
           </LangProvider>
         </AuthProvider>
