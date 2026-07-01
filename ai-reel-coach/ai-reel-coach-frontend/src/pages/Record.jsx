@@ -404,6 +404,7 @@ export default function Record() {
   const canvasLoopRef = useRef(false)
   const doneVideoRef  = useRef(null)
   const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
+  const scrollingRef  = useRef(true)
 
   // Keep preview video in sync with the trim start position
   useEffect(() => {
@@ -489,7 +490,7 @@ export default function Record() {
     let last = null
     const tick = (ts) => {
       if (!scrollRef.current) return
-      if (last !== null && scrolling) {
+      if (last !== null && scrollingRef.current) {
         const delta = ((ts - last) / 1000) * speed
         scrollPosRef.current += delta
         scrollRef.current.scrollTop = scrollPosRef.current
@@ -498,7 +499,7 @@ export default function Record() {
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
-  }, [speedIdx, scrolling])
+  }, [speedIdx])
 
   const stopScroll = () => {
     cancelAnimationFrame(rafRef.current)
@@ -723,7 +724,7 @@ export default function Record() {
 
   /* ── keep scrolling state in sync with ref ── */
   useEffect(() => {
-    // scrolling ref used inside rAF ,  handled by re-reading state flag
+    scrollingRef.current = scrolling
   }, [scrolling])
 
   const handleDownload = async () => {
