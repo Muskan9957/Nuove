@@ -378,6 +378,58 @@ export default function Record() {
     return localStorage.getItem('rc_text_overlay') || ''
   })
   const [burnOverlay, setBurnOverlay] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [activeTab, setActiveTab] = useState('trending')
+
+  // Real-time debounced music search
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return
+    }
+    
+    setIsSearching(true)
+    const delay = setTimeout(async () => {
+      try {
+        const res = await api.searchMusic(searchQuery)
+        setSearchResults(res.songs || [])
+      } catch (err) {
+        console.warn('Failed to search music:', err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 400)
+    
+    return () => clearTimeout(delay)
+  }, [searchQuery])
+
+  const getFilteredSongs = () => {
+    if (searchQuery.trim()) {
+      return searchResults;
+    }
+    
+    return availableSongs.filter(song => {
+      if (song.royaltyFree) return false;
+      
+      const cat = (song.category || '').toUpperCase();
+      if (activeTab === 'trending') {
+        return song.trending || cat.includes('GLOBAL') || cat.includes('IN') || cat.length > 0;
+      }
+      if (activeTab === 'upbeat') {
+        return cat.includes('UPBEAT') || cat.includes('PUNCHY') || cat.includes('HIP-HOP') || cat.includes('DANCE');
+      }
+      if (activeTab === 'lofi') {
+        return cat.includes('LOFI') || cat.includes('ACOUSTIC') || cat.includes('AESTHETIC') || cat.includes('SOULFUL');
+      }
+      if (activeTab === 'cinematic') {
+        return cat.includes('CINEMATIC') || cat.includes('DRAMATIC') || cat.includes('MELODIC') || cat.includes('ROMANTIC');
+      }
+      return true;
+    });
+  };
+
   const [visualDirection] = useState(() => {
     try {
       const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
@@ -981,107 +1033,191 @@ export default function Record() {
                 width: '100%',
                 boxSizing: 'border-box'
               }}>
-                <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 10 }}>
-                  🎵 Suggested Tracks (Reels Trends)
+                <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 12 }}>
+                  🎵 Background Music
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-                  {availableSongs.filter(s => !s.royaltyFree).map((song, idx) => {
-                    const isSelected = selectedSong?.title === song.title;
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          setSelectedSong(song);
-                          if (isPlayingPreview) {
-                            if (bgMusicRef.current) bgMusicRef.current.pause();
-                            setIsPlayingPreview(false);
-                          }
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 12,
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          background: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-                          border: isSelected ? '1px solid var(--border-bright)' : '1px solid transparent',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 6,
-                          background: song.trending ? '#E1306C' : 'var(--surface)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1rem',
-                          color: '#fff',
-                          boxShadow: song.trending ? '0 2px 6px rgba(225,48,108,0.3)' : 'none'
-                        }}>
-                          {song.trending ? '🔥' : '💿'}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {song.title}
+
+                {/* Real-time Search Input */}
+                <div style={{ position: 'relative', marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="🔍 Search songs on Spotify..."
+                    style={{
+                      width: '100%',
+                      padding: '8px 36px 8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      fontSize: '0.78rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.2s'
+                    }}
+                  />
+                  {isSearching && (
+                    <div className="spinner" style={{
+                      position: 'absolute', right: 12, top: '50%',
+                      transform: 'translateY(-50%)', width: 14, height: 14,
+                      borderWidth: '2px', borderColor: 'var(--text-faint) transparent transparent transparent'
+                    }} />
+                  )}
+                  {searchQuery && !isSearching && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{
+                        position: 'absolute', right: 10, top: '50%',
+                        transform: 'translateY(-50%)', background: 'none',
+                        border: 'none', color: 'var(--text-faint)',
+                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Category Chips (Disabled during search query) */}
+                {!searchQuery.trim() && (
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+                    {[
+                      { id: 'trending', label: '🔥 Trending' },
+                      { id: 'upbeat', label: '💃 Upbeat' },
+                      { id: 'lofi', label: '☕ Lofi' },
+                      { id: 'cinematic', label: '🎬 Cinematic' }
+                    ].map(tab => {
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 14,
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
+                            background: isActive ? 'var(--accent)' : 'var(--surface)',
+                            color: isActive ? '#fff' : 'var(--text-muted)',
+                            transition: 'all 0.2s',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Tracks List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12, maxHeight: 220, overflowY: 'auto', scrollbarWidth: 'none' }}>
+                  {getFilteredSongs().length > 0 ? (
+                    getFilteredSongs().map((song, idx) => {
+                      const isSelected = selectedSong?.title === song.title;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setSelectedSong(song);
+                            if (isPlayingPreview) {
+                              if (bgMusicRef.current) bgMusicRef.current.pause();
+                              setIsPlayingPreview(false);
+                            }
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            background: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                            border: isSelected ? '1px solid var(--border-bright)' : '1px solid transparent',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 6,
+                            background: song.trending ? '#E1306C' : 'var(--surface)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1rem',
+                            color: '#fff',
+                            boxShadow: song.trending ? '0 2px 6px rgba(225,48,108,0.3)' : 'none'
+                          }}>
+                            {song.trending ? '🔥' : '💿'}
                           </div>
-                          <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span>{song.artist}</span>
-                            {song.usedCount && <span style={{ color: '#00E5FF', fontWeight: 600 }}>({song.usedCount})</span>}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {song.title}
+                            </div>
+                            <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>{song.artist}</span>
+                              {song.usedCount && <span style={{ color: '#00E5FF', fontWeight: 600 }}>({song.usedCount})</span>}
+                            </div>
                           </div>
+                          {song.previewUrl && isSelected && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePreviewMusic();
+                              }}
+                              style={{
+                                background: isPlayingPreview ? 'rgba(225,48,108,0.1)' : 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '50%',
+                                width: 28,
+                                height: 28,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.7rem',
+                                color: isPlayingPreview ? '#E1306C' : 'var(--text)'
+                              }}
+                            >
+                              {isPlayingPreview ? '⏸' : '▶'}
+                            </button>
+                          )}
+                          {song.instagramAudioId && (
+                            <a
+                              href={`https://www.instagram.com/reels/audio/${song.instagramAudioId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                                border: 'none',
+                                borderRadius: 14,
+                                padding: '4px 10px',
+                                color: '#fff',
+                                fontSize: '0.62rem',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                            >
+                              <span>Use Audio</span>
+                            </a>
+                          )}
                         </div>
-                        {song.previewUrl && isSelected && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePreviewMusic();
-                            }}
-                            style={{
-                              background: isPlayingPreview ? 'rgba(225,48,108,0.1)' : 'var(--surface)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '50%',
-                              width: 28,
-                              height: 28,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.7rem',
-                              color: isPlayingPreview ? '#E1306C' : 'var(--text)'
-                            }}
-                          >
-                            {isPlayingPreview ? '⏸' : '▶'}
-                          </button>
-                        )}
-                        {song.instagramAudioId && (
-                          <a
-                            href={`https://www.instagram.com/reels/audio/${song.instagramAudioId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
-                              border: 'none',
-                              borderRadius: 14,
-                              padding: '4px 10px',
-                              color: '#fff',
-                              fontSize: '0.62rem',
-                              fontWeight: 700,
-                              textDecoration: 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4
-                            }}
-                          >
-                            <span>Use Audio</span>
-                          </a>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '16px 0', fontSize: '0.74rem', color: 'var(--text-faint)' }}>
+                      {searchQuery.trim() ? 'No matching tracks found on Spotify.' : 'No tracks found for this category.'}
+                    </div>
+                  )}
                 </div>
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
