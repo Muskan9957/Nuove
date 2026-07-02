@@ -1022,7 +1022,7 @@ export default function Record() {
             )}
 
             {/* Music Preview and Mixing Card */}
-            {selectedSong && (
+            {script && (
               <div style={{
                 marginTop: 16,
                 padding: '14px 16px',
@@ -1123,6 +1123,7 @@ export default function Record() {
                           key={idx}
                           onClick={() => {
                             setSelectedSong(song);
+                            setMixMusic(true);
                             if (isPlayingPreview) {
                               if (bgMusicRef.current) bgMusicRef.current.pause();
                               setIsPlayingPreview(false);

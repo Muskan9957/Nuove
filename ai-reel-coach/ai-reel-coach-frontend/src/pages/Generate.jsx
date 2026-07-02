@@ -92,6 +92,7 @@ export default function Generate() {
   // Song recommendations state
   const [songs, setSongs]               = useState(null)
   const [songsLoading, setSongsLoading] = useState(false)
+  const [customSearchQuery, setCustomSearchQuery] = useState('')
   const [playingKey, setPlayingKey]     = useState(null)
   const [audioProgress, setAudioProgress] = useState(0)
   const audioRef      = useRef(null)
@@ -222,6 +223,13 @@ export default function Generate() {
       setTimeout(() => {
         resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
+    }
+  }, [result])
+
+  // Sync custom music search query when script loads
+  useEffect(() => {
+    if (result?.script?.music?.searchQuery) {
+      setCustomSearchQuery(result.script.music.searchQuery)
     }
   }, [result])
 
@@ -475,6 +483,42 @@ export default function Generate() {
       setSongs(enriched)
     } catch (err) {
       toast(err.message || 'Could not fetch song picks', 'error')
+    } finally {
+      setSongsLoading(false)
+    }
+  }
+
+  const handleCustomSearch = async () => {
+    if (!customSearchQuery.trim()) return
+    stopAudio()
+    setSongsLoading(true)
+    setSongs(null)
+    try {
+      const data = await api.searchMusic(customSearchQuery)
+      
+      // Enrich each song using iTunes as fallback for standard artwork formatting
+      const country = form.audience === 'India' ? 'in' : 'us'
+      const enriched = await Promise.all(
+        (data.songs || []).map(async song => {
+          try {
+            const r = await fetch(
+              `https://itunes.apple.com/search?term=${encodeURIComponent(song.title + ' ' + song.artist)}&entity=song&limit=1&country=${country}`
+            )
+            const d = await r.json()
+            const hit = d.results?.[0]
+            return {
+              ...song,
+              previewUrl : song.previewUrl || hit?.previewUrl || null,
+              artworkUrl : song.albumArt   || hit?.artworkUrl60?.replace('60x60', '100x100') || null,
+            }
+          } catch {
+            return { ...song, previewUrl: song.previewUrl || null, artworkUrl: song.albumArt || null }
+          }
+        })
+      )
+      setSongs(enriched)
+    } catch (err) {
+      toast(err.message || 'Could not search tracks', 'error')
     } finally {
       setSongsLoading(false)
     }
@@ -1184,12 +1228,51 @@ export default function Generate() {
                 <span style={{ fontSize: '1.1rem' }}>🎵</span>
                 <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1rem', margin: 0 }}>Music Vibe</h3>
               </div>
-              {/* Search tip */}
+              {/* Search tip (Interactive Search Bar) */}
               <div style={{ marginBottom: 14 }}>
                 <div style={visualLabelStyle}>🔍 Search for</div>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: '4px 0 0', fontStyle: 'italic', background: 'var(--surface2)', padding: '8px 12px', borderRadius: 8 }}>
-                  "{result.script.music.searchQuery}"
-                </p>
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <input
+                    type="text"
+                    value={customSearchQuery}
+                    onChange={(e) => setCustomSearchQuery(e.target.value)}
+                    placeholder="Search for any song or artist..."
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface2)',
+                      color: 'var(--text)',
+                      fontSize: '0.875rem',
+                      outline: 'none'
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCustomSearch();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCustomSearch}
+                    disabled={songsLoading}
+                    style={{
+                      background: 'linear-gradient(135deg, #1DB954 0%, #17A44A 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '0 16px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      opacity: songsLoading ? 0.6 : 1
+                    }}
+                  >
+                    Search
+                  </button>
+                </div>
               </div>
               {/* Tip */}
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
