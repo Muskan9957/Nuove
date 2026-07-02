@@ -313,7 +313,12 @@ const songs = async (req, res, next) => {
     const spotifyService = require('../services/spotifyService');
     const enriched = await spotifyService.enrichSongs(aiData.songs);
     return res.json({ songs: enriched });
-// ─── GET /api/scripts/search-music ──────────────────────────────────────────
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/music/search (registered in app.js) ──────────────────────────
 const searchMusic = async (req, res, next) => {
   try {
     const { q } = req.query;

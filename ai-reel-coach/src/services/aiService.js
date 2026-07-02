@@ -248,7 +248,7 @@ USE these proven high-scoring patterns instead:
 Write 1-2 sentences ONLY. No setup. No preamble. Start with impact.
 
 BODY (the main value — deliver on the hook's promise):
-[3-5 punchy points or a mini story. Keep sentences short. No filler words.]
+[The core content. This section MUST contain enough detail to meet the target length. Write several punchy points or a full story. Short sentences, no filler, but ensure you reach the target word limit.]
 
 CTA (call to action — last 5 seconds):
 [One clear action: follow, comment, save, or share. Make it feel natural, not forced.]
@@ -258,6 +258,7 @@ Rules:
 - Write like you are talking to a friend, not presenting to a boardroom
 - Do NOT use hashtags, emojis, or stage directions
 - Return ONLY the script in the format above, no extra commentary
+- The entire script (HOOK + BODY + CTA) MUST total about ${wc.min}–${wc.max} spoken words in total — this length is a hard requirement, especially for the BODY.
 
 Script:
 `;
