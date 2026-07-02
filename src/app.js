@@ -83,6 +83,9 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth',        authRoutes);
 app.use('/api/auth',        oauthRoutes);
 app.use('/api/scripts',     scriptRoutes);
+const { protect } = require('./middleware/auth');
+const scriptController = require('./controllers/scriptController');
+app.get('/api/music/search', protect, scriptController.searchMusic);
 app.use('/api/hooks',       hookRoutes);
 app.use('/api/payments',    paymentRoutes);
 app.use('/api/performance', performanceRoutes);
