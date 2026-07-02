@@ -1274,40 +1274,7 @@ export default function Generate() {
                   </button>
                 </div>
               </div>
-              {/* Tip */}
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
-                💡 {result.script.music.tip}
-              </div>
-              {/* Free music source links */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={visualLabelStyle}>🆓 Free Music Sources</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                  {[
-                    { name: 'Pixabay Music', url: 'https://pixabay.com/music/' },
-                    { name: 'Mixkit', url: 'https://mixkit.co/free-stock-music/' },
-                    { name: 'Uppbeat', url: 'https://uppbeat.io/' },
-                    { name: 'YouTube Audio Library', url: 'https://studio.youtube.com/channel/audio' },
-                  ].map(src => (
-                    <a
-                      key={src.name}
-                      href={src.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        padding: '5px 12px', borderRadius: 20,
-                        fontSize: '0.78rem', fontWeight: 600,
-                        background: 'rgba(52,211,153,0.1)',
-                        border: '1px solid rgba(52,211,153,0.3)',
-                        color: '#34D399',
-                        textDecoration: 'none',
-                        transition: 'background 0.15s',
-                      }}
-                    >
-                      {src.name} ↗
-                    </a>
-                  ))}
-                </div>
-              </div>
+
 
               {/* ── AI Song Picks ──────────────────────────────────── */}
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18, marginTop: 4 }}>
