@@ -32,7 +32,7 @@ const LANG = {
 function durationToWords(duration) {
   const mins = parseFloat(duration)
   if (!mins || isNaN(mins)) {
-    return { min: 90, max: 110, label: '100 words (45-second video)' }
+    return { min: 120, max: 140, label: '130 words (1-minute video)' }
   }
   if (mins <= 1.0) {
     return { min: 120, max: 140, label: '130 words (1-minute video)' }
