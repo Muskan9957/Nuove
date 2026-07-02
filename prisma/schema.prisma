@@ -212,3 +212,18 @@ model ChatMessage {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model TrendingAudio {
+  id               String   @id @default(uuid())
+  title            String
+  artist           String
+  instagramAudioId String?  // e.g. "148596048593"
+  trendScore       Int      @default(0)
+  usedCount        String?  // e.g. "450k+ Reels"
+  category         String   @default("GLOBAL") // UPBEAT, LOFI, CINEMATIC, Punjabi, etc.
+  region           String   @default("IN")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([region])
+}

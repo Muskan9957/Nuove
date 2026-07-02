@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const llm = require('./llm');                       // provider-agnostic LLM (Gemini/Claude)
 const trendsService = require('./trendsService');
+const prisma = require('../config/prisma');
 
 // Markers used to pick the model TIER (quality vs fast). The actual model is
 // resolved per-provider inside ./llm.js, so switching providers is one config change.
@@ -1049,10 +1050,28 @@ const getRegionalMusicContext = (audience) => REGIONAL_MUSIC_CONTEXT[audience] |
 const recommendSongs = async ({ hook, body, cta, topic, niche, tone, genre, mood, bpm, audience = 'India', language = 'en' }) => {
   const regionalMusicRule = getRegionalMusicContext(audience)
 
+  // Fetch active trending audios from our database
+  let trendingAudios = []
+  try {
+    trendingAudios = await prisma.trendingAudio.findMany({
+      orderBy: { trendScore: 'desc' }
+    })
+  } catch (err) {
+    console.warn('[AI Music] Failed to fetch trending audios from DB:', err.message)
+  }
+
+  // Format list for the AI supervisor prompt
+  const trendingListString = trendingAudios.length > 0
+    ? trendingAudios.map((t, idx) => `${idx + 1}. "${t.title}" by ${t.artist} [Used: ${t.usedCount || 'unknown'}, Category: ${t.category}, Instagram ID: ${t.instagramAudioId}]`).join('\n')
+    : 'No active trending tracks in DB right now.';
+
   const prompt = `
 You are a music supervisor who picks background tracks for viral Instagram Reels and YouTube Shorts. You have deep knowledge of regional music markets worldwide — Bollywood, K-pop, Latin pop, Afrobeats, Western pop — and know exactly which songs creators in each market actually use.
 
 ${regionalMusicRule}
+
+DATABASE OF CURRENTLY TRENDING INSTAGRAM REELS AUDIOS:
+${trendingListString}
 
 THE SCRIPT:
 Topic    : ${topic}
@@ -1073,8 +1092,13 @@ STRICT RULES:
 3. Match the emotional energy of the script (hook tension → body momentum → CTA punch)
 4. BPM must align with the script's speech and edit pace
 5. Only recommend songs that actually exist and are genuinely available
-6. For royalty-free: specify the library (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library, Hoopr.ai)
-7. searchUrl: for popular songs use YouTube search; for royalty-free use the library's search page
+6. For popular recommendations, prioritize picking from the DATABASE OF CURRENTLY TRENDING INSTAGRAM REELS AUDIOS provided above if they fit the theme and pacing. If you select a trending track:
+   - Copy its title, artist, and instagramAudioId exactly as listed.
+   - Set its "trending" field to true.
+   - Copy its "usedCount" field.
+   For other popular selections not in the database, set "trending" to false, "instagramAudioId" to null, and "usedCount" to null.
+7. For royalty-free: specify the library (Pixabay, Uppbeat, Epidemic Sound, Artlist, YouTube Audio Library, Hoopr.ai)
+8. searchUrl: for popular songs use YouTube search; for royalty-free use the library's search page
 
 Return ONLY valid JSON, no markdown, no code blocks:
 {
@@ -1087,7 +1111,10 @@ Return ONLY valid JSON, no markdown, no code blocks:
       "mood": "2-3 word mood",
       "royaltyFree": false,
       "library": null,
-      "searchUrl": "https://www.youtube.com/results?search_query=Song+Title+Artist+Name"
+      "searchUrl": "https://www.youtube.com/results?search_query=Song+Title+Artist+Name",
+      "trending": true,
+      "instagramAudioId": "148596048593",
+      "usedCount": "245k+ Reels"
     }
   ]
 }
