@@ -1973,13 +1973,9 @@ const S = {
     cursor: 'pointer',
   },
   scriptText: {
-    margin: '0 auto', color: '#fff', fontWeight: 700, lineHeight: 1.65,
+    margin: 0, color: '#fff', fontWeight: 700, lineHeight: 1.65,
     textAlign: 'center', textShadow: '0 2px 12px rgba(0,0,0,0.9)',
     whiteSpace: 'pre-wrap',
-    maxWidth: 640,
-    width: '100%',
-    padding: '0 10px',
-    boxSizing: 'border-box'
   },
   scriptBrollLine: {
     color: '#00E5FF',
