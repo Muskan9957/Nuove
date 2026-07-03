@@ -825,27 +825,24 @@ export default function Generate() {
                   className="btn btn-sm"
                   style={{ background: '#E1306C', color: '#fff', border: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
                   onClick={() => {
-                    const broll = (result.script?.visual && Array.isArray(result.script.visual.broll)) ? result.script.visual.broll : []
-                    const sections = buildCanonicalSections(result.script, t)
+                    // Teleprompter shows ONLY the spoken lines — no B-roll cues or
+                    // visual-direction blocks. Strip any such block older results may
+                    // carry inside the CTA.
+                    const EXTRAS = /\n\s*(?:\*\*)?\s*(?:visual\s*direction|visuals?|music(?:\s*suggestion)?|b-?roll|on-?screen\s*text|text\s*overlay|captions?|hashtags?|notes?)\s*(?:\*\*)?\s*[:\-–][\s\S]*$/i
+                    const clean = s => (s || '').replace(EXTRAS, '').trim()
+                    const full = buildCanonicalSections(result.script, t)
                       .filter(s => ['hook', 'body', 'cta'].includes(s.id))
-                      .map((s, idx) => {
-                        const cue = broll[idx]
-                        if (cue) {
-                          return `[B-Roll: ${cue}]\n${s.text}`
-                        }
-                        return s.text
-                      })
-                    const full = sections.join('\n\n')
+                      .map(s => clean(s.text))
+                      .filter(Boolean)
+                      .join('\n\n')
                     setPersistentState('rc_script', full)
 
-                    // Save production & overlay metadata
-                    if (result.script?.visual) {
-                      localStorage.setItem('rc_visual', JSON.stringify(result.script.visual))
-                      localStorage.setItem('rc_text_overlay', result.script.visual.textOverlay || '')
-                    } else {
-                      localStorage.removeItem('rc_visual')
-                      localStorage.removeItem('rc_text_overlay')
-                    }
+                    // Visual direction stays OUT of the recorder (user request) —
+                    // clear any overlay metadata a previous visit may have stored.
+                    localStorage.removeItem('rc_visual')
+                    localStorage.removeItem('rc_text_overlay')
+
+                    // Music picks are still handed to the recorder's music picker.
                     if (result.script?.music) {
                       localStorage.setItem('rc_music_vibe', JSON.stringify(result.script.music))
                     } else {

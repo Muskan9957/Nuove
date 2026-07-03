@@ -164,9 +164,18 @@ CTA:
   return {
     hook      : hookMatch ? hookMatch[1].trim() : hook,
     body      : bodyMatch ? bodyMatch[1].trim() : body,
-    cta       : ctaMatch  ? ctaMatch[1].trim()  : cta,
+    cta       : ctaMatch  ? stripTrailingExtras(ctaMatch[1]) : cta,
     fullScript: raw,
   };
+};
+
+// The CTA capture runs to the end of the model output, so any extra section the
+// model appends (Visual Direction, Music, Captions…) would leak into the CTA —
+// and from there onto the teleprompter. Cut the CTA off at the first such header.
+const stripTrailingExtras = (cta) => {
+  const text = String(cta || '').trim();
+  const m = text.match(/\n\s*(?:\*\*)?\s*(?:visual\s*direction|visuals?|music(?:\s*suggestion)?|b-?roll|on-?screen\s*text|text\s*overlay|captions?|hashtags?|notes?)\s*(?:\*\*)?\s*[:\-–]/i);
+  return m ? text.slice(0, m.index).trim() : text;
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -273,7 +282,7 @@ Script:
   return {
     hook      : hookMatch ? hookMatch[1].trim() : '',
     body      : bodyMatch ? bodyMatch[1].trim() : '',
-    cta       : ctaMatch  ? ctaMatch[1].trim()  : '',
+    cta       : ctaMatch  ? stripTrailingExtras(ctaMatch[1]) : '',
     fullScript: raw,
   };
 };

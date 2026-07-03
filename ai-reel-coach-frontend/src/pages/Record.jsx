@@ -495,16 +495,12 @@ export default function Record() {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false)
   const [isPlayingDone, setIsPlayingDone] = useState(false)
   const [vidTime, setVidTime] = useState(0)
-  const [textOverlay] = useState(() => localStorage.getItem('rc_text_overlay') || '')
+  // Visual direction / hook-overlay were removed from the recorder (user request):
+  // the teleprompter shows only the spoken script. Keeping the states empty makes
+  // all the overlay UI below render nothing.
+  const [textOverlay] = useState('')
   const [burnOverlay, setBurnOverlay] = useState(true)
-  const [visualDirection] = useState(() => {
-    try {
-      const stored = localStorage.getItem('rc_visual')
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  })
+  const [visualDirection] = useState(null)
 
   // refs
   const bgMusicRef    = useRef(null)
@@ -604,6 +600,9 @@ export default function Record() {
   }
 
   /* ── auto-scroll teleprompter ── */
+  // The rAF loop reads scrollingRef (kept in sync below) instead of capturing
+  // the `scrolling` state — a captured value goes stale after pause/resume and
+  // silently stops the scroll.
   const startScroll = useCallback(() => {
     // Uses refs (scrollingRef, speedRef) so the loop never has stale closure values.
     // No need to restart on speed change or pause/resume — ref values are always live.

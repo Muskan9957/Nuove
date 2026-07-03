@@ -71,6 +71,13 @@ function parseScript(fullText) {
     cta = text.slice(ctaIdx).replace(/^CTA[^:\n]*[:\n]\s*/i, '').trim()
   }
 
+  // The CTA slice runs to the end of the text, so any extra section the model
+  // appends (Visual Direction, Music, Captions…) would leak into the CTA and
+  // end up on the teleprompter. Cut it off at the first such header.
+  const EXTRAS = /\n\s*(?:visual\s*direction|visuals?|music(?:\s*suggestion)?|b-?roll|on-?screen\s*text|text\s*overlay|captions?|hashtags?|notes?)\s*[:\-–]/i
+  const m = cta.match(EXTRAS)
+  if (m) cta = cta.slice(0, m.index).trim()
+
   // Last-resort fallback: if none parsed, dump everything into body
   if (!hook && !body && !cta) body = fullText.trim()
 
@@ -101,7 +108,7 @@ BODY:
 CTA:
 [One clear action for the last 5 seconds.]
 
-Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The entire script (HOOK + BODY + CTA) MUST total about ${wc.min}–${wc.max} spoken words in total — this length is a hard requirement, especially for the BODY. No hashtags, no emojis.`
+Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The entire script (HOOK + BODY + CTA) MUST total about ${wc.min}–${wc.max} spoken words in total — this length is a hard requirement, especially for the BODY. Write like talking to a friend. No hashtags, no emojis. Output ONLY the three sections — do NOT add anything after the CTA (no visual directions, music suggestions, captions, or notes).`
 }
 
 // ── Stream tokens from Gemini (SSE) — yields text deltas ─────────────
