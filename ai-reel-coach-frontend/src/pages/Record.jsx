@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useReducer } from 'react'
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
@@ -12,65 +12,138 @@ const fmtTime = (s) => {
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${ds}`
 }
 
+/* ─────────────── state machine ─────────────── */
+const initialState = {
+  phase: 'IDLE', // IDLE | PREPARING_CAMERA | COUNTDOWN | RECORDING | PROCESSING | READY_TO_EDIT | EXPORTING | ERROR
+  countdown: 3,
+  elapsed: 0,
+  cameraErr: '',
+  outputBlob: null,
+  outputUrl: null,
+  outputExt: 'webm',
+  trimStart: 0,
+  trimEnd: 0,
+  duration: 0,
+  thumbnails: []
+}
+
+function recorderReducer(state, action) {
+  switch(action.type) {
+    case 'START_CAMERA': return { ...state, phase: 'PREPARING_CAMERA', cameraErr: '' }
+    case 'CAMERA_READY': return { ...state, phase: 'IDLE' }
+    case 'CAMERA_ERROR': return { ...state, phase: 'ERROR', cameraErr: action.payload }
+    case 'START_COUNTDOWN': return { ...state, phase: 'COUNTDOWN', countdown: 3, elapsed: 0 }
+    case 'TICK_COUNTDOWN': return { ...state, countdown: action.payload }
+    case 'START_RECORDING': return { ...state, phase: 'RECORDING', elapsed: 0 }
+    case 'TICK_ELAPSED': return { ...state, elapsed: state.elapsed + 1 }
+    case 'STOP_RECORDING': return { ...state, phase: 'PROCESSING' }
+    case 'PROCESSING_DONE': 
+      return { 
+        ...state, 
+        phase: 'READY_TO_EDIT',
+        outputBlob: action.payload.blob,
+        outputUrl: action.payload.url,
+        duration: action.payload.duration,
+        trimStart: 0,
+        trimEnd: action.payload.duration,
+        thumbnails: action.payload.thumbnails
+      }
+    case 'SET_TRIM':
+      return { ...state, trimStart: action.payload.start, trimEnd: action.payload.end }
+    // UPDATE_TRIM — used by TrimBar; updates just one side
+    case 'UPDATE_TRIM':
+      return {
+        ...state,
+        trimStart: action.payload.start !== undefined ? action.payload.start : state.trimStart,
+        trimEnd:   action.payload.end   !== undefined ? action.payload.end   : state.trimEnd,
+      }
+    case 'START_EXPORT': return { ...state, phase: 'EXPORTING' }
+    case 'EXPORT_DONE':  // fall-through
+    case 'FINISH_EXPORT': return { ...state, phase: 'READY_TO_EDIT' }
+    case 'RESET': 
+      return { ...initialState, phase: 'IDLE' }
+    default: return state
+  }
+}
+
+async function generateThumbnails(blob, duration, count = 14) {
+  if (!blob || duration <= 0 || !isFinite(duration)) return []
+  const vid = document.createElement('video')
+  vid.muted = true
+  vid.preload = 'auto'
+  const url = URL.createObjectURL(blob)
+  vid.src = url
+  await new Promise(r => vid.addEventListener('loadedmetadata', r, { once: true }))
+  
+  const cvs = document.createElement('canvas')
+  cvs.width = 120; cvs.height = 68
+  const ctx = cvs.getContext('2d')
+  const out = []
+  
+  for (let i = 0; i < count; i++) {
+    vid.currentTime = (duration * i) / Math.max(count - 1, 1)
+    await new Promise(r => vid.addEventListener('seeked', r, { once: true }))
+    ctx.drawImage(vid, 0, 0, 120, 68)
+    out.push(cvs.toDataURL('image/jpeg', 0.6))
+  }
+  URL.revokeObjectURL(url)
+  return out
+}
+
 /* ─────────────── TrimBar ─────────────── */
-function TrimBar({ blob, totalSecs, trimStart, trimEnd, onTrimChange }) {
-  const [thumbs, setThumbs] = useState([])
-  const stripRef = useRef(null)
-  const dragRef  = useRef(null)
+function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }) {
+  // Thumbnails are now pre-generated in the PROCESSING phase
+  const [localStart, setLocalStart] = useState(trimStart)
+  const [localEnd,   setLocalEnd]   = useState(trimEnd)
+  const stripRef   = useRef(null)
+  const dragRef    = useRef(null)
+  const seekRafRef = useRef(null)
   const N = 14
 
-  // Extract thumbnail frames from blob
+  // Sync from parent when not actively dragging
   useEffect(() => {
-    if (!blob || !totalSecs || totalSecs <= 0 || !isFinite(totalSecs)) return
-    let cancelled = false
-    const run = async () => {
-      const vid = document.createElement('video')
-      vid.muted = true
-      vid.preload = 'auto'
-      const url = URL.createObjectURL(blob)
-      vid.src = url
-      await new Promise(r => vid.addEventListener('loadedmetadata', r, { once: true }))
-      if (cancelled) { URL.revokeObjectURL(url); return }
-      const dur = isFinite(vid.duration) ? vid.duration : totalSecs
-      const cvs = document.createElement('canvas')
-      cvs.width = 120; cvs.height = 68
-      const ctx = cvs.getContext('2d')
-      const out = []
-      for (let i = 0; i < N; i++) {
-        if (cancelled) break
-        vid.currentTime = (dur * i) / Math.max(N - 1, 1)
-        await new Promise(r => vid.addEventListener('seeked', r, { once: true }))
-        ctx.drawImage(vid, 0, 0, 120, 68)
-        out.push(cvs.toDataURL('image/jpeg', 0.6))
-      }
-      URL.revokeObjectURL(url)
-      if (!cancelled) setThumbs(out)
+    if (!dragRef.current) {
+      setLocalStart(trimStart)
+      setLocalEnd(trimEnd)
     }
-    run().catch(() => {})
-    return () => { cancelled = true }
-  }, [blob, totalSecs])
+  }, [trimStart, trimEnd])
 
   const total = totalSecs > 0 ? totalSecs : 1
-  const pctS  = Math.max(0, Math.min(100, (trimStart / total) * 100))
-  const pctE  = Math.max(0, Math.min(100, (trimEnd   / total) * 100))
+  // Use local state for rendering during drag for smooth 60fps visuals
+  const pctS  = Math.max(0, Math.min(100, (localStart / total) * 100))
+  const pctE  = Math.max(0, Math.min(100, (localEnd   / total) * 100))
 
   const startDrag = (which, ev) => {
     ev.preventDefault()
     dragRef.current = which
+    // Mutable vars for the drag closure — avoids stale state reads
+    let liveStart = localStart
+    let liveEnd   = localEnd
+
     const onMove = (e) => {
       const cx   = e.touches ? e.touches[0].clientX : e.clientX
       const rect = stripRef.current?.getBoundingClientRect()
       if (!rect) return
       const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
       const secs = Math.round(pct * total * 10) / 10
-      if (dragRef.current === 'start') {
-        onTrimChange('start', Math.min(secs, trimEnd - 0.3))
+      if (which === 'start') {
+        liveStart = Math.min(secs, liveEnd - 0.3)
+        setLocalStart(liveStart)
       } else {
-        onTrimChange('end',   Math.max(secs, trimStart + 0.3))
+        liveEnd = Math.max(secs, liveStart + 0.3)
+        setLocalEnd(liveEnd)
       }
+      // RAF-throttled video seek — prevents seeking on every mousemove
+      if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
+      seekRafRef.current = requestAnimationFrame(() => {
+        onSeek?.(which === 'start' ? liveStart : liveEnd)
+      })
     }
     const onUp = () => {
       dragRef.current = null
+      // Commit final values to parent — single state update, single re-render
+      if (which === 'start') onTrimChange('start', liveStart)
+      else                   onTrimChange('end',   liveEnd)
       document.removeEventListener('mousemove',  onMove)
       document.removeEventListener('mouseup',    onUp)
       document.removeEventListener('touchmove',  onMove)
@@ -160,18 +233,18 @@ function TrimBar({ blob, totalSecs, trimStart, trimEnd, onTrimChange }) {
         <Handle side="end" />
       </div>
 
-      {/* Time labels */}
+      {/* Time labels — use localStart/localEnd for live drag feedback */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
         <div style={{ textAlign: 'left' }}>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Start</div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(trimStart)}</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localStart)}</div>
         </div>
         <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          ✂️ {fmtTime(trimEnd - trimStart)} selected
+          ✂️ {fmtTime(localEnd - localStart)} selected
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>End</div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(trimEnd)}</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localEnd)}</div>
         </div>
       </div>
       <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: 2 }}>
@@ -331,27 +404,13 @@ export default function Record() {
   const nextFilter = () => setFilterIdx(i => (i + 1) % FILTERS.length)
   const [showGrid,   setShowGrid]   = useState(false)
 
-  // steps: 'setup' | 'countdown' | 'recording' | 'done'
-  const [phase,      setPhase]      = useState('setup')
-  const [countdown,  setCountdown]  = useState(3)
-  const [elapsed,    setElapsed]    = useState(0)
-  const [scrolling,  setScrolling]  = useState(true)
-  const [cameraErr,  setCameraErr]  = useState('')
-
-  // recording
-  const [outputBlob, setOutputBlob] = useState(null)
-  const [outputUrl,  setOutputUrl]  = useState(null)
-  const [outputExt,  setOutputExt]  = useState('mp4')
-  const [trimStart,  setTrimStart]  = useState(0)    // seconds
-  const [trimEnd,    setTrimEnd]    = useState(0)    // seconds (0 = full)
-  const [downloading, setDownloading] = useState(false)
-  const [processing, setProcessing] = useState(false) // true while WebCodecs flushes after stop
+  // steps & recording handled by central state machine
+  const [state, dispatch] = useReducer(recorderReducer, initialState)
+  const { phase, countdown, elapsed, cameraErr, outputBlob, outputUrl, outputExt, trimStart, trimEnd, duration, thumbnails } = state
 
   // production overlay metadata
   const [availableSongs] = useState(() => {
     try {
-      const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
-      if (!activeScript) return []
       const stored = localStorage.getItem('rc_songs')
       const parsed = stored ? JSON.parse(stored) : []
       return Array.isArray(parsed) ? parsed : []
@@ -361,8 +420,6 @@ export default function Record() {
   })
   const [selectedSong, setSelectedSong] = useState(() => {
     try {
-      const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
-      if (!activeScript) return null
       const stored = localStorage.getItem('rc_songs')
       const parsed = stored ? JSON.parse(stored) : []
       return Array.isArray(parsed) ? (parsed.find(s => s.previewUrl) || null) : null
@@ -372,68 +429,12 @@ export default function Record() {
   })
   const [mixMusic, setMixMusic] = useState(!!selectedSong)
   const [isPlayingPreview, setIsPlayingPreview] = useState(false)
-  const [textOverlay] = useState(() => {
-    const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
-    if (!activeScript) return ''
-    return localStorage.getItem('rc_text_overlay') || ''
-  })
+  const [isPlayingDone, setIsPlayingDone] = useState(false)
+  const [vidTime, setVidTime] = useState(0)
+  const [textOverlay] = useState(() => localStorage.getItem('rc_text_overlay') || '')
   const [burnOverlay, setBurnOverlay] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [activeTab, setActiveTab] = useState('trending')
-
-  // Real-time debounced music search
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([])
-      return
-    }
-    
-    setIsSearching(true)
-    const delay = setTimeout(async () => {
-      try {
-        const res = await api.searchMusic(searchQuery)
-        setSearchResults(res.songs || [])
-      } catch (err) {
-        console.warn('Failed to search music:', err)
-      } finally {
-        setIsSearching(false)
-      }
-    }, 400)
-    
-    return () => clearTimeout(delay)
-  }, [searchQuery])
-
-  const getFilteredSongs = () => {
-    if (searchQuery.trim()) {
-      return searchResults;
-    }
-    
-    return availableSongs.filter(song => {
-      if (song.royaltyFree) return false;
-      
-      const cat = (song.category || '').toUpperCase();
-      if (activeTab === 'trending') {
-        return song.trending || cat.includes('GLOBAL') || cat.includes('IN') || cat.length > 0;
-      }
-      if (activeTab === 'upbeat') {
-        return cat.includes('UPBEAT') || cat.includes('PUNCHY') || cat.includes('HIP-HOP') || cat.includes('DANCE');
-      }
-      if (activeTab === 'lofi') {
-        return cat.includes('LOFI') || cat.includes('ACOUSTIC') || cat.includes('AESTHETIC') || cat.includes('SOULFUL');
-      }
-      if (activeTab === 'cinematic') {
-        return cat.includes('CINEMATIC') || cat.includes('DRAMATIC') || cat.includes('MELODIC') || cat.includes('ROMANTIC');
-      }
-      return true;
-    });
-  };
-
   const [visualDirection] = useState(() => {
     try {
-      const activeScript = sessionStorage.getItem('rc_script') || localStorage.getItem('rc_script')
-      if (!activeScript) return null
       const stored = localStorage.getItem('rc_visual')
       return stored ? JSON.parse(stored) : null
     } catch {
@@ -446,33 +447,26 @@ export default function Record() {
   const videoRef      = useRef(null)   // camera preview (visible)
   const hiddenVideoRef = useRef(null)   // off-screen video used as canvas draw source
   const streamRef     = useRef(null)
+  const streamDimsRef = useRef({ w: 1280, h: 720 }) // actual camera resolution (updated on getUserMedia)
   const recorderRef   = useRef(null)
   const chunksRef     = useRef([])
   const scrollRef     = useRef(null)   // teleprompter text container
   const scrollPosRef  = useRef(0)
+  const scrollingRef  = useRef(true)   // live scroll state — read by RAF without stale closure
+  const speedRef      = useRef(SPEEDS[2].value) // live speed value — read by RAF without stale closure
   const rafRef        = useRef(null)
   const timerRef      = useRef(null)
   const countdownRef  = useRef(null)
   const canvasLoopRef = useRef(false)
   const doneVideoRef  = useRef(null)
   const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
-  const scrollingRef  = useRef(true)
 
-  // Keep preview video in sync with the trim start position
-  useEffect(() => {
-    if (phase === 'done' && doneVideoRef.current) {
-      // Pause to avoid playback while scrubbing
-      doneVideoRef.current.pause()
-      // Clamp to video duration (if known)
-      const dur = doneVideoRef.current.duration || 0
-      const clamped = Math.min(trimStart, dur)
-      doneVideoRef.current.currentTime = clamped
-    }
-  }, [trimStart, phase])
+  // Keep speedRef in sync with speedIdx state
+  useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
 
   /* ── start camera ── */
   const startCamera = useCallback(async (facing = facingMode) => {
-    setCameraErr('')
+    dispatch({ type: 'START_CAMERA' })
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
@@ -492,13 +486,20 @@ export default function Record() {
       }
 
       streamRef.current = stream
+      // Capture actual video dimensions for correct canvas sizing during recording/export
+      const vt = stream.getVideoTracks()[0]
+      if (vt) {
+        const s = vt.getSettings()
+        if (s.width && s.height) streamDimsRef.current = { w: s.width, h: s.height }
+      }
       if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}) }
       // Keep the hidden video in sync too — this is our stable canvas draw source
       if (hiddenVideoRef.current) { hiddenVideoRef.current.srcObject = stream; hiddenVideoRef.current.play().catch(() => {}) }
+      dispatch({ type: 'CAMERA_READY' })
     } catch (e) {
-      setCameraErr(e.name === 'NotAllowedError'
+      dispatch({ type: 'CAMERA_ERROR', payload: e.name === 'NotAllowedError'
         ? 'Camera access denied. Please allow camera in your browser settings.'
-        : 'Could not access camera: ' + e.message)
+        : 'Could not access camera: ' + e.message })
     }
   }, [facingMode])
 
@@ -538,12 +539,13 @@ export default function Record() {
 
   /* ── auto-scroll teleprompter ── */
   const startScroll = useCallback(() => {
-    const speed = SPEEDS[speedIdx].value  // px per second
+    // Uses refs (scrollingRef, speedRef) so the loop never has stale closure values.
+    // No need to restart on speed change or pause/resume — ref values are always live.
     let last = null
     const tick = (ts) => {
       if (!scrollRef.current) return
       if (last !== null && scrollingRef.current) {
-        const delta = ((ts - last) / 1000) * speed
+        const delta = ((ts - last) / 1000) * speedRef.current
         scrollPosRef.current += delta
         scrollRef.current.scrollTop = scrollPosRef.current
       }
@@ -551,7 +553,7 @@ export default function Record() {
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
-  }, [speedIdx])
+  }, []) // no deps — all values come from stable refs
 
   const stopScroll = () => {
     cancelAnimationFrame(rafRef.current)
@@ -561,10 +563,16 @@ export default function Record() {
   /* ── begin: countdown → record ── */
   const beginRecording = () => {
     if (!streamRef.current) return
-    setPhase('countdown')
-    setCountdown(3)
+    dispatch({ type: 'START_COUNTDOWN' })
     scrollPosRef.current = 0
     if (scrollRef.current) scrollRef.current.scrollTop = 0
+    
+    // Reset scrolling state for the new recording session
+    scrollingRef.current = true
+    const hint = document.getElementById('scroll-hint')
+    if (hint) hint.style.opacity = '1'
+    const btn = document.getElementById('scroll-btn-text')
+    if (btn) btn.innerText = '⏸ Pause scroll'
 
     let n = 3
     countdownRef.current = setInterval(() => {
@@ -573,7 +581,7 @@ export default function Record() {
         clearInterval(countdownRef.current)
         launchRecording()
       } else {
-        setCountdown(n)
+        dispatch({ type: 'TICK_COUNTDOWN', payload: n })
       }
     }, 1000)
   }
@@ -582,10 +590,16 @@ export default function Record() {
     const stream = streamRef.current
     if (!stream) return
 
-    // Canvas draws the filtered + mirrored camera output
+    // Ensure the off-screen video source is actually playing (it may have been paused by the browser)
+    if (hiddenVideoRef.current && hiddenVideoRef.current.paused) {
+      hiddenVideoRef.current.play().catch(() => {})
+    }
+
+    // Canvas uses actual camera dimensions — fixes 9:16 vs 16:9 distortion on export
+    const { w: VW, h: VH } = streamDimsRef.current
     const canvas = document.createElement('canvas')
-    canvas.width = 1280
-    canvas.height = 720
+    canvas.width  = VW
+    canvas.height = VH
     const ctx = canvas.getContext('2d')
 
     // Draw loop — applies CSS filter + mirror to every frame
@@ -661,6 +675,7 @@ export default function Record() {
     // Pick the best available MIME type
     const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
     const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
+    console.log('[Recorder] launchRecording: Picked MIME type', mime)
 
     chunksRef.current = []
     const rec = new MediaRecorder(combinedStream, { mimeType: mime })
@@ -681,6 +696,13 @@ export default function Record() {
 
       const rawBlob = new Blob(chunksRef.current, { type: mime })
       const capturedElapsed = elapsedRef.current
+      console.log(`[Recorder] Recording stopped. Blob finalized: ${rawBlob.size} bytes. Captured elapsed: ${capturedElapsed}s`)
+
+      // If blob is completely empty, show error immediately (happens if camera was blocked mid-recording)
+      if (rawBlob.size === 0) {
+        dispatch({ type: 'CAMERA_ERROR', payload: 'Recording failed: no data captured. Please check camera permissions and try again.' })
+        return
+      }
 
       // Fix seekability: WebM blobs from MediaRecorder have duration=Infinity
       // Seeking to a huge time forces the browser to calculate the real duration
@@ -689,18 +711,34 @@ export default function Record() {
       const url = URL.createObjectURL(rawBlob)
       tempVid.src = url
 
-      const finish = () => {
-        // By keeping the object URL, the browser remembers the duration we forced it to calculate
-        setOutputUrl(url)
-        setOutputBlob(rawBlob)
-        setOutputExt('webm')
-        setTrimStart(0)
-        setTrimEnd(capturedElapsed)
-        setProcessing(false)
-        setPhase('done')
+      // finishCalled flag prevents double-invocation from the stale-closure setTimeout fallback
+      let finishCalled = false
+      const finish = async () => {
+        if (finishCalled) return
+        finishCalled = true
+
+        // Guard: if no data was captured at all (too-short recording or muted canvas)
+        // show error immediately instead of hanging
+        const totalSize = chunksRef.current.reduce((s, c) => s + c.size, 0)
+        if (totalSize === 0) {
+          dispatch({ type: 'CAMERA_ERROR', payload: 'No video data captured. Please record for at least 1 second.' })
+          return
+        }
+        
+        let dur = isFinite(tempVid.duration) ? tempVid.duration : capturedElapsed;
+        if (dur <= 0) dur = capturedElapsed || 1;
+        console.log(`[Recorder] Metadata loaded. Calculated duration: ${dur}s`)
+        const thumbs = await generateThumbnails(rawBlob, dur)
+
+        console.log(`[Recorder] Processing done. Phase transitioning to READY_TO_EDIT`)
+        dispatch({ 
+          type: 'PROCESSING_DONE', 
+          payload: { blob: rawBlob, url, duration: dur, thumbnails: thumbs } 
+        })
+        
         stopScroll()
         clearInterval(timerRef.current)
-        
+
         // Ping streak when recording finishes
         api.pingStreak().catch(console.error)
       }
@@ -719,91 +757,86 @@ export default function Record() {
         }
       }, { once: true })
 
-      // Fallback: if metadata never fires (e.g. empty recording), still transition
-      setTimeout(() => {
-        if (!outputBlob) {
-          finish()
-        }
-      }, 4000)
+      // Fallback: if metadata never fires within 5s, still transition.
+      setTimeout(() => { finish() }, 5000)
     }
 
-    rec.start(250) // chunk every 250ms
+    rec.start(200) // chunk every 200ms for more reliable data
+    console.log('[Recorder] Recording started')
     elapsedRef.current = 0
-    setPhase('recording')
-    setElapsed(0)
-    setScrolling(true)
+    dispatch({ type: 'START_RECORDING' })
     timerRef.current = setInterval(() => {
       elapsedRef.current += 1
-      setElapsed(e => e + 1)
+      dispatch({ type: 'TICK_ELAPSED' })
     }, 1000)
-    startScroll()
+    // Scroll is started by the useEffect that watches phase === 'RECORDING',
+    // guaranteeing the scrollRef DOM node exists before the RAF loop begins.
   }
 
   const stopRecording = () => {
     canvasLoopRef.current = false
     clearInterval(timerRef.current)
     stopScroll()
-    setProcessing(true)
-    // Works for both native MediaRecorder and our custom async WebCodecs stop
-    const result = recorderRef.current?.stop()
-    if (result && typeof result.then === 'function') {
-      // WebCodecs async stop — processing spinner shown until done phase is set
-      result.catch(err => {
-        console.error('stopRecording error:', err)
-        setProcessing(false)
-        setPhase('done')
-      })
+    dispatch({ type: 'STOP_RECORDING' })
+    const rec = recorderRef.current
+    if (!rec) return
+    // Flush any buffered data before stopping so the last chunk isn't lost
+    if (rec.state === 'recording') {
+      try { rec.requestData() } catch (_) {}
     }
-    // For native MediaRecorder, stop() is sync — onstop callback handles phase transition
+    try { rec.stop() } catch (err) {
+      console.error('stopRecording error:', err)
+      dispatch({ type: 'CAMERA_ERROR', payload: 'Processing failed.' })
+    }
   }
 
   const toggleScrollPause = () => {
-    setScrolling(s => !s)
+    scrollingRef.current = !scrollingRef.current
+    const btn = document.getElementById('scroll-btn-text')
+    if (btn) btn.innerText = scrollingRef.current ? '⏸ Pause scroll' : '▶ Resume scroll'
+    const hint = document.getElementById('scroll-hint')
+    if (hint) hint.style.opacity = scrollingRef.current ? '1' : '0'
   }
 
-  /* ── speed change restarts scroll at new rate ── */
-  useEffect(() => {
-    if (phase === 'recording') { stopScroll(); startScroll() }
-  }, [speedIdx]) // eslint-disable-line
+  /* ── speed change ── no scroll restart needed; speedRef is always current */
+  // (speedRef synced via useEffect above)
 
   /* ── re-attach stream whenever a new <video> element mounts (phase change) ── */
   useEffect(() => {
-    if ((phase === 'countdown' || phase === 'recording') && videoRef.current && streamRef.current) {
+    if ((phase === 'COUNTDOWN' || phase === 'RECORDING') && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current
       videoRef.current.play().catch(() => {})
     }
-  }, [phase])
+    // When RECORDING phase DOM has mounted, kick off the scroll loop reliably.
+    // We do this here (not in launchRecording) so the scrollRef div is guaranteed to exist.
+    if (phase === 'RECORDING') {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+      scrollingRef.current = true
+      startScroll()
+    }
+  }, [phase]) // eslint-disable-line
 
-  /* ── keep scrolling state in sync with ref ── */
-  useEffect(() => {
-    scrollingRef.current = scrolling
-  }, [scrolling])
 
   const handleDownload = async () => {
-    if (!outputBlob || downloading) return
+    if (!outputBlob || phase === 'EXPORTING') return
     
-    // If no trim is needed, download immediately
-    if (trimStart === 0 && (trimEnd === 0 || trimEnd >= elapsed - 0.5)) {
-      const a = document.createElement('a')
-      a.href = outputUrl
-      a.download = `nuove-recording.${outputExt}`
-      a.click()
-      return
-    }
-
-    setDownloading(true)
+    dispatch({ type: 'START_EXPORT' })
     try {
+      console.log('[Recorder] Export started (converting to MP4)')
       const trimmedBlob = await executeTrim()
+      console.log(`[Recorder] Export finished. Trimmed blob size: ${trimmedBlob.size} bytes`)
       const url = URL.createObjectURL(trimmedBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `nuove-recording.webm`
+      // Extension matches actual blob type generated by the pipeline
+      a.download = trimmedBlob.type === 'video/mp4' ? 'nuove-recording.mp4' : 'nuove-recording.webm'
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 10000)
     } catch (e) {
       console.error(e)
     }
-    setDownloading(false)
+    dispatch({ type: 'FINISH_EXPORT' })
   }
 
   /* ── make blob seekable so slider + duration work in browser & media players ── */
@@ -826,9 +859,194 @@ export default function Record() {
     })
   })
 
-  /* ── trim video using canvas re-encode ── */
-  const executeTrim = () => new Promise(async (resolve) => {
+  /* ── trim video using mp4-muxer and WebCodecs (standards compliant MP4) ── */
+  const executeTrimWebCodecs = () => new Promise(async (resolve, reject) => {
+    if (!outputBlob) return reject(new Error("No blob"))
+
+    if (typeof VideoEncoder === 'undefined' || typeof MediaStreamTrackProcessor === 'undefined') {
+      return reject(new Error('WebCodecs API not supported on this browser.'))
+    }
+
+    const srcUrl = URL.createObjectURL(outputBlob)
+    const tempVideo = document.createElement('video')
+    tempVideo.src = srcUrl
+    tempVideo.muted = false
+    tempVideo.volume = 1
+
+    await new Promise((r, e) => {
+      tempVideo.addEventListener('loadedmetadata', r, { once: true })
+      tempVideo.addEventListener('error', e, { once: true })
+    })
+
+    const duration = isFinite(tempVideo.duration) ? tempVideo.duration : (trimEnd || elapsed)
+    const start = Math.max(0, trimStart)
+    const end   = Math.min(duration, trimEnd > 0 && trimEnd < duration ? trimEnd : duration)
+    console.log(`[Recorder] Trim applied (WebCodecs): start=${start}s, end=${end}s, totalDuration=${duration}s`)
+
+    // Use actual dimensions from tempVideo, ensuring they are even numbers for the encoder
+    const targetW = tempVideo.videoWidth - (tempVideo.videoWidth % 2) || 720
+    const targetH = tempVideo.videoHeight - (tempVideo.videoHeight % 2) || 1280
+    const canvas = document.createElement('canvas')
+    canvas.width  = targetW
+    canvas.height = targetH
+    const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false })
+
+    let audioCtx = null
+    let audioTrack = null
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 })
+      await audioCtx.resume()
+      const src = audioCtx.createMediaElementSource(tempVideo)
+      const dest = audioCtx.createMediaStreamDestination()
+      src.connect(dest)
+      audioTrack = dest.stream.getAudioTracks()[0]
+    } catch (err) {
+      console.warn('Audio routing failed in WebCodecs, continuing without audio:', err)
+    }
+
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: 'avc', width: targetW, height: targetH },
+      audio: audioTrack ? { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 } : undefined,
+      fastStart: 'in-memory'
+    })
+
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (e) => reject(e)
+    })
+    videoEncoder.configure({
+      codec: 'avc1.4d002a', // Main profile, Level 4.2
+      width: targetW,
+      height: targetH,
+      bitrate: 3000000,
+      framerate: 30,
+      hardwareAcceleration: 'prefer-hardware'
+    })
+
+    let audioEncoder = null
+    let audioProcessor = null
+    let audioReader = null
+    if (audioTrack) {
+      let firstAudioTs = null
+      audioEncoder = new AudioEncoder({
+        output: (chunk, meta) => {
+          if (firstAudioTs === null) firstAudioTs = chunk.timestamp
+          const buf = new ArrayBuffer(chunk.byteLength)
+          chunk.copyTo(buf)
+          const normalizedChunk = new EncodedAudioChunk({
+            type: chunk.type,
+            timestamp: Math.max(0, chunk.timestamp - firstAudioTs),
+            duration: chunk.duration,
+            data: buf
+          })
+          muxer.addAudioChunk(normalizedChunk, meta)
+        },
+        error: (e) => reject(e)
+      })
+      audioEncoder.configure({
+        codec: 'mp4a.40.2',
+        sampleRate: 44100,
+        numberOfChannels: 1,
+        bitrate: 128000
+      })
+      audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack })
+      audioReader = audioProcessor.readable.getReader()
+      
+      const readAudio = async () => {
+        try {
+          while (true) {
+            const { done, value } = await audioReader.read()
+            if (done || tempVideo.currentTime >= end || tempVideo.ended) {
+              if (value) value.close()
+              break
+            }
+            audioEncoder.encode(value)
+            value.close()
+          }
+        } catch (e) {
+          console.warn('Audio read loop ended:', e)
+        }
+      }
+      readAudio()
+    }
+
+    tempVideo.currentTime = start
+    await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }))
+
+    let frameCount = 0
+    let finished = false
+
+    const finish = async () => {
+      if (finished) return
+      finished = true
+      tempVideo.pause()
+
+      try {
+        await videoEncoder.flush()
+        if (audioEncoder) await audioEncoder.flush()
+        muxer.finalize()
+
+        const { buffer } = muxer.target
+        const mp4Blob = new Blob([buffer], { type: 'video/mp4' })
+        
+        URL.revokeObjectURL(srcUrl)
+        if (audioCtx) audioCtx.close().catch(() => {})
+        
+        resolve(mp4Blob)
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    const drawLoop = async (now, metadata) => {
+      if (finished) return
+      if (tempVideo.currentTime >= end || tempVideo.ended) {
+        finish()
+        return
+      }
+
+      const vidRatio = tempVideo.videoWidth / (tempVideo.videoHeight || 1);
+      const targetRatio = targetW / targetH;
+      let drawW, drawH, drawX, drawY;
+      
+      if (vidRatio > targetRatio) {
+        drawH = targetH; drawW = drawH * vidRatio; drawX = (targetW - drawW) / 2; drawY = 0;
+      } else {
+        drawW = targetW; drawH = drawW / vidRatio; drawX = 0; drawY = (targetH - drawH) / 2;
+      }
+      
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, targetW, targetH)
+      ctx.drawImage(tempVideo, drawX, drawY, drawW, drawH)
+      
+      // Use exact mediaTime from the source video to prevent lagging/speedups, normalized to start at 0
+      const mediaTime = metadata && metadata.mediaTime !== undefined ? metadata.mediaTime : tempVideo.currentTime
+      let timestamp = Math.round((mediaTime - start) * 1e6)
+      if (timestamp < 0) timestamp = 0
+      
+      const frame = new VideoFrame(canvas, { timestamp })
+      videoEncoder.encode(frame, { keyFrame: frameCount % 60 === 0 })
+      frame.close()
+      frameCount++
+
+      tempVideo.requestVideoFrameCallback(drawLoop)
+    }
+
+    tempVideo.play().catch(err => {
+      reject(new Error("Playback blocked: " + err.message))
+    })
+    tempVideo.requestVideoFrameCallback(drawLoop)
+
+    setTimeout(() => {
+      if (!finished) reject(new Error("Export timed out"))
+    }, (end - start + 10) * 1000)
+  })
+
+  /* ── fallback: trim video using canvas re-encode (legacy webm) ── */
+  const executeTrimFallback = () => new Promise(async (resolve, reject) => {
     if (!outputBlob) return resolve(outputBlob)
+
 
     const srcUrl = URL.createObjectURL(outputBlob)
     const tempVideo = document.createElement('video')
@@ -842,10 +1060,13 @@ export default function Record() {
     const duration = isFinite(tempVideo.duration) ? tempVideo.duration : (trimEnd || elapsed)
     const start = Math.max(0, trimStart)
     const end   = Math.min(duration, trimEnd > 0 && trimEnd < duration ? trimEnd : duration)
+    console.log(`[Recorder] Trim applied: start=${start}s, end=${end}s, totalDuration=${duration}s`)
 
+    const targetW = tempVideo.videoWidth - (tempVideo.videoWidth % 2) || 720
+    const targetH = tempVideo.videoHeight - (tempVideo.videoHeight % 2) || 1280
     const canvas = document.createElement('canvas')
-    canvas.width  = 1280
-    canvas.height = 720
+    canvas.width  = targetW
+    canvas.height = targetH
     const ctx = canvas.getContext('2d')
 
     // ── Audio routing via Web Audio API ──
@@ -869,8 +1090,14 @@ export default function Record() {
     if (audioTrack) tracks.push(audioTrack)
     const combined = new MediaStream(tracks)
 
-    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
+    const MIMES = [
+      'video/webm;codecs=vp9,opus', 
+      'video/webm;codecs=vp8,opus', 
+      'video/webm',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4'
+    ]
+    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/mp4' // default to mp4 for iOS
     const rec   = new MediaRecorder(combined, { mimeType: mime })
     const chunks = []
     rec.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data) }
@@ -911,7 +1138,7 @@ export default function Record() {
     await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }))
 
     rec.start(200) // 200ms timeslices so audio chunks are small and in-sync
-    tempVideo.play()
+    tempVideo.play().catch(() => {})
 
     // ── Draw loop: stop when we reach the trim end ──
     const drawLoop = () => {
@@ -921,16 +1148,45 @@ export default function Record() {
         tempVideo.pause()
         return
       }
-      ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height)
+      
+      const vidRatio = tempVideo.videoWidth / (tempVideo.videoHeight || 1);
+      const targetRatio = targetW / targetH;
+      let drawW, drawH, drawX, drawY;
+      
+      if (vidRatio > targetRatio) {
+        drawH = targetH;
+        drawW = drawH * vidRatio;
+        drawX = (targetW - drawW) / 2;
+        drawY = 0;
+      } else {
+        drawW = targetW;
+        drawH = drawW / vidRatio;
+        drawX = 0;
+        drawY = (targetH - drawH) / 2;
+      }
+      
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, targetW, targetH)
+      ctx.drawImage(tempVideo, drawX, drawY, drawW, drawH)
       requestAnimationFrame(drawLoop)
     }
     requestAnimationFrame(drawLoop)
   })
 
+  /* ── isolated export router ── */
+  const executeTrim = async () => {
+    try {
+      return await executeTrimWebCodecs()
+    } catch (err) {
+      console.warn('[Recorder] WebCodecs export failed, falling back to MediaRecorder:', err)
+      return await executeTrimFallback()
+    }
+  }
+
   const fmt = (s) => { if (!isFinite(s) || isNaN(s)) s = 0; return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}` }
 
   const fontSize    = FONT_SIZES[fontIdx].value
-  const isLive      = phase === 'recording' || phase === 'countdown'
+  const isLive      = phase === 'RECORDING' || phase === 'COUNTDOWN'
   const activeFilter = FILTERS[filterIdx].css
 
   /* ─────────────── UI ─────────────── */
@@ -953,7 +1209,7 @@ export default function Record() {
       />
 
       {/* ─── SETUP PHASE ─── */}
-      {phase === 'setup' && (
+      {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
         <div style={S.setupWrap}>
           {/* Page header ,  matches all other feature pages */}
           <div style={{ width: '100%', marginBottom: 8 }}>
@@ -1022,7 +1278,7 @@ export default function Record() {
             )}
 
             {/* Music Preview and Mixing Card */}
-            {script && (
+            {selectedSong && (
               <div style={{
                 marginTop: 16,
                 padding: '14px 16px',
@@ -1033,191 +1289,42 @@ export default function Record() {
                 width: '100%',
                 boxSizing: 'border-box'
               }}>
-                <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 12 }}>
-                  🎵 Background Music
+                <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 10 }}>
+                  🎵 Background Music Pick
                 </div>
-
-                {/* Real-time Search Input */}
-                <div style={{ position: 'relative', marginBottom: 12 }}>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="🔍 Search songs on Spotify..."
-                    style={{
-                      width: '100%',
-                      padding: '8px 36px 8px 12px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      background: 'var(--surface)',
-                      color: 'var(--text)',
-                      fontSize: '0.78rem',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      transition: 'border-color 0.2s'
-                    }}
-                  />
-                  {isSearching && (
-                    <div className="spinner" style={{
-                      position: 'absolute', right: 12, top: '50%',
-                      transform: 'translateY(-50%)', width: 14, height: 14,
-                      borderWidth: '2px', borderColor: 'var(--text-faint) transparent transparent transparent'
-                    }} />
-                  )}
-                  {searchQuery && !isSearching && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 8, background: '#E1306C',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
+                    boxShadow: '0 2px 8px rgba(225,48,108,0.2)', color: '#fff'
+                  }}>
+                    💿
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedSong.title}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedSong.artist}
+                    </div>
+                  </div>
+                  {selectedSong.previewUrl && (
                     <button
-                      onClick={() => setSearchQuery('')}
+                      type="button"
+                      onClick={togglePreviewMusic}
                       style={{
-                        position: 'absolute', right: 10, top: '50%',
-                        transform: 'translateY(-50%)', background: 'none',
-                        border: 'none', color: 'var(--text-faint)',
-                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+                        background: isPlayingPreview ? 'rgba(225,48,108,0.1)' : 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '50%',
+                        width: 34, height: 34,
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.8rem',
+                        color: isPlayingPreview ? '#E1306C' : 'var(--text)'
                       }}
                     >
-                      ✕
+                      {isPlayingPreview ? '⏸' : '▶'}
                     </button>
-                  )}
-                </div>
-
-                {/* Filter Category Chips (Disabled during search query) */}
-                {!searchQuery.trim() && (
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-                    {[
-                      { id: 'trending', label: '🔥 Trending' },
-                      { id: 'upbeat', label: '💃 Upbeat' },
-                      { id: 'lofi', label: '☕ Lofi' },
-                      { id: 'cinematic', label: '🎬 Cinematic' }
-                    ].map(tab => {
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 14,
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
-                            background: isActive ? 'var(--accent)' : 'var(--surface)',
-                            color: isActive ? '#fff' : 'var(--text-muted)',
-                            transition: 'all 0.2s',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {tab.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Tracks List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12, maxHeight: 220, overflowY: 'auto', scrollbarWidth: 'none' }}>
-                  {getFilteredSongs().length > 0 ? (
-                    getFilteredSongs().map((song, idx) => {
-                      const isSelected = selectedSong?.title === song.title;
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => {
-                            setSelectedSong(song);
-                            setMixMusic(true);
-                            if (isPlayingPreview) {
-                              if (bgMusicRef.current) bgMusicRef.current.pause();
-                              setIsPlayingPreview(false);
-                            }
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            background: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-                            border: isSelected ? '1px solid var(--border-bright)' : '1px solid transparent',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 6,
-                            background: song.trending ? '#E1306C' : 'var(--surface)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1rem',
-                            color: '#fff',
-                            boxShadow: song.trending ? '0 2px 6px rgba(225,48,108,0.3)' : 'none'
-                          }}>
-                            {song.trending ? '🔥' : '💿'}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {song.title}
-                            </div>
-                            <div style={{ fontSize: '0.66rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span>{song.artist}</span>
-                              {song.usedCount && <span style={{ color: '#00E5FF', fontWeight: 600 }}>({song.usedCount})</span>}
-                            </div>
-                          </div>
-                          {song.previewUrl && isSelected && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePreviewMusic();
-                              }}
-                              style={{
-                                background: isPlayingPreview ? 'rgba(225,48,108,0.1)' : 'var(--surface)',
-                                border: '1px solid var(--border)',
-                                borderRadius: '50%',
-                                width: 28,
-                                height: 28,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.7rem',
-                                color: isPlayingPreview ? '#E1306C' : 'var(--text)'
-                              }}
-                            >
-                              {isPlayingPreview ? '⏸' : '▶'}
-                            </button>
-                          )}
-                          {song.instagramAudioId && (
-                            <a
-                              href={`https://www.instagram.com/reels/audio/${song.instagramAudioId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
-                                border: 'none',
-                                borderRadius: 14,
-                                padding: '4px 10px',
-                                color: '#fff',
-                                fontSize: '0.62rem',
-                                fontWeight: 700,
-                                textDecoration: 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4
-                              }}
-                            >
-                              <span>Use Audio</span>
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '16px 0', fontSize: '0.74rem', color: 'var(--text-faint)' }}>
-                      {searchQuery.trim() ? 'No matching tracks found on Spotify.' : 'No tracks found for this category.'}
-                    </div>
                   )}
                 </div>
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1364,7 +1471,7 @@ export default function Record() {
       )}
 
       {/* ─── COUNTDOWN PHASE ─── */}
-      {phase === 'countdown' && (
+      {phase === 'COUNTDOWN' && (
         <div style={S.fullscreen}>
           <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
           <div style={S.countdownOverlay}>
@@ -1374,7 +1481,7 @@ export default function Record() {
       )}
 
       {/* ─── RECORDING PHASE ─── */}
-      {phase === 'recording' && (
+      {phase === 'RECORDING' && (
         <div style={S.fullscreen} onClick={toggleScrollPause}>
           {/* Camera in background */}
           <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
@@ -1420,7 +1527,9 @@ export default function Record() {
             {/* Pause / speed controls */}
             <div style={S.hudControls} onClick={e => e.stopPropagation()}>
               <button style={S.hudBtn} onClick={toggleScrollPause}>
-                {scrolling ? '⏸ Pause scroll' : '▶ Resume scroll'}
+                <span id="scroll-btn-text">
+                  {scrollingRef.current ? '⏸ Pause scroll' : '▶ Resume scroll'}
+                </span>
               </button>
               <div style={{ display: 'flex', gap: 6 }}>
                 {SPEEDS.map((s, i) => (
@@ -1438,34 +1547,36 @@ export default function Record() {
           </div>
 
           {/* Tap anywhere hint */}
-          {scrolling && (
-            <div style={S.tapHint}>Tap anywhere to pause scroll</div>
-          )}
+          {/* Tap anywhere hint */}
+          <div id="scroll-hint" style={{ ...S.tapHint, opacity: scrollingRef.current ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+            Tap anywhere to pause scroll
+          </div>
 
           {/* REC indicator */}
           <div style={S.recDot} />
-
-          {/* Processing overlay — shown while encoders flush after pressing stop */}
-          {processing && (
-            <div style={{
-              position: 'absolute', inset: 0, zIndex: 20,
-              background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16
-            }}>
-              <div style={{
-                width: 48, height: 48, border: '4px solid rgba(255,255,255,0.2)',
-                borderTopColor: '#E1306C', borderRadius: '50%',
-                animation: 'spin 0.9s linear infinite'
-              }} />
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: '1rem' }}>Saving your video...</div>
-              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem' }}>Encoding to MP4, just a moment</div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ─── DONE PHASE ─── */}
-      {phase === 'done' && (
+      {/* ─── PROCESSING PHASE ─── fullscreen spinner while video encodes ─── */}
+      {phase === 'PROCESSING' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'var(--bg)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 20,
+        }}>
+          <div style={{
+            width: 64, height: 64, border: '5px solid var(--border)',
+            borderTopColor: '#E1306C', borderRadius: '50%',
+            animation: 'spin 0.9s linear infinite'
+          }} />
+          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>Processing your video…</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Hang tight, this only takes a few seconds</div>
+        </div>
+      )}
+
+      {/* ─── DONE PHASE ─── shown only after processing completes ─── */}
+      {(phase === 'READY_TO_EDIT' || phase === 'EXPORTING') && (
         <div style={S.doneWrap}>
           {outputBlob ? (
             <div style={S.doneCard}>
@@ -1475,14 +1586,86 @@ export default function Record() {
               {fmt(elapsed)} recorded · Ready to download
             </p>
 
-            <video
-              ref={doneVideoRef}
-              src={outputUrl || ''}
-              controls
-              disablePictureInPicture
-              controlsList="nodownload noremoteplayback"
-              style={{ width: '100%', maxWidth: 440, borderRadius: 12, background: '#000' }}
-            />
+            {/* ── Preview video ── */}
+            <div style={{
+              width: '100%', maxWidth: 440, position: 'relative',
+              borderRadius: 12, overflow: 'hidden', background: '#000',
+              aspectRatio: `${streamDimsRef.current.w} / ${streamDimsRef.current.h}`,
+            }}>
+              <video
+                ref={doneVideoRef}
+                src={outputUrl || ''}
+                playsInline
+                preload="auto"
+                onClick={() => {
+                  const v = doneVideoRef.current;
+                  if (!v) return;
+                  if (v.paused) v.play().catch(() => {}); else v.pause();
+                }}
+                onPlay={() => setIsPlayingDone(true)}
+                onPause={() => setIsPlayingDone(false)}
+                style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', cursor: 'pointer' }}
+                onTimeUpdate={(e) => {
+                  const vid = e.target;
+                  setVidTime(vid.currentTime);
+                  if (vid.currentTime >= (trimEnd || vid.duration || 999) - 0.05) {
+                    vid.pause();
+                    vid.currentTime = Math.max(0, trimStart);
+                  } else if (vid.currentTime < trimStart - 0.05) {
+                    vid.currentTime = Math.max(0, trimStart);
+                  }
+                }}
+                onLoadedMetadata={() => {
+                  if (doneVideoRef.current) {
+                    doneVideoRef.current.currentTime = trimStart || 0;
+                    setVidTime(trimStart || 0);
+                  }
+                }}
+              />
+              {/* Play/Pause Overlay */}
+              {!isPlayingDone && (
+                <div 
+                  style={{
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.2)', pointerEvents: 'none'
+                  }}
+                >
+                  <div style={{
+                    width: 64, height: 64, background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)',
+                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: '2rem', paddingLeft: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}>
+                    ▶
+                  </div>
+                </div>
+              )}
+              {/* Custom Scrubber */}
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                padding: '30px 16px 12px', display: 'flex', alignItems: 'center', gap: 12
+              }}>
+                <span style={{ color: '#fff', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums', fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                  {fmt(Math.max(0, vidTime - trimStart))}
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={(trimEnd || elapsed || 1) - trimStart}
+                  step="0.01"
+                  value={Math.max(0, vidTime - trimStart)}
+                  onChange={(e) => {
+                    if (doneVideoRef.current) {
+                      doneVideoRef.current.currentTime = trimStart + parseFloat(e.target.value);
+                    }
+                  }}
+                  style={{ flex: 1, accentColor: '#E1306C', height: 4, cursor: 'pointer' }}
+                />
+                <span style={{ color: '#fff', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums', fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                  {fmt((trimEnd || elapsed || 1) - trimStart)}
+                </span>
+              </div>
+            </div>
 
             {/* ── Filmstrip Trim ── */}
             <div style={{
@@ -1494,31 +1677,30 @@ export default function Record() {
 
               <TrimBar
                 blob={outputBlob}
-                totalSecs={trimEnd || elapsed}
+                totalSecs={duration || elapsed}
                 trimStart={trimStart}
-                trimEnd={trimEnd || elapsed}
+                trimEnd={trimEnd || duration || elapsed}
+                thumbs={thumbnails}
                 onTrimChange={(which, val) => {
-                  if (which === 'start') {
-                    setTrimStart(val)
-                    // Update preview to show the new start frame
-                    if (doneVideoRef.current) {
-                      doneVideoRef.current.pause()
-                      const dur = doneVideoRef.current.duration || 0
-                      doneVideoRef.current.currentTime = Math.min(val, dur)
-                    }
-                  } else {
-                    setTrimEnd(val)
+                  if (which === 'start') dispatch({ type: 'UPDATE_TRIM', payload: { start: val } })
+                  else dispatch({ type: 'UPDATE_TRIM', payload: { end: val } })
+                }}
+                onSeek={(time) => {
+                  const vid = doneVideoRef.current
+                  if (vid) {
+                    vid.pause()
+                    vid.currentTime = Math.min(time, isFinite(vid.duration) ? vid.duration : time)
                   }
                 }}
               />
             </div>
 
             <button
-              style={{ ...S.recordBtn, opacity: downloading ? 0.6 : 1, cursor: downloading ? 'not-allowed' : 'pointer' }}
+              style={{ ...S.recordBtn, opacity: phase === 'EXPORTING' ? 0.6 : 1, cursor: phase === 'EXPORTING' ? 'not-allowed' : 'pointer' }}
               onClick={handleDownload}
-              disabled={downloading}
+              disabled={phase === 'EXPORTING'}
             >
-              {downloading ? (
+              {phase === 'EXPORTING' ? (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                   <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
                   Preparing Download...
@@ -1531,7 +1713,8 @@ export default function Record() {
                 style={{ ...S.ghostBtn, flex: 1 }}
                 onClick={() => {
                   if (outputUrl) URL.revokeObjectURL(outputUrl)
-                  setPhase('setup'); setOutputBlob(null); setOutputUrl(null); scrollPosRef.current = 0
+                  dispatch({ type: 'RESET' })
+                  scrollPosRef.current = 0
                 }}
               >
                 ↺ Record Again
@@ -1540,15 +1723,17 @@ export default function Record() {
                 style={{ ...S.ghostBtn, flex: 1 }}
                 onClick={() => {
                   if (outputUrl) URL.revokeObjectURL(outputUrl)
-                  setPhase('setup'); setScript(''); setOutputBlob(null); setOutputUrl(null); scrollPosRef.current = 0
+                  dispatch({ type: 'RESET' })
+                  setScript('')
+                  scrollPosRef.current = 0
                 }}
               >
                 + New Recording
               </button>
             </div>
           </div>
-        ) : (
-          /* Blob is null — encoding failed, show error + retry */
+          ) : (
+          /* Blob is null — encoding genuinely failed after processing completed */
             <div style={S.doneCard}>
               <div style={{ fontSize: '2.5rem' }}>⚠️</div>
               <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>Something went wrong</h2>
@@ -1557,7 +1742,7 @@ export default function Record() {
               </p>
               <button
                 style={{ ...S.recordBtn, marginTop: 8 }}
-                onClick={() => { setPhase('setup'); setOutputBlob(null); setOutputUrl(null); setProcessing(false); scrollPosRef.current = 0 }}
+                onClick={() => { dispatch({ type: 'RESET' }); scrollPosRef.current = 0 }}
               >
                 ↺ Try Again
               </button>
@@ -1565,6 +1750,7 @@ export default function Record() {
           )}
         </div>
       )}
+
     </div>
   )
 }
