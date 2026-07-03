@@ -5,7 +5,7 @@ from app.db.session import Base
 class RawInteraction(Base):
     __tablename__ = "raw_interactions"
 
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     user_id = Column(String, index=True, nullable=False)
     interaction_type = Column(String, index=True, nullable=False)
     prompt = Column(Text, nullable=True)
