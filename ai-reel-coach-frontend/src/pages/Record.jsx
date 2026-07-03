@@ -1452,46 +1452,6 @@ export default function Record() {
             {/* Settings */}
             <div style={S.settingsGrid}>
               <div style={S.settingGroup}>
-                <div style={S.settingLabel}>Scroll speed</div>
-                {/* Arrow-based speed toggle — compact and touch-friendly on mobile */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button
-                    style={S.speedArrow}
-                    onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
-                    disabled={speedIdx === 0}
-                  >‹</button>
-                  <div style={{ textAlign: 'center', minWidth: 36 }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
-                    <div style={{ fontSize: '0.58rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>speed</div>
-                  </div>
-                  <button
-                    style={S.speedArrow}
-                    onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
-                    disabled={speedIdx === SPEEDS.length - 1}
-                  >›</button>
-                </div>
-              </div>
-              <div style={S.settingGroup}>
-                <div style={S.settingLabel}>Font size</div>
-                {/* Arrow-based font size selector — slide/toggle exactly like scroll speed */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button
-                    style={S.speedArrow}
-                    onClick={() => setFontIdx(i => Math.max(0, i - 1))}
-                    disabled={fontIdx === 0}
-                  >‹</button>
-                  <div style={{ textAlign: 'center', minWidth: 36 }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', lineHeight: 1 }}>{FONT_SIZES[fontIdx].label}</div>
-                    <div style={{ fontSize: '0.58rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>size</div>
-                  </div>
-                  <button
-                    style={S.speedArrow}
-                    onClick={() => setFontIdx(i => Math.min(FONT_SIZES.length - 1, i + 1))}
-                    disabled={fontIdx === FONT_SIZES.length - 1}
-                  >›</button>
-                </div>
-              </div>
-              <div style={S.settingGroup}>
                 <div style={S.settingLabel}>Camera</div>
                 <div style={S.chips}>
                   <button style={{ ...S.chip, ...(facingMode === 'user' ? S.chipOn : {}) }} onClick={() => { setFacingMode('user'); setMirror(true); startCamera('user') }}>Front</button>
@@ -1523,30 +1483,15 @@ export default function Record() {
             </div>
 
             {/* ── Filter Picker with arrows ── */}
-            <div>
-              <div style={S.sectionLabel}>🎨 Cinematic Filters</div>
+            <div style={{ marginTop: 8 }}>
+              <div style={{ ...S.sectionLabel, marginBottom: 6 }}>🎨 Cinematic Filter</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button onClick={prevFilter} style={S.filterArrow}>‹</button>
-                <div style={S.filterCard}>
-                  <div style={{ ...S.filterSwatch, width: '100%', height: 44, marginBottom: 6, background: FILTERS[filterIdx].swatch }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: '1.1rem' }}>{FILTERS[filterIdx].emoji}</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text)' }}>{FILTERS[filterIdx].name}</div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>{FILTERS[filterIdx].desc}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 4, marginTop: 8, justifyContent: 'center' }}>
-                    {FILTERS.map((_, i) => (
-                      <div key={i} onClick={() => setFilterIdx(i)} style={{
-                        width: i === filterIdx ? 18 : 6, height: 6, borderRadius: 99,
-                        background: i === filterIdx ? 'var(--accent)' : 'var(--border)',
-                        cursor: 'pointer', transition: 'all 0.2s',
-                      }} />
-                    ))}
-                  </div>
+                <button onClick={prevFilter} style={S.speedArrow}>‹</button>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', borderRadius: 10, padding: '8px 16px', border: '1px solid var(--border)', justifyContent: 'center', height: 44 }}>
+                  <span style={{ fontSize: '1.2rem' }}>{FILTERS[filterIdx].emoji}</span>
+                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text)' }}>{FILTERS[filterIdx].name}</div>
                 </div>
-                <button onClick={nextFilter} style={S.filterArrow}>›</button>
+                <button onClick={nextFilter} style={S.speedArrow}>›</button>
               </div>
             </div>
 
@@ -1616,22 +1561,43 @@ export default function Record() {
             <div style={S.hudTopRow}>
               <div style={S.timer}>{fmt(elapsed)}</div>
 
-              {/* Arrow speed toggle — compact, touch-friendly */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
-                <button
-                  style={S.hudSpeedArrow}
-                  onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
-                  disabled={speedIdx === 0}
-                >‹</button>
-                <div style={{ textAlign: 'center', minWidth: 26 }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
-                  <div style={{ fontSize: '0.48rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>spd</div>
+              {/* Controls Group: Font Size & Speed Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
+                {/* Arrow font size toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    style={S.hudSpeedArrow}
+                    onClick={() => setFontIdx(i => Math.max(0, i - 1))}
+                    disabled={fontIdx === 0}
+                  >‹</button>
+                  <div style={{ textAlign: 'center', minWidth: 22 }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1 }}>{FONT_SIZES[fontIdx].label}</div>
+                    <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1 }}>size</div>
+                  </div>
+                  <button
+                    style={S.hudSpeedArrow}
+                    onClick={() => setFontIdx(i => Math.min(FONT_SIZES.length - 1, i + 1))}
+                    disabled={fontIdx === FONT_SIZES.length - 1}
+                  >›</button>
                 </div>
-                <button
-                  style={S.hudSpeedArrow}
-                  onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
-                  disabled={speedIdx === SPEEDS.length - 1}
-                >›</button>
+
+                {/* Arrow speed toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    style={S.hudSpeedArrow}
+                    onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
+                    disabled={speedIdx === 0}
+                  >‹</button>
+                  <div style={{ textAlign: 'center', minWidth: 22 }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
+                    <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1 }}>spd</div>
+                  </div>
+                  <button
+                    style={S.hudSpeedArrow}
+                    onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
+                    disabled={speedIdx === SPEEDS.length - 1}
+                  >›</button>
+                </div>
               </div>
 
               {/* Pause/Resume scroll — icon only, no text */}
