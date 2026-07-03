@@ -122,6 +122,9 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
   const dragRef      = useRef(null)
   const seekRafRef   = useRef(null)
   const lastSeekRef  = useRef(0)
+  const startTextRef = useRef(null)
+  const endTextRef   = useRef(null)
+  const selectedTextRef = useRef(null)
   const N = 14
 
   // Sync from parent when not actively dragging
@@ -146,6 +149,10 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
     let currentEnd   = localEnd
 
     const onMove = (e) => {
+      if (e.cancelable) {
+        e.preventDefault() // Block page scroll completely while dragging handles
+      }
+      
       const cx   = e.touches ? e.touches[0].clientX : e.clientX
       const rect = stripRef.current?.getBoundingClientRect()
       if (!rect) return
@@ -155,17 +162,38 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
       let targetTime = secs
       if (which === 'start') {
         currentStart = Math.min(secs, currentEnd - 0.3)
-        setLocalStart(currentStart)
         targetTime = currentStart
+        
+        // Direct DOM mutations for butter-smooth 60fps performance on mobile
+        const nextPctS = (currentStart / total) * 100
+        const nextPctE = (currentEnd / total) * 100
+        if (startHRef.current) startHRef.current.style.left = `${nextPctS}%`
+        if (leftDarkRef.current) leftDarkRef.current.style.width = `${nextPctS}%`
+        if (borderRef.current) {
+          borderRef.current.style.left = `${nextPctS}%`
+          borderRef.current.style.width = `${nextPctE - nextPctS}%`
+        }
+        if (startTextRef.current) startTextRef.current.innerText = fmtTime(currentStart)
+        if (selectedTextRef.current) selectedTextRef.current.innerText = `✂️ ${fmtTime(currentEnd - currentStart)} selected`
       } else {
         currentEnd = Math.max(secs, currentStart + 0.3)
-        setLocalEnd(currentEnd)
         targetTime = currentEnd
+
+        // Direct DOM mutations for butter-smooth 60fps performance on mobile
+        const nextPctS = (currentStart / total) * 100
+        const nextPctE = (currentEnd / total) * 100
+        if (endHRef.current) endHRef.current.style.left = `${nextPctE}%`
+        if (rightDarkRef.current) rightDarkRef.current.style.width = `${100 - nextPctE}%`
+        if (borderRef.current) {
+          borderRef.current.style.width = `${nextPctE - nextPctS}%`
+        }
+        if (endTextRef.current) endTextRef.current.innerText = fmtTime(currentEnd)
+        if (selectedTextRef.current) selectedTextRef.current.innerText = `✂️ ${fmtTime(currentEnd - currentStart)} selected`
       }
 
-      // Throttled video seek — prevents decoder blocking (33ms = 30fps smooth seeks)
+      // Throttled video seek — stable 40ms seek window for phone decoders
       const now = performance.now()
-      if (now - lastSeekRef.current > 33) {
+      if (now - lastSeekRef.current > 40) {
         lastSeekRef.current = now
         if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
         seekRafRef.current = requestAnimationFrame(() => {
@@ -176,6 +204,9 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
 
     const onUp = () => {
       dragRef.current = null
+      // Sync local React state with final drag values
+      setLocalStart(currentStart)
+      setLocalEnd(currentEnd)
       onTrimChange(which, which === 'start' ? currentStart : currentEnd)
       
       document.removeEventListener('mousemove',  onMove)
@@ -288,14 +319,14 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
         <div style={{ textAlign: 'left' }}>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Start</div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localStart)}</div>
+          <div ref={startTextRef} style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localStart)}</div>
         </div>
-        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        <div ref={selectedTextRef} style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           ✂️ {fmtTime(localEnd - localStart)} selected
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>End</div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localEnd)}</div>
+          <div ref={endTextRef} style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localEnd)}</div>
         </div>
       </div>
       <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: 2 }}>
@@ -1644,7 +1675,7 @@ export default function Record() {
 
             {/* ── Preview video ── */}
             <div style={{
-              width: '100%', maxWidth: 280, position: 'relative',
+              width: isMobile ? 160 : 220, position: 'relative',
               borderRadius: 16, overflow: 'hidden', background: '#000',
               aspectRatio: '9 / 16',
               boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)',
