@@ -1127,6 +1127,16 @@ h1, h2, h3, h4 {
 .progress-bg   { height: 5px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; margin-top: 8px; }
 .progress-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
 
+/* ─── Hide nav while recording ──────────────────────────────────── */
+/* When .recording-active is anywhere in the DOM, collapse the bottom nav and mobile header */
+body:has(.recording-active) .bottom-nav,
+body:has(.recording-active) .app-bottom-nav,
+body:has(.recording-active) .mobile-header {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
 /* ─── Bottom Navigation ──────────────────────────────────────────── */
 .bottom-nav {
   position: fixed;
@@ -1359,3 +1369,8 @@ h1, h2, h3, h4 {
 }
 
 
+
+
+.main-content {
+  contain: layout;
+}

@@ -612,7 +612,7 @@ export default function Layout({ children }) {
 
         {/* Mobile top header */}
         {isMobile && (
-          <header style={styles.mobileHeader}>
+          <header style={styles.mobileHeader} className="mobile-header">
             <div style={styles.mobileLogoRow}>
               <Logo size={32} showWordmark />
             </div>

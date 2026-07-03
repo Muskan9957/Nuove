@@ -1594,7 +1594,7 @@ export default function Record() {
 
       {/* ─── RECORDING PHASE ─── */}
       {phase === 'RECORDING' && (
-        <div style={S.fullscreen} onClick={toggleScrollPause}>
+        <div style={S.fullscreen} onClick={toggleScrollPause} className="recording-active">
           {/* Camera in background */}
           <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
 
@@ -1655,11 +1655,9 @@ export default function Record() {
                 >›</button>
               </div>
 
-              {/* Pause/Resume scroll */}
-              <button style={S.hudBtn} onClick={e => { e.stopPropagation(); toggleScrollPause() }}>
-                <span id="scroll-btn-text">
-                  {scrollingRef.current ? '⏸' : '▶'}
-                </span>
+              {/* Pause/Resume scroll — icon only, no text */}
+              <button style={S.hudBtn} onClick={e => { e.stopPropagation(); toggleScrollPause() }} title={scrollingRef.current ? 'Pause scroll' : 'Resume scroll'}>
+                {scrollingRef.current ? '⏸' : '▶'}
               </button>
             </div>
 
@@ -2044,7 +2042,7 @@ const S = {
   timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   hudBtn: { background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)', borderRadius: '50%', color: '#fff', width: 44, height: 44, fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' },
-  hudSpeedArrow: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', color: '#fff', width: 32, height: 32, fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', flexShrink: 0 },
+  hudSpeedArrow: { background: 'rgba(255,255,255,0.30)', border: '1.5px solid rgba(255,255,255,0.65)', borderRadius: '50%', color: '#fff', width: 34, height: 34, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', flexShrink: 0 },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
   // Stop button: giant pill, centered, impossible to miss on phone
