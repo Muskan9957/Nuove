@@ -32,7 +32,7 @@ const LANG = {
 function durationToWords(duration) {
   const mins = parseFloat(duration)
   if (!mins || isNaN(mins)) {
-    return { min: 90, max: 110, label: '100 words (45-second video)' }
+    return { min: 120, max: 140, label: '130 words (1-minute video)' }
   }
   if (mins <= 1.0) {
     return { min: 120, max: 140, label: '130 words (1-minute video)' }
@@ -96,12 +96,12 @@ HOOK:
 [1-2 sentences. First 3 seconds. Scroll-stopping statement.]
 
 BODY:
-[The core value. Keep sentences short. No filler words.]
+[The core content. This section MUST contain enough detail to meet the target length. Write several punchy points or a full story. Short sentences, no filler, but ensure you reach the target word limit.]
 
 CTA:
 [One clear action for the last 5 seconds.]
 
-Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The entire script (HOOK + BODY + CTA) MUST total ${wc.min}–${wc.max} spoken words — this length is a hard requirement. No hashtags, no emojis.`
+Important: keep the labels HOOK:, BODY:, and CTA: exactly as shown in English (do NOT translate them). The entire script (HOOK + BODY + CTA) MUST total about ${wc.min}–${wc.max} spoken words in total — this length is a hard requirement, especially for the BODY. No hashtags, no emojis.`
 }
 
 // ── Stream tokens from Gemini (SSE) — yields text deltas ─────────────

@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { getSavedRegion } from '../utils/detectRegion'
@@ -617,7 +617,7 @@ export default function ReelReady() {
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.87rem', maxWidth: 380 }}>
             Music, caption and style are baked in. Download and post directly.
           </p>
-          <video src={URL.createObjectURL(outputBlob)} controls style={{ width: '100%', maxWidth: 340, maxHeight: 460, borderRadius: 12, background: '#000', objectFit: 'contain' }} />
+          <video src={URL.createObjectURL(outputBlob)} controls disablePictureInPicture controlsList="nodownload noremoteplayback" style={{ width: '100%', maxWidth: 340, maxHeight: 460, borderRadius: 12, background: '#000', objectFit: 'contain' }} />
           <button style={S.renderBtn} onClick={download}>⬇ Download (.{outputExt.toUpperCase()})</button>
           {analysis?.hashtags && (
             <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', width: '100%', textAlign: 'left' }}>

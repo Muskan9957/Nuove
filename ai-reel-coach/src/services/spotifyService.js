@@ -68,4 +68,30 @@ const enrichSongs = async (songs) => {
   return enriched
 }
 
-module.exports = { enrichSongs, getToken }
+// ─── Search multiple tracks (real-time search bar) ──────────────────
+const searchTracks = async (query, limit = 8) => {
+  const token = await getToken();
+  if (!token) return [];
+  try {
+    const resp = await axios.get('https://api.spotify.com/v1/search', {
+      headers: { Authorization: `Bearer ${token}` },
+      params : { q: query, type: 'track', limit, market: 'IN' },
+      timeout: 8000,
+    })
+    const items = resp.data?.tracks?.items || []
+    return items.map(track => ({
+      title: track.name,
+      artist: track.artists?.map(a => a.name).join(', '),
+      spotifyUrl : track.external_urls?.spotify || null,
+      spotifyId  : track.id,
+      previewUrl : track.preview_url || null,
+      albumArt   : track.album?.images?.[0]?.url || null,
+      royaltyFree: false,
+    }))
+  } catch (err) {
+    console.error('[Spotify] search error:', err.message);
+    return [];
+  }
+}
+
+module.exports = { enrichSongs, getToken, searchTracks }

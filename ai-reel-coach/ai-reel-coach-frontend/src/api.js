@@ -102,6 +102,7 @@ export const api = {
   getScripts:    ()     => req('GET',  '/scripts'),
   getScript:     (id)   => req('GET',  `/scripts/${id}`),
   recommendSongs:    (body) => req('POST', '/scripts/songs', body),
+  searchMusic:       (query) => req('GET', `/music/search?q=${encodeURIComponent(query)}`),
   reelReady:         (body) => req('POST', '/reel-ready/analyze', body),
   reelMoreCaptions:  (body) => req('POST', '/reel-ready/more-captions', body),
 

@@ -34,6 +34,7 @@ model User {
   creatorStyle            String?   // JSON: AI-extracted voice fingerprint (premium feature)
   emailVerified           Boolean   @default(false)
   emailVerificationToken  String?
+  deviceHash              String?
 
   scripts          Script[]
   hookScores       HookScore[]
@@ -210,4 +211,34 @@ model Conversation {
   messages  ChatMessage[]
 
   @@index([userId, updatedAt])
+}
+
+model DeviceUsage {
+  deviceHash         String   @id
+  trustLevel         String   @default("NORMAL")
+  generationsUsed    Int      @default(0)
+  accountCount       Int      @default(1)
+  riskScore          Int      @default(0)
+  lastSeenAt         DateTime @default(now())
+  lastRegistrationAt DateTime @default(now())
+  lastIpHash         String?
+  lastUserAgentHash  String?
+  lastCountry        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TrendingAudio {
+  id               String   @id @default(uuid())
+  title            String
+  artist           String
+  instagramAudioId String?  // e.g. "148596048593"
+  trendScore       Int      @default(0)
+  usedCount        String?  // e.g. "450k+ Reels"
+  category         String   @default("GLOBAL") // UPBEAT, LOFI, CINEMATIC, Punjabi, etc.
+  region           String   @default("IN")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([region])
 }

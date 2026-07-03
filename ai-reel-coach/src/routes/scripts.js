@@ -49,6 +49,9 @@ router.post('/refine', aiLimiter, controller.refine);
 // POST /api/scripts/songs (AI background-music picks for a script)
 router.post('/songs', aiLimiter, controller.songs);
 
+// GET /api/scripts/search-music (real-time Spotify search)
+router.get('/search-music', controller.searchMusic);
+
 // GET /api/scripts
 router.get('/', controller.getAll);
 

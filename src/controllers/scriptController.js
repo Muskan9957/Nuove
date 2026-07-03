@@ -318,4 +318,40 @@ const songs = async (req, res, next) => {
   }
 };
 
-module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine, songs };
+// ─── GET /api/music/search (registered in app.js) ──────────────────────────
+const searchMusic = async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    if (!q || !q.trim()) {
+      return res.json({ songs: [] });
+    }
+    
+    const spotifyService = require('../services/spotifyService');
+    const results = await spotifyService.searchTracks(q.trim(), 8);
+    
+    // Cross-reference with our TrendingAudio database to check if search results match trending tracks
+    const enrichedResults = await Promise.all(results.map(async (song) => {
+      const match = await prisma.trendingAudio.findFirst({
+        where: {
+          title: { equals: song.title, mode: 'insensitive' },
+          artist: { contains: song.artist.split(',')[0].trim(), mode: 'insensitive' }
+        }
+      });
+      if (match) {
+        return {
+          ...song,
+          trending: true,
+          instagramAudioId: match.instagramAudioId,
+          usedCount: match.usedCount
+        };
+      }
+      return song;
+    }));
+    
+    return res.json({ songs: enrichedResults });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { checkQuota, save, generateStream, generate, getAll, getOne, retake, refine, songs, searchMusic };

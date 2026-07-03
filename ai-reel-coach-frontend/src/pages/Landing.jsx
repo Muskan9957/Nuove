@@ -588,7 +588,7 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
 
   if (!open) return null
   return (
-    <div id="auth-modal-backdrop" onClick={e => e.target.id === 'auth-modal-backdrop' && onClose()}
+    <div id="auth-modal-backdrop" onMouseDown={e => e.target.id === 'auth-modal-backdrop' && onClose()}
       style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', animation: 'mFadeIn 0.2s ease' }}>
       <div style={{ width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16, padding: '36px 32px', boxShadow: '0 32px 80px rgba(0,0,0,0.2)', border: '1px solid var(--border)', animation: 'mSlideUp 0.26s cubic-bezier(0.22,1,0.36,1)', position: 'relative' }}>
         <button id="auth-modal-close" onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'var(--surface2)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', transition: 'background 0.15s' }}
@@ -609,6 +609,8 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
             <form onSubmit={handleVerifyCode}>
               <input
                 className="input"
+                name="code"
+                id="verification-code"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={6}
@@ -624,7 +626,7 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
               </button>
             </form>
             <p style={{ color: 'var(--text-faint)', fontSize: '0.76rem', margin: '16px 0 0' }}>Didn't get it? Check your spam folder.</p>
-            <button onClick={() => { setVerifySent(false); setCode(''); setMode('login') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+            <button onClick={() => { setVerifySent(false); setCode(''); setMode('login') }} type="button" style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', marginTop: 8, fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
               Back to sign in
             </button>
           </div>
@@ -662,21 +664,21 @@ function AuthModal({ open, onClose, defaultMode = 'login' }) {
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           {mode === 'register' && (
             <div className="field">
-              <label style={{ fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_name_label')}</label>
-              <input className="input" placeholder={t('landing_auth_name_ph')} value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
+              <label htmlFor="auth-name" style={{ fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_name_label')}</label>
+              <input id="auth-name" name="name" className="input" placeholder={t('landing_auth_name_ph')} value={name} onChange={e => setName(e.target.value)} autoComplete="name" />
             </div>
           )}
           <div className="field">
-            <label style={{ fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_email_label')}</label>
-            <input className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+            <label htmlFor="auth-email" style={{ fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_email_label')}</label>
+            <input id="auth-email" name="email" className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
           </div>
           <div className="field">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <label style={{ margin: 0, fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_pass_label')}</label>
+              <label htmlFor="auth-password" style={{ margin: 0, fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_pass_label')}</label>
               {mode === 'login' && <Link to="/forgot-password" onClick={onClose} style={{ fontSize: '0.76rem', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>{t('landing_auth_forgot')}</Link>}
             </div>
             <div style={{ position: 'relative' }}>
-              <input className="input" type={showPass ? 'text' : 'password'} placeholder={mode === 'register' ? t('landing_auth_pass_ph_new') : '••••••••'} value={password} onChange={e => setPass(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required style={{ paddingRight: 44 }} />
+              <input id="auth-password" name="password" className="input" type={showPass ? 'text' : 'password'} placeholder={mode === 'register' ? t('landing_auth_pass_ph_new') : '••••••••'} value={password} onChange={e => setPass(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required style={{ paddingRight: 44 }} />
               <button type="button" onClick={() => setShow(v => !v)} tabIndex={-1} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 4, display: 'flex' }}>
                 {showPass
                   ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
