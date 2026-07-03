@@ -1589,8 +1589,8 @@ export default function Record() {
                     disabled={fontIdx === 0}
                   >‹</button>
                   <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#00E5FF', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{FONT_SIZES[fontIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: '#00E5FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>size</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{FONT_SIZES[fontIdx].label}</div>
+                    <div style={{ fontSize: '0.45rem', color: '#4A5C8A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>size</div>
                   </div>
                   <button
                     style={S.hudSpeedArrow}
@@ -1607,8 +1607,8 @@ export default function Record() {
                     disabled={speedIdx === 0}
                   >‹</button>
                   <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#00E5FF', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{SPEEDS[speedIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: '#00E5FF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>spd</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{SPEEDS[speedIdx].label}</div>
+                    <div style={{ fontSize: '0.45rem', color: '#4A5C8A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>spd</div>
                   </div>
                   <button
                     style={S.hudSpeedArrow}
@@ -2010,8 +2010,8 @@ const S = {
   },
   timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  hudBtn: { background: 'rgba(0, 229, 255, 0.15)', border: '1.5px solid #00E5FF', borderRadius: '50%', color: '#00E5FF', width: 44, height: 44, fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all', boxShadow: '0 0 10px rgba(0, 229, 255, 0.25)' },
-  hudSpeedArrow: { background: 'rgba(0, 229, 255, 0.15)', border: '1.5px solid #00E5FF', borderRadius: '50%', color: '#00E5FF', width: 34, height: 34, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', flexShrink: 0, boxShadow: '0 0 8px rgba(0, 229, 255, 0.2)' },
+  hudBtn: { background: 'rgba(74, 92, 138, 0.25)', border: '1.5px solid #4A5C8A', borderRadius: '50%', color: '#fff', width: 44, height: 44, fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' },
+  hudSpeedArrow: { background: 'rgba(74, 92, 138, 0.25)', border: '1.5px solid #4A5C8A', borderRadius: '50%', color: '#fff', width: 34, height: 34, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', flexShrink: 0 },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
   // Stop button: giant pill, centered, impossible to miss on phone
