@@ -61,6 +61,8 @@ function recorderReducer(state, action) {
         trimEnd: action.payload.duration,
         thumbnails: action.payload.thumbnails
       }
+    case 'SET_THUMBNAILS':
+      return { ...state, thumbnails: action.payload }
     case 'SET_TRIM':
       return { ...state, trimStart: action.payload.start, trimEnd: action.payload.end }
     // UPDATE_TRIM — used by TrimBar; updates just one side
@@ -780,61 +782,28 @@ export default function Record() {
         return
       }
 
-      // Fix seekability: WebM blobs from MediaRecorder have duration=Infinity
-      // Seeking to a huge time forces the browser to calculate the real duration
-      const tempVid = document.createElement('video')
-      tempVid.muted = true
+      // Transition to edit phase instantly to avoid waiting on mobile/desktop
       const url = URL.createObjectURL(rawBlob)
-      tempVid.src = url
+      const dur = capturedElapsed || 1
 
-      // finishCalled flag prevents double-invocation from the stale-closure setTimeout fallback
-      let finishCalled = false
-      const finish = async () => {
-        if (finishCalled) return
-        finishCalled = true
+      console.log(`[Recorder] Processing done. Phase transitioning to READY_TO_EDIT`)
+      dispatch({ 
+        type: 'PROCESSING_DONE', 
+        payload: { blob: rawBlob, url, duration: dur, thumbnails: [] } 
+      })
+      
+      stopScroll()
+      clearInterval(timerRef.current)
 
-        // Guard: if no data was captured at all (too-short recording or muted canvas)
-        // show error immediately instead of hanging
-        const totalSize = chunksRef.current.reduce((s, c) => s + c.size, 0)
-        if (totalSize === 0) {
-          dispatch({ type: 'CAMERA_ERROR', payload: 'No video data captured. Please record for at least 1 second.' })
-          return
-        }
-        
-        let dur = isFinite(tempVid.duration) ? tempVid.duration : capturedElapsed;
-        if (dur <= 0) dur = capturedElapsed || 1;
-        console.log(`[Recorder] Metadata loaded. Calculated duration: ${dur}s`)
-        const thumbs = await generateThumbnails(rawBlob, dur)
+      // Ping streak when recording finishes
+      api.pingStreak().catch(console.error)
 
-        console.log(`[Recorder] Processing done. Phase transitioning to READY_TO_EDIT`)
-        dispatch({ 
-          type: 'PROCESSING_DONE', 
-          payload: { blob: rawBlob, url, duration: dur, thumbnails: thumbs } 
-        })
-        
-        stopScroll()
-        clearInterval(timerRef.current)
-
-        // Ping streak when recording finishes
-        api.pingStreak().catch(console.error)
-      }
-
-      tempVid.addEventListener('loadedmetadata', function onMeta() {
-        tempVid.removeEventListener('loadedmetadata', onMeta)
-        if (tempVid.duration === Infinity || isNaN(tempVid.duration)) {
-          tempVid.currentTime = 1e10
-          tempVid.addEventListener('timeupdate', function onTime() {
-            tempVid.removeEventListener('timeupdate', onTime)
-            tempVid.currentTime = 0
-            finish()
-          }, { once: true })
-        } else {
-          finish()
-        }
-      }, { once: true })
-
-      // Fallback: if metadata never fires within 5s, still transition.
-      setTimeout(() => { finish() }, 5000)
+      // Generate thumbnails asynchronously in background
+      generateThumbnails(rawBlob, dur, isMobile ? 6 : 12).then(thumbs => {
+        dispatch({ type: 'SET_THUMBNAILS', payload: thumbs })
+      }).catch(err => {
+        console.warn('Background thumbnail generation failed:', err)
+      })
     }
 
     rec.start(200) // chunk every 200ms for more reliable data
@@ -1307,22 +1276,22 @@ export default function Record() {
       {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
         <div style={{
           ...S.setupWrap,
-          // On mobile: single column, camera first (column-reverse puts the 2nd DOM child on top)
-          flexDirection: isMobile ? 'column-reverse' : 'row',
+          // On mobile: single column, normal flow so camera is on top via order:1
+          flexDirection: isMobile ? 'column' : 'row',
           padding: isMobile ? '16px' : '24px 20px',
           // Extra bottom padding on mobile to clear the bottom nav bar
           paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '24px',
         }}>
-          {/* Page header */}
-          <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 99 : 0 }}>
+          {/* Page header — order: 2 on mobile to place it below the camera */}
+          <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 2 : 0 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
               Script scrolls while you record — no second device needed.
             </p>
           </div>
 
-          {/* Left: Script editor — order:2 on mobile so it appears BELOW the camera */}
-          <div style={{ ...S.setupLeft, ...(isMobile ? { order: 2, minWidth: '100%' } : {}) }}>
+          {/* Left: Script editor — order:3 on mobile so it appears BELOW the camera and header */}
+          <div style={{ ...S.setupLeft, ...(isMobile ? { order: 3, minWidth: '100%' } : {}) }}>
             <div style={S.sectionLabel}>Script</div>
             {editing ? (
               <textarea
@@ -1504,12 +1473,22 @@ export default function Record() {
               </div>
               <div style={S.settingGroup}>
                 <div style={S.settingLabel}>Font size</div>
-                <div style={S.chips}>
-                  {FONT_SIZES.map((f, i) => (
-                    <button key={i} style={{ ...S.chip, ...(fontIdx === i ? S.chipOn : {}) }} onClick={() => setFontIdx(i)}>
-                      {f.label}
-                    </button>
-                  ))}
+                {/* Arrow-based font size selector — slide/toggle exactly like scroll speed */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    style={S.speedArrow}
+                    onClick={() => setFontIdx(i => Math.max(0, i - 1))}
+                    disabled={fontIdx === 0}
+                  >‹</button>
+                  <div style={{ textAlign: 'center', minWidth: 36 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', lineHeight: 1 }}>{FONT_SIZES[fontIdx].label}</div>
+                    <div style={{ fontSize: '0.58rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>size</div>
+                  </div>
+                  <button
+                    style={S.speedArrow}
+                    onClick={() => setFontIdx(i => Math.min(FONT_SIZES.length - 1, i + 1))}
+                    disabled={fontIdx === FONT_SIZES.length - 1}
+                  >›</button>
                 </div>
               </div>
               <div style={S.settingGroup}>
