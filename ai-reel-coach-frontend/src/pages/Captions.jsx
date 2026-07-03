@@ -3,6 +3,7 @@ import { api } from '../api'
 import { MicButton, SpeakButton } from '../components/VoiceAssistant'
 import { useLang } from '../i18n.jsx'
 import { usePersistentState } from '../hooks/usePersistentState'
+import { isGibberish } from '../utils/gibberish'
 
 const STYLE_COLORS = {
   Short:    '#00C8FF',
@@ -53,6 +54,7 @@ export default function Captions() {
   const handleGenerate = async (e) => {
     e.preventDefault()
     if (!topic.trim()) return
+    if (isGibberish(topic)) { setError('Please provide a clearer, more descriptive topic to generate the best results.'); return }
     setLoading(true)
     setError('')
     setResult(null)
