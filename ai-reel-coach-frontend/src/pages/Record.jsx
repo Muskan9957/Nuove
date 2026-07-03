@@ -1484,12 +1484,22 @@ export default function Record() {
             <div style={S.settingsGrid}>
               <div style={S.settingGroup}>
                 <div style={S.settingLabel}>Scroll speed</div>
-                <div style={S.chips}>
-                  {SPEEDS.map((s, i) => (
-                    <button key={i} style={{ ...S.chip, ...(speedIdx === i ? S.chipOn : {}) }} onClick={() => setSpeedIdx(i)}>
-                      {s.label}
-                    </button>
-                  ))}
+                {/* Arrow-based speed toggle — compact and touch-friendly on mobile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    style={S.speedArrow}
+                    onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
+                    disabled={speedIdx === 0}
+                  >‹</button>
+                  <div style={{ textAlign: 'center', minWidth: 36 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
+                    <div style={{ fontSize: '0.58rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>speed</div>
+                  </div>
+                  <button
+                    style={S.speedArrow}
+                    onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
+                    disabled={speedIdx === SPEEDS.length - 1}
+                  >›</button>
                 </div>
               </div>
               <div style={S.settingGroup}>
@@ -1623,29 +1633,43 @@ export default function Record() {
 
           {/* HUD */}
           <div style={S.hud}>
-            {/* Timer */}
-            <div style={S.timer}>{fmt(elapsed)}</div>
+            {/* Top row: Timer | Speed arrows | Pause */}
+            <div style={S.hudTopRow}>
+              <div style={S.timer}>{fmt(elapsed)}</div>
 
-            {/* Pause / speed controls */}
-            <div style={S.hudControls} onClick={e => e.stopPropagation()}>
-              <button style={S.hudBtn} onClick={toggleScrollPause}>
+              {/* Arrow speed toggle — compact, touch-friendly */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
+                <button
+                  style={S.hudSpeedArrow}
+                  onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
+                  disabled={speedIdx === 0}
+                >‹</button>
+                <div style={{ textAlign: 'center', minWidth: 26 }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
+                  <div style={{ fontSize: '0.48rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>spd</div>
+                </div>
+                <button
+                  style={S.hudSpeedArrow}
+                  onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
+                  disabled={speedIdx === SPEEDS.length - 1}
+                >›</button>
+              </div>
+
+              {/* Pause/Resume scroll */}
+              <button style={S.hudBtn} onClick={e => { e.stopPropagation(); toggleScrollPause() }}>
                 <span id="scroll-btn-text">
-                  {scrollingRef.current ? '⏸ Pause scroll' : '▶ Resume scroll'}
+                  {scrollingRef.current ? '⏸' : '▶'}
                 </span>
               </button>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {SPEEDS.map((s, i) => (
-                  <button key={i} style={{ ...S.hudChip, ...(speedIdx === i ? S.hudChipOn : {}) }} onClick={() => setSpeedIdx(i)}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            {/* Stop */}
-            <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
-              ■ Stop
-            </button>
+            {/* Giant stop button — full width pill, impossible to miss on phone */}
+            <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+              <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
+                <span style={S.stopDot} />
+                Stop Recording
+              </button>
+            </div>
           </div>
 
           {/* Tap anywhere hint */}
@@ -2009,16 +2033,24 @@ const S = {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
     paddingTop: 14, paddingLeft: 20, paddingRight: 20,
     // Respect iOS/Android system navigation bar via safe-area-inset-bottom
-    paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
-    display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
+    paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+    display: 'flex', flexDirection: 'column', gap: 14,
+    pointerEvents: 'none',
+  },
+  hudTopRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    pointerEvents: 'all',
   },
   timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
+  hudBtn: { background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)', borderRadius: '50%', color: '#fff', width: 44, height: 44, fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' },
+  hudSpeedArrow: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', color: '#fff', width: 32, height: 32, fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', flexShrink: 0 },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
-  // Stop button: min 44px height to meet touch target spec
-  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '12px 24px', minHeight: 44, minWidth: 44, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
+  // Stop button: giant pill, centered, impossible to miss on phone
+  stopBtn: { background: '#E1306C', border: 'none', borderRadius: 100, color: '#fff', padding: '17px 52px', fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 28px rgba(225,48,108,0.6)', display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '0.02em', pointerEvents: 'all' },
+  stopDot: { width: 14, height: 14, borderRadius: 3, background: '#fff', display: 'inline-block', flexShrink: 0 },
+  speedArrow: { width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' },
 
   tapHint: { position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', zIndex: 5, pointerEvents: 'none' },
   recDot: { position: 'absolute', top: 18, right: 20, width: 10, height: 10, borderRadius: '50%', background: '#ff3b30', zIndex: 5, boxShadow: '0 0 8px rgba(255,59,48,0.8)', animation: 'pulse 1.2s ease-in-out infinite' },
