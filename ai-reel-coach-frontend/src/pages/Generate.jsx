@@ -9,6 +9,7 @@ import { usePersistentState, setPersistentState } from '../hooks/usePersistentSt
 
 import { detectAndSaveRegion, getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { buildCanonicalSections, copyCanonicalScript } from '../utils/scriptFormat'
+import { isGibberish } from '../utils/gibberish'
 
 const REFINE_CHIPS = [
   { label: '🔥 Stronger Hook',     sub: 'More scroll-stopping',     instruction: 'Make the hook much more scroll-stopping with higher emotional intensity and specificity. Open with a pattern interrupt — a shocking question, bold claim, or specific statistic.', color: '#FF6B35', bg: 'rgba(255,107,53,0.08)', border: 'rgba(255,107,53,0.25)' },
@@ -238,6 +239,7 @@ export default function Generate() {
   const submit = async e => {
     e.preventDefault()
     if (!form.topic.trim()) { toast('Please enter a topic', 'error'); return }
+    if (isGibberish(form.topic)) { toast('Please provide a clearer, more descriptive topic to generate the best results.', 'error'); return }
     const durationNum = parseFloat(form.duration)
     if (!isNaN(durationNum) && durationNum > 5) {
       toast('Duration cannot exceed 5 minutes', 'error')

@@ -3,6 +3,8 @@ import { api } from '../api'
 import { MicButton } from '../components/VoiceAssistant'
 import { usePrefs } from '../hooks/usePrefs'
 import { useLang } from '../i18n.jsx'
+import { useToast } from '../components/Toast'
+import { isGibberish } from '../utils/gibberish'
 
 function TypingIndicator() {
   return (
@@ -112,6 +114,7 @@ function ConversationList({ conversations, currentId, onSelect, onNew, onDelete 
 }
 
 export default function Coach() {
+  const toast = useToast()
   const { t, lang } = useLang()
   const [messages, setMessages]   = useState([])
   const [input, setInput]         = useState('')
@@ -162,6 +165,7 @@ export default function Coach() {
   const sendMessage = async (text) => {
     const trimmed = (text || input).trim()
     if (!trimmed || loading) return
+    if (isGibberish(trimmed)) { toast('Please provide a clearer, more descriptive message to proceed.', 'error'); return }
 
     const newMessages = [...messages, { role: 'user', content: trimmed }]
     setMessages(newMessages)
