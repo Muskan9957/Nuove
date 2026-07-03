@@ -1986,7 +1986,7 @@ const S = {
 
   // fullscreen recording
   fullscreen: {
-    position: 'fixed', inset: 0, background: '#000', zIndex: 100,
+    position: 'fixed', inset: 0, background: '#000', zIndex: 2000,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   fullVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
@@ -2033,7 +2033,7 @@ const S = {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
     paddingTop: 14, paddingLeft: 20, paddingRight: 20,
     // Respect iOS/Android system navigation bar via safe-area-inset-bottom
-    paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+    paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
     display: 'flex', flexDirection: 'column', gap: 14,
     pointerEvents: 'none',
   },
