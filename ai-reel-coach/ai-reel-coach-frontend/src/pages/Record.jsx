@@ -140,9 +140,10 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
   const startDrag = (which, ev) => {
     ev.preventDefault()
     dragRef.current = which
+    
     // Mutable vars for the drag closure — avoids stale state reads
-    let liveStart = localStart
-    let liveEnd   = localEnd
+    let currentStart = localStart
+    let currentEnd   = localEnd
 
     const onMove = (e) => {
       const cx   = e.touches ? e.touches[0].clientX : e.clientX
@@ -151,27 +152,15 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
       const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
       const secs = Math.round(pct * total * 10) / 10
       
-      let nextPctS, nextPctE;
+      let targetTime = secs
       if (which === 'start') {
-        liveStart = Math.min(secs, liveEnd - 0.3)
-        nextPctS = (liveStart / total) * 100
-        nextPctE = (liveEnd / total) * 100
+        currentStart = Math.min(secs, currentEnd - 0.3)
+        setLocalStart(currentStart)
+        targetTime = currentStart
       } else {
-        liveEnd = Math.max(secs, liveStart + 0.3)
-        nextPctS = (liveStart / total) * 100
-        nextPctE = (liveEnd / total) * 100
-      }
-
-      // Direct DOM manipulation for 60fps drag without React re-renders
-      if (which === 'start' && startHRef.current && leftDarkRef.current && borderRef.current) {
-        startHRef.current.style.left = `${nextPctS}%`
-        leftDarkRef.current.style.width = `${nextPctS}%`
-        borderRef.current.style.left = `${nextPctS}%`
-        borderRef.current.style.width = `${nextPctE - nextPctS}%`
-      } else if (which === 'end' && endHRef.current && rightDarkRef.current && borderRef.current) {
-        endHRef.current.style.left = `${nextPctE}%`
-        rightDarkRef.current.style.width = `${100 - nextPctE}%`
-        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+        currentEnd = Math.max(secs, currentStart + 0.3)
+        setLocalEnd(currentEnd)
+        targetTime = currentEnd
       }
 
       // Throttled video seek — prevents decoder blocking (33ms = 30fps smooth seeks)
@@ -180,17 +169,15 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
         lastSeekRef.current = now
         if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
         seekRafRef.current = requestAnimationFrame(() => {
-          onSeek?.(which === 'start' ? liveStart : liveEnd)
+          onSeek?.(targetTime)
         })
       }
     }
+
     const onUp = () => {
       dragRef.current = null
-      // Commit final values to React state — single re-render
-      setLocalStart(liveStart)
-      setLocalEnd(liveEnd)
-      if (which === 'start') onTrimChange('start', liveStart)
-      else                   onTrimChange('end',   liveEnd)
+      onTrimChange(which, which === 'start' ? currentStart : currentEnd)
+      
       document.removeEventListener('mousemove',  onMove)
       document.removeEventListener('mouseup',    onUp)
       document.removeEventListener('touchmove',  onMove)
@@ -1675,7 +1662,7 @@ export default function Record() {
                 }}
                 onPlay={() => setIsPlayingDone(true)}
                 onPause={() => setIsPlayingDone(false)}
-                style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', cursor: 'pointer' }}
+                style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', cursor: 'pointer' }}
                 onTimeUpdate={(e) => {
                   const vid = e.target;
                   setVidTime(vid.currentTime);
