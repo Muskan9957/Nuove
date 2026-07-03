@@ -480,13 +480,13 @@ export default function Record() {
       try {
         // Try forcing exact facingMode (required on iOS Safari and some Android browsers to switch)
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: { exact: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: true,
         })
       } catch (err) {
         // Fallback for desktops/laptops which may not support exact facingMode constraints
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: true,
         })
       }
@@ -582,10 +582,10 @@ export default function Record() {
     const stream = streamRef.current
     if (!stream) return
 
-    // Canvas draws the filtered + mirrored camera output
+    // Canvas draws the filtered + mirrored camera output — portrait 1080p for phone
     const canvas = document.createElement('canvas')
-    canvas.width = 1280
-    canvas.height = 720
+    canvas.width = 1080
+    canvas.height = 1920
     const ctx = canvas.getContext('2d')
 
     // Draw loop — applies CSS filter + mirror to every frame
@@ -658,12 +658,12 @@ export default function Record() {
     if (finalAudioTrack) tracks.push(finalAudioTrack)
     const combinedStream = new MediaStream(tracks)
 
-    // Pick the best available MIME type
+    // Pick the best available MIME type and use high bitrate for quality
     const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
     const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
 
     chunksRef.current = []
-    const rec = new MediaRecorder(combinedStream, { mimeType: mime })
+    const rec = new MediaRecorder(combinedStream, { mimeType: mime, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 })
     recorderRef.current = rec
 
     rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
@@ -844,8 +844,8 @@ export default function Record() {
     const end   = Math.min(duration, trimEnd > 0 && trimEnd < duration ? trimEnd : duration)
 
     const canvas = document.createElement('canvas')
-    canvas.width  = 1280
-    canvas.height = 720
+    canvas.width  = 1080
+    canvas.height = 1920
     const ctx = canvas.getContext('2d')
 
     // ── Audio routing via Web Audio API ──
@@ -955,11 +955,11 @@ export default function Record() {
       {/* ─── SETUP PHASE ─── */}
       {phase === 'setup' && (
         <div style={S.setupWrap}>
-          {/* Page header ,  matches all other feature pages */}
+          {/* Page header */}
           <div style={{ width: '100%', marginBottom: 8 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-              Script scrolls while you record ,  no second device needed.
+              Script scrolls while you record — no second device needed.
             </p>
           </div>
 
@@ -1275,12 +1275,22 @@ export default function Record() {
             <div style={S.settingsGrid}>
               <div style={S.settingGroup}>
                 <div style={S.settingLabel}>Scroll speed</div>
-                <div style={S.chips}>
-                  {SPEEDS.map((s, i) => (
-                    <button key={i} style={{ ...S.chip, ...(speedIdx === i ? S.chipOn : {}) }} onClick={() => setSpeedIdx(i)}>
-                      {s.label}
-                    </button>
-                  ))}
+                {/* Arrow-based speed toggle — works great on mobile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    style={{ ...S.speedArrow }}
+                    onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
+                    disabled={speedIdx === 0}
+                  >‹</button>
+                  <div style={{ textAlign: 'center', minWidth: 40 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>speed</div>
+                  </div>
+                  <button
+                    style={{ ...S.speedArrow }}
+                    onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
+                    disabled={speedIdx === SPEEDS.length - 1}
+                  >›</button>
                 </div>
               </div>
               <div style={S.settingGroup}>
@@ -1414,27 +1424,42 @@ export default function Record() {
 
           {/* HUD */}
           <div style={S.hud}>
-            {/* Timer */}
-            <div style={S.timer}>{fmt(elapsed)}</div>
+            {/* Top row: timer + pause + speed */}
+            <div style={S.hudTopRow}>
+              {/* Timer */}
+              <div style={S.timer}>{fmt(elapsed)}</div>
 
-            {/* Pause / speed controls */}
-            <div style={S.hudControls} onClick={e => e.stopPropagation()}>
-              <button style={S.hudBtn} onClick={toggleScrollPause}>
-                {scrolling ? '⏸ Pause scroll' : '▶ Resume scroll'}
-              </button>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {SPEEDS.map((s, i) => (
-                  <button key={i} style={{ ...S.hudChip, ...(speedIdx === i ? S.hudChipOn : {}) }} onClick={() => setSpeedIdx(i)}>
-                    {s.label}
-                  </button>
-                ))}
+              {/* Speed toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
+                <button
+                  style={S.hudSpeedArrow}
+                  onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
+                  disabled={speedIdx === 0}
+                >‹</button>
+                <div style={{ textAlign: 'center', minWidth: 28 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
+                  <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>spd</div>
+                </div>
+                <button
+                  style={S.hudSpeedArrow}
+                  onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
+                  disabled={speedIdx === SPEEDS.length - 1}
+                >›</button>
               </div>
+
+              {/* Pause scroll button */}
+              <button style={S.hudBtn} onClick={e => { e.stopPropagation(); toggleScrollPause() }}>
+                {scrolling ? '⏸' : '▶'}
+              </button>
             </div>
 
-            {/* Stop */}
-            <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
-              ■ Stop
-            </button>
+            {/* Giant stop button — center bottom, impossible to miss */}
+            <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
+              <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
+                <span style={S.stopDot} />
+                Stop Recording
+              </button>
+            </div>
           </div>
 
           {/* Tap anywhere hint */}
@@ -1573,7 +1598,9 @@ export default function Record() {
 const S = {
 
   setupWrap: {
-    display: 'flex', gap: 24, padding: '24px 20px', maxWidth: 960, margin: '0 auto', width: '100%', flexWrap: 'wrap',
+    display: 'flex', gap: 24, padding: '24px 20px', maxWidth: 960, margin: '0 auto', width: '100%',
+    // On mobile: stack camera (right) ABOVE script (left) by reversing the column order
+    flexWrap: 'wrap-reverse',
   },
   setupLeft: { flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column' },
   setupRight: { flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 14 },
@@ -1622,6 +1649,7 @@ const S = {
   chips: { display: 'flex', gap: 6, flexWrap: 'wrap' },
   chip: { padding: '5px 12px', borderRadius: 7, fontSize: '0.78rem', fontWeight: 600, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer', transition: 'all 0.15s' },
   chipOn: { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' },
+  speedArrow: { width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', lineHeight: 1 },
 
   // filter picker
   filterStrip: {
@@ -1718,15 +1746,23 @@ const S = {
 
   hud: {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
-    padding: '14px 20px 32px',
-    display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
+    display: 'flex', flexDirection: 'column', gap: 16,
+    padding: '14px 20px 28px',
+    background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+    pointerEvents: 'none',
   },
-  timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
+  hudTopRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    pointerEvents: 'all',
+  },
+  timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)', fontFamily: 'monospace' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)' },
+  hudBtn: { background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)', borderRadius: '50%', color: '#fff', width: 44, height: 44, fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' },
+  hudSpeedArrow: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', color: '#fff', width: 34, height: 34, fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
-  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '10px 20px', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)' },
+  stopBtn: { background: '#E1306C', border: 'none', borderRadius: 100, color: '#fff', padding: '18px 56px', fontSize: '1.1rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 32px rgba(225,48,108,0.65)', display: 'flex', alignItems: 'center', gap: 12, letterSpacing: '0.02em', pointerEvents: 'all' },
+  stopDot: { width: 16, height: 16, borderRadius: 3, background: '#fff', display: 'inline-block', flexShrink: 0 },
 
   tapHint: { position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', zIndex: 5, pointerEvents: 'none' },
   recDot: { position: 'absolute', top: 18, right: 20, width: 10, height: 10, borderRadius: '50%', background: '#ff3b30', zIndex: 5, boxShadow: '0 0 8px rgba(255,59,48,0.8)', animation: 'pulse 1.2s ease-in-out infinite' },
