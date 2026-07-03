@@ -74,6 +74,9 @@ function recorderReducer(state, action) {
     case 'EXPORT_DONE':  // fall-through
     case 'FINISH_EXPORT': return { ...state, phase: 'READY_TO_EDIT' }
     case 'RESET': 
+      if (state.outputUrl) {
+        URL.revokeObjectURL(state.outputUrl)
+      }
       return { ...initialState, phase: 'IDLE' }
     default: return state
   }
@@ -104,13 +107,19 @@ async function generateThumbnails(blob, duration, count = 14) {
 }
 
 /* ─────────────── TrimBar ─────────────── */
-function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }) {
+function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, isMobile }) {
   // Thumbnails are now pre-generated in the PROCESSING phase
   const [localStart, setLocalStart] = useState(trimStart)
   const [localEnd,   setLocalEnd]   = useState(trimEnd)
-  const stripRef   = useRef(null)
-  const dragRef    = useRef(null)
-  const seekRafRef = useRef(null)
+  const stripRef     = useRef(null)
+  const startHRef    = useRef(null)
+  const endHRef      = useRef(null)
+  const leftDarkRef  = useRef(null)
+  const rightDarkRef = useRef(null)
+  const borderRef    = useRef(null)
+  const dragRef      = useRef(null)
+  const seekRafRef   = useRef(null)
+  const lastSeekRef  = useRef(0)
   const N = 14
 
   // Sync from parent when not actively dragging
@@ -139,22 +148,45 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
       if (!rect) return
       const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
       const secs = Math.round(pct * total * 10) / 10
+      
+      let nextPctS, nextPctE;
       if (which === 'start') {
         liveStart = Math.min(secs, liveEnd - 0.3)
-        setLocalStart(liveStart)
+        nextPctS = (liveStart / total) * 100
+        nextPctE = (liveEnd / total) * 100
       } else {
         liveEnd = Math.max(secs, liveStart + 0.3)
-        setLocalEnd(liveEnd)
+        nextPctS = (liveStart / total) * 100
+        nextPctE = (liveEnd / total) * 100
       }
-      // RAF-throttled video seek — prevents seeking on every mousemove
-      if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
-      seekRafRef.current = requestAnimationFrame(() => {
-        onSeek?.(which === 'start' ? liveStart : liveEnd)
-      })
+
+      // Direct DOM manipulation for 60fps drag without React re-renders
+      if (which === 'start' && startHRef.current && leftDarkRef.current && borderRef.current) {
+        startHRef.current.style.left = `${nextPctS}%`
+        leftDarkRef.current.style.width = `${nextPctS}%`
+        borderRef.current.style.left = `${nextPctS}%`
+        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+      } else if (which === 'end' && endHRef.current && rightDarkRef.current && borderRef.current) {
+        endHRef.current.style.left = `${nextPctE}%`
+        rightDarkRef.current.style.width = `${100 - nextPctE}%`
+        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+      }
+
+      // Throttled video seek — prevents decoder blocking (max once per 100ms)
+      const now = performance.now()
+      if (now - lastSeekRef.current > 100) {
+        lastSeekRef.current = now
+        if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
+        seekRafRef.current = requestAnimationFrame(() => {
+          onSeek?.(which === 'start' ? liveStart : liveEnd)
+        })
+      }
     }
     const onUp = () => {
       dragRef.current = null
-      // Commit final values to parent — single state update, single re-render
+      // Commit final values to React state — single re-render
+      setLocalStart(liveStart)
+      setLocalEnd(liveEnd)
       if (which === 'start') onTrimChange('start', liveStart)
       else                   onTrimChange('end',   liveEnd)
       document.removeEventListener('mousemove',  onMove)
@@ -168,11 +200,12 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
     document.addEventListener('touchend',  onUp)
   }
 
-  const Handle = ({ side }) => {
+  const Handle = ({ side, innerRef }) => {
     const isPct = side === 'start' ? pctS : pctE
     return (
       // Outer div is the 44px touch target (Apple HIG minimum)
       <div
+        ref={innerRef}
         onMouseDown={e => startDrag(side, e)}
         onTouchStart={e => startDrag(side, e)}
         style={{
@@ -205,12 +238,19 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
 
   return (
     <div style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}>
-      {/* Strip */}
+      {/* Strip wrapper adds horizontal overflow padding so 44px handles don't get clipped */}
+      <div style={{ padding: '0 22px', margin: '0 -22px', position: 'relative', touchAction: 'none' }}>
       <div ref={stripRef} style={{
-        position: 'relative', height: 76, width: '100%',
-        overflow: 'hidden', borderRadius: 10,
+        position: 'relative',
+        height: isMobile ? 88 : 76,
+        width: '100%',
+        // overflow must be VISIBLE so the 44px handle touch zones aren't clipped
+        overflow: 'visible',
+        borderRadius: 10,
         background: '#0a0a0a', cursor: 'default',
-        touchAction: 'none'
+        touchAction: 'none',
+        // clip the thumbnails only, not the handles
+        isolation: 'isolate',
       }}>
         {/* Thumbnail frames */}
         <div style={{ display: 'flex', height: '100%', gap: 1 }}>
@@ -230,19 +270,19 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
           }
         </div>
         {/* Left dark region */}
-        <div style={{
+        <div ref={leftDarkRef} style={{
           position: 'absolute', left: 0, top: 0, bottom: 0,
           width: `${pctS}%`, background: 'rgba(0,0,0,0.68)',
           pointerEvents: 'none',
         }} />
         {/* Right dark region */}
-        <div style={{
+        <div ref={rightDarkRef} style={{
           position: 'absolute', right: 0, top: 0, bottom: 0,
           width: `${100 - pctE}%`, background: 'rgba(0,0,0,0.68)',
           pointerEvents: 'none',
         }} />
         {/* Selection border */}
-        <div style={{
+        <div ref={borderRef} style={{
           position: 'absolute', pointerEvents: 'none',
           left: `${pctS}%`, width: `${pctE - pctS}%`,
           top: 0, bottom: 0,
@@ -250,9 +290,10 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
           boxSizing: 'border-box',
         }} />
         {/* Handles */}
-        <Handle side="start" />
-        <Handle side="end" />
+        <Handle side="start" innerRef={startHRef} />
+        <Handle side="end" innerRef={endHRef} />
       </div>
+      </div>  {/* end strip wrapper */}
 
       {/* Time labels — use localStart/localEnd for live drag feedback */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
@@ -483,6 +524,8 @@ export default function Record() {
   const canvasLoopRef = useRef(false)
   const doneVideoRef  = useRef(null)
   const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
+  const framesDrawnRef = useRef(0)
+  const recordedFpsRef = useRef(30)
 
   // Keep speedRef in sync with speedIdx state
   useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
@@ -627,8 +670,10 @@ export default function Record() {
 
     // Draw loop — applies CSS filter + mirror to every frame
     canvasLoopRef.current = true
+    framesDrawnRef.current = 0
     const drawFrame = () => {
       if (!canvasLoopRef.current) return
+      framesDrawnRef.current++
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
       // Draw filtered camera input
@@ -723,7 +768,12 @@ export default function Record() {
 
       const rawBlob = new Blob(chunksRef.current, { type: mime })
       const capturedElapsed = elapsedRef.current
-      console.log(`[Recorder] Recording stopped. Blob finalized: ${rawBlob.size} bytes. Captured elapsed: ${capturedElapsed}s`)
+      
+      // Calculate actual captured framerate dynamically (capped between 24 and 60)
+      const actualFps = capturedElapsed > 0 ? Math.round(framesDrawnRef.current / capturedElapsed) : 30
+      recordedFpsRef.current = Math.min(60, Math.max(24, actualFps)) || 30
+
+      console.log(`[Recorder] Recording stopped. Blob finalized: ${rawBlob.size} bytes. Captured elapsed: ${capturedElapsed}s at ~${recordedFpsRef.current} fps`)
 
       // If blob is completely empty, show error immediately (happens if camera was blocked mid-recording)
       if (rawBlob.size === 0) {
@@ -913,6 +963,12 @@ export default function Record() {
     // Use actual dimensions from tempVideo, ensuring they are even numbers for the encoder
     const targetW = tempVideo.videoWidth - (tempVideo.videoWidth % 2) || 720
     const targetH = tempVideo.videoHeight - (tempVideo.videoHeight % 2) || 1280
+    
+    // Adaptive export settings: Preserve original recorded framerate and scale bitrate by resolution
+    const fps = recordedFpsRef.current || 30
+    // Standard high-quality H.264 formula: width * height * fps * 0.1 bits per pixel
+    const targetBitrate = Math.min(targetW * targetH * fps * 0.1, 15_000_000)
+
     const canvas = document.createElement('canvas')
     canvas.width  = targetW
     canvas.height = targetH
@@ -946,8 +1002,8 @@ export default function Record() {
       codec: 'avc1.4d002a', // Main profile, Level 4.2
       width: targetW,
       height: targetH,
-      bitrate: 3000000,
-      framerate: 30,
+      bitrate: targetBitrate,
+      framerate: fps,
       hardwareAcceleration: 'prefer-hardware'
     })
 
@@ -1008,17 +1064,30 @@ export default function Record() {
       if (finished) return
       finished = true
       tempVideo.pause()
+      tempVideo.src = '' // Free the object URL binding
 
       try {
         await videoEncoder.flush()
-        if (audioEncoder) await audioEncoder.flush()
+        videoEncoder.close() // Release WebCodecs memory
+
+        if (audioEncoder) {
+          await audioEncoder.flush()
+          audioEncoder.close()
+        }
+        
         muxer.finalize()
 
         const { buffer } = muxer.target
         const mp4Blob = new Blob([buffer], { type: 'video/mp4' })
         
         URL.revokeObjectURL(srcUrl)
-        if (audioCtx) audioCtx.close().catch(() => {})
+        if (audioCtx) {
+          audioCtx.close().catch(() => {})
+        }
+        
+        // Clean up canvas memory
+        canvas.width = 0
+        canvas.height = 0
         
         resolve(mp4Blob)
       } catch (err) {
@@ -1715,6 +1784,7 @@ export default function Record() {
                 trimStart={trimStart}
                 trimEnd={trimEnd || duration || elapsed}
                 thumbs={thumbnails}
+                isMobile={isMobile}
                 onTrimChange={(which, val) => {
                   if (which === 'start') dispatch({ type: 'UPDATE_TRIM', payload: { start: val } })
                   else dispatch({ type: 'UPDATE_TRIM', payload: { end: val } })
