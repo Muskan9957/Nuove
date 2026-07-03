@@ -173,12 +173,12 @@ const NAV_CONFIG = [
   { to: '/support',     icon: SupportIcon,     labelKey: 'nav_support'     },
 ]
 
-// Bottom nav: top 4 core items + Coach (most important for retention)
+// Bottom nav: Dashboard, Generate, Record, Coach as primary — Record is a core creator action
 const MOBILE_NAV_CONFIG = [
-  { to: '/dashboard',   icon: IconDashboard,   labelKey: 'nav_dashboard' },
-  { to: '/generate',    icon: IconGenerate,    labelKey: 'nav_generate'  },
-  { to: '/coach',       icon: CoachIcon,       labelKey: 'nav_coach'     },
-  { to: '/captions',    icon: CaptionIcon,     labelKey: 'nav_captions'  },
+  { to: '/dashboard', icon: IconDashboard, labelKey: 'nav_dashboard' },
+  { to: '/generate',  icon: IconGenerate,  labelKey: 'nav_generate'  },
+  { to: '/record',    icon: RecordIcon,    labelKey: 'nav_record'    },
+  { to: '/coach',     icon: CoachIcon,     labelKey: 'nav_coach'     },
 ]
 
 const planColors = { FREE: '#4A5C8A', STARTER: '#00C9A7', PRO: '#00C8FF' }
@@ -669,7 +669,8 @@ export default function Layout({ children }) {
 
             {[
               { section: 'Studio', items: [
-                { to: '/scripts',     icon: IconScripts,     label: t('nav_scripts')     },
+                { to: '/scripts',  icon: IconScripts,  label: t('nav_scripts')  },
+                { to: '/captions', icon: CaptionIcon, label: t('nav_captions') },
               ]},
               { section: 'Content', items: [
                 { to: '/crosspost',   icon: RemixIcon,       label: t('nav_remix')       },

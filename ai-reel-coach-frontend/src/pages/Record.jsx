@@ -3,6 +3,19 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
 
+/* ── useIsMobile ── */
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  )
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', h, { passive: true })
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  return isMobile
+}
+
 /* ─────────────── shared helpers ─────────────── */
 const fmtTime = (s) => {
   if (!isFinite(s) || isNaN(s)) s = 0
@@ -158,26 +171,34 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
   const Handle = ({ side }) => {
     const isPct = side === 'start' ? pctS : pctE
     return (
+      // Outer div is the 44px touch target (Apple HIG minimum)
       <div
         onMouseDown={e => startDrag(side, e)}
         onTouchStart={e => startDrag(side, e)}
         style={{
           position: 'absolute', left: `${isPct}%`, top: 0, bottom: 0,
-          width: 22, transform: 'translateX(-50%)',
-          background: '#E1306C', cursor: 'ew-resize', zIndex: 6,
-          borderRadius: side === 'start' ? '6px 0 0 6px' : '0 6px 6px 0',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(225,48,108,0.5)',
+          width: 44, transform: 'translateX(-50%)',
+          cursor: 'ew-resize', zIndex: 6,
+          display: 'flex', alignItems: 'stretch', justifyContent: 'center',
           touchAction: 'none',
         }}
       >
-        {[0,1,2].map(i => (
-          <div key={i} style={{
-            width: 2, height: 14, borderRadius: 2,
-            background: 'rgba(255,255,255,0.9)',
-            margin: '0 1px',
-          }} />
-        ))}
+        {/* Inner visual handle — 22px wide, centered inside the 44px touch zone */}
+        <div style={{
+          width: 22,
+          background: '#E1306C',
+          borderRadius: side === 'start' ? '6px 0 0 6px' : '0 6px 6px 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(225,48,108,0.5)',
+        }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{
+              width: 2, height: 14, borderRadius: 2,
+              background: 'rgba(255,255,255,0.9)',
+              margin: '0 1px',
+            }} />
+          ))}
+        </div>
       </div>
     )
   }
@@ -408,6 +429,8 @@ export default function Record() {
   const [state, dispatch] = useReducer(recorderReducer, initialState)
   const { phase, countdown, elapsed, cameraErr, outputBlob, outputUrl, outputExt, trimStart, trimEnd, duration, thumbnails } = state
 
+  const isMobile = useIsMobile()
+
   // production overlay metadata
   const [availableSongs] = useState(() => {
     try {
@@ -631,7 +654,8 @@ export default function Record() {
     requestAnimationFrame(drawFrame)
 
     // Capture the canvas as a stream and mix in the microphone audio
-    const canvasStream = canvas.captureStream(30)
+    // Use 60fps capture to match high-refresh displays and smoother motion
+    const canvasStream = canvas.captureStream(60)
     const audioTrack   = stream.getAudioTracks()[0]
     const tracks = [...canvasStream.getVideoTracks()]
 
@@ -678,7 +702,10 @@ export default function Record() {
     console.log('[Recorder] launchRecording: Picked MIME type', mime)
 
     chunksRef.current = []
-    const rec = new MediaRecorder(combinedStream, { mimeType: mime })
+    const rec = new MediaRecorder(combinedStream, {
+      mimeType: mime,
+      videoBitsPerSecond: 8_000_000, // 8 Mbps — high quality for social sharing
+    })
     recorderRef.current = rec
 
     rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
@@ -1210,17 +1237,24 @@ export default function Record() {
 
       {/* ─── SETUP PHASE ─── */}
       {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
-        <div style={S.setupWrap}>
-          {/* Page header ,  matches all other feature pages */}
-          <div style={{ width: '100%', marginBottom: 8 }}>
+        <div style={{
+          ...S.setupWrap,
+          // On mobile: single column, camera first (column-reverse puts the 2nd DOM child on top)
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          padding: isMobile ? '16px' : '24px 20px',
+          // Extra bottom padding on mobile to clear the bottom nav bar
+          paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '24px',
+        }}>
+          {/* Page header */}
+          <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 99 : 0 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-              Script scrolls while you record ,  no second device needed.
+              Script scrolls while you record — no second device needed.
             </p>
           </div>
 
-          {/* Left: Script editor */}
-          <div style={S.setupLeft}>
+          {/* Left: Script editor — order:2 on mobile so it appears BELOW the camera */}
+          <div style={{ ...S.setupLeft, ...(isMobile ? { order: 2, minWidth: '100%' } : {}) }}>
             <div style={S.sectionLabel}>Script</div>
             {editing ? (
               <textarea
@@ -1347,8 +1381,8 @@ export default function Record() {
             )}
           </div>
 
-          {/* Right: Camera preview + settings */}
-          <div style={S.setupRight}>
+          {/* Right: Camera preview + settings — order:1 on mobile so it appears ABOVE the script */}
+          <div style={{ ...S.setupRight, ...(isMobile ? { order: 1, minWidth: '100%' } : {}) }}>
 
             {/* Camera preview */}
             <div style={S.cameraBox}>
@@ -1904,15 +1938,18 @@ const S = {
 
   hud: {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
-    padding: '14px 20px 32px',
+    paddingTop: 14, paddingLeft: 20, paddingRight: 20,
+    // Respect iOS/Android system navigation bar via safe-area-inset-bottom
+    paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
     display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
   },
   timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)' },
+  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
-  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '10px 20px', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)' },
+  // Stop button: min 44px height to meet touch target spec
+  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '12px 24px', minHeight: 44, minWidth: 44, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
 
   tapHint: { position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', zIndex: 5, pointerEvents: 'none' },
   recDot: { position: 'absolute', top: 18, right: 20, width: 10, height: 10, borderRadius: '50%', background: '#ff3b30', zIndex: 5, boxShadow: '0 0 8px rgba(255,59,48,0.8)', animation: 'pulse 1.2s ease-in-out infinite' },
@@ -1920,6 +1957,6 @@ const S = {
   countdownOverlay: { position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' },
   countdownNum: { fontSize: '10rem', fontWeight: 900, color: '#fff', textShadow: '0 0 40px rgba(255,255,255,0.4)', lineHeight: 1 },
 
-  doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' },
-  doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '32px 28px', maxWidth: 480, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' },
+  doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' },
+  doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '28px 20px', maxWidth: 520, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' },
 }
