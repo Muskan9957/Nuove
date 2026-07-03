@@ -3,6 +3,19 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
 
+/* ── useIsMobile ── */
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  )
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', h, { passive: true })
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  return isMobile
+}
+
 /* ─────────────── shared helpers ─────────────── */
 const fmtTime = (s) => {
   if (!isFinite(s) || isNaN(s)) s = 0
@@ -61,6 +74,9 @@ function recorderReducer(state, action) {
     case 'EXPORT_DONE':  // fall-through
     case 'FINISH_EXPORT': return { ...state, phase: 'READY_TO_EDIT' }
     case 'RESET': 
+      if (state.outputUrl) {
+        URL.revokeObjectURL(state.outputUrl)
+      }
       return { ...initialState, phase: 'IDLE' }
     default: return state
   }
@@ -91,13 +107,19 @@ async function generateThumbnails(blob, duration, count = 14) {
 }
 
 /* ─────────────── TrimBar ─────────────── */
-function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }) {
+function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, isMobile }) {
   // Thumbnails are now pre-generated in the PROCESSING phase
   const [localStart, setLocalStart] = useState(trimStart)
   const [localEnd,   setLocalEnd]   = useState(trimEnd)
-  const stripRef   = useRef(null)
-  const dragRef    = useRef(null)
-  const seekRafRef = useRef(null)
+  const stripRef     = useRef(null)
+  const startHRef    = useRef(null)
+  const endHRef      = useRef(null)
+  const leftDarkRef  = useRef(null)
+  const rightDarkRef = useRef(null)
+  const borderRef    = useRef(null)
+  const dragRef      = useRef(null)
+  const seekRafRef   = useRef(null)
+  const lastSeekRef  = useRef(0)
   const N = 14
 
   // Sync from parent when not actively dragging
@@ -126,22 +148,45 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
       if (!rect) return
       const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
       const secs = Math.round(pct * total * 10) / 10
+      
+      let nextPctS, nextPctE;
       if (which === 'start') {
         liveStart = Math.min(secs, liveEnd - 0.3)
-        setLocalStart(liveStart)
+        nextPctS = (liveStart / total) * 100
+        nextPctE = (liveEnd / total) * 100
       } else {
         liveEnd = Math.max(secs, liveStart + 0.3)
-        setLocalEnd(liveEnd)
+        nextPctS = (liveStart / total) * 100
+        nextPctE = (liveEnd / total) * 100
       }
-      // RAF-throttled video seek — prevents seeking on every mousemove
-      if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
-      seekRafRef.current = requestAnimationFrame(() => {
-        onSeek?.(which === 'start' ? liveStart : liveEnd)
-      })
+
+      // Direct DOM manipulation for 60fps drag without React re-renders
+      if (which === 'start' && startHRef.current && leftDarkRef.current && borderRef.current) {
+        startHRef.current.style.left = `${nextPctS}%`
+        leftDarkRef.current.style.width = `${nextPctS}%`
+        borderRef.current.style.left = `${nextPctS}%`
+        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+      } else if (which === 'end' && endHRef.current && rightDarkRef.current && borderRef.current) {
+        endHRef.current.style.left = `${nextPctE}%`
+        rightDarkRef.current.style.width = `${100 - nextPctE}%`
+        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+      }
+
+      // Throttled video seek — prevents decoder blocking (max once per 100ms)
+      const now = performance.now()
+      if (now - lastSeekRef.current > 100) {
+        lastSeekRef.current = now
+        if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
+        seekRafRef.current = requestAnimationFrame(() => {
+          onSeek?.(which === 'start' ? liveStart : liveEnd)
+        })
+      }
     }
     const onUp = () => {
       dragRef.current = null
-      // Commit final values to parent — single state update, single re-render
+      // Commit final values to React state — single re-render
+      setLocalStart(liveStart)
+      setLocalEnd(liveEnd)
       if (which === 'start') onTrimChange('start', liveStart)
       else                   onTrimChange('end',   liveEnd)
       document.removeEventListener('mousemove',  onMove)
@@ -155,41 +200,57 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
     document.addEventListener('touchend',  onUp)
   }
 
-  const Handle = ({ side }) => {
+  const Handle = ({ side, innerRef }) => {
     const isPct = side === 'start' ? pctS : pctE
     return (
+      // Outer div is the 44px touch target (Apple HIG minimum)
       <div
+        ref={innerRef}
         onMouseDown={e => startDrag(side, e)}
         onTouchStart={e => startDrag(side, e)}
         style={{
           position: 'absolute', left: `${isPct}%`, top: 0, bottom: 0,
-          width: 22, transform: 'translateX(-50%)',
-          background: '#E1306C', cursor: 'ew-resize', zIndex: 6,
-          borderRadius: side === 'start' ? '6px 0 0 6px' : '0 6px 6px 0',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(225,48,108,0.5)',
+          width: 44, transform: 'translateX(-50%)',
+          cursor: 'ew-resize', zIndex: 6,
+          display: 'flex', alignItems: 'stretch', justifyContent: 'center',
           touchAction: 'none',
         }}
       >
-        {[0,1,2].map(i => (
-          <div key={i} style={{
-            width: 2, height: 14, borderRadius: 2,
-            background: 'rgba(255,255,255,0.9)',
-            margin: '0 1px',
-          }} />
-        ))}
+        {/* Inner visual handle — 22px wide, centered inside the 44px touch zone */}
+        <div style={{
+          width: 22,
+          background: '#E1306C',
+          borderRadius: side === 'start' ? '6px 0 0 6px' : '0 6px 6px 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(225,48,108,0.5)',
+        }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{
+              width: 2, height: 14, borderRadius: 2,
+              background: 'rgba(255,255,255,0.9)',
+              margin: '0 1px',
+            }} />
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
     <div style={{ width: '100%', userSelect: 'none', WebkitUserSelect: 'none' }}>
-      {/* Strip */}
+      {/* Strip wrapper adds horizontal overflow padding so 44px handles don't get clipped */}
+      <div style={{ padding: '0 22px', margin: '0 -22px', position: 'relative', touchAction: 'none' }}>
       <div ref={stripRef} style={{
-        position: 'relative', height: 76, width: '100%',
-        overflow: 'hidden', borderRadius: 10,
+        position: 'relative',
+        height: isMobile ? 88 : 76,
+        width: '100%',
+        // overflow must be VISIBLE so the 44px handle touch zones aren't clipped
+        overflow: 'visible',
+        borderRadius: 10,
         background: '#0a0a0a', cursor: 'default',
-        touchAction: 'none'
+        touchAction: 'none',
+        // clip the thumbnails only, not the handles
+        isolation: 'isolate',
       }}>
         {/* Thumbnail frames */}
         <div style={{ display: 'flex', height: '100%', gap: 1 }}>
@@ -209,19 +270,19 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
           }
         </div>
         {/* Left dark region */}
-        <div style={{
+        <div ref={leftDarkRef} style={{
           position: 'absolute', left: 0, top: 0, bottom: 0,
           width: `${pctS}%`, background: 'rgba(0,0,0,0.68)',
           pointerEvents: 'none',
         }} />
         {/* Right dark region */}
-        <div style={{
+        <div ref={rightDarkRef} style={{
           position: 'absolute', right: 0, top: 0, bottom: 0,
           width: `${100 - pctE}%`, background: 'rgba(0,0,0,0.68)',
           pointerEvents: 'none',
         }} />
         {/* Selection border */}
-        <div style={{
+        <div ref={borderRef} style={{
           position: 'absolute', pointerEvents: 'none',
           left: `${pctS}%`, width: `${pctE - pctS}%`,
           top: 0, bottom: 0,
@@ -229,9 +290,10 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek }
           boxSizing: 'border-box',
         }} />
         {/* Handles */}
-        <Handle side="start" />
-        <Handle side="end" />
+        <Handle side="start" innerRef={startHRef} />
+        <Handle side="end" innerRef={endHRef} />
       </div>
+      </div>  {/* end strip wrapper */}
 
       {/* Time labels — use localStart/localEnd for live drag feedback */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
@@ -408,6 +470,8 @@ export default function Record() {
   const [state, dispatch] = useReducer(recorderReducer, initialState)
   const { phase, countdown, elapsed, cameraErr, outputBlob, outputUrl, outputExt, trimStart, trimEnd, duration, thumbnails } = state
 
+  const isMobile = useIsMobile()
+
   // production overlay metadata
   const [availableSongs] = useState(() => {
     try {
@@ -460,6 +524,8 @@ export default function Record() {
   const canvasLoopRef = useRef(false)
   const doneVideoRef  = useRef(null)
   const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
+  const framesDrawnRef = useRef(0)
+  const recordedFpsRef = useRef(30)
 
   // Keep speedRef in sync with speedIdx state
   useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
@@ -604,8 +670,10 @@ export default function Record() {
 
     // Draw loop — applies CSS filter + mirror to every frame
     canvasLoopRef.current = true
+    framesDrawnRef.current = 0
     const drawFrame = () => {
       if (!canvasLoopRef.current) return
+      framesDrawnRef.current++
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
       // Draw filtered camera input
@@ -631,7 +699,8 @@ export default function Record() {
     requestAnimationFrame(drawFrame)
 
     // Capture the canvas as a stream and mix in the microphone audio
-    const canvasStream = canvas.captureStream(30)
+    // Use 60fps capture to match high-refresh displays and smoother motion
+    const canvasStream = canvas.captureStream(60)
     const audioTrack   = stream.getAudioTracks()[0]
     const tracks = [...canvasStream.getVideoTracks()]
 
@@ -678,7 +747,10 @@ export default function Record() {
     console.log('[Recorder] launchRecording: Picked MIME type', mime)
 
     chunksRef.current = []
-    const rec = new MediaRecorder(combinedStream, { mimeType: mime })
+    const rec = new MediaRecorder(combinedStream, {
+      mimeType: mime,
+      videoBitsPerSecond: 8_000_000, // 8 Mbps — high quality for social sharing
+    })
     recorderRef.current = rec
 
     rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
@@ -696,7 +768,12 @@ export default function Record() {
 
       const rawBlob = new Blob(chunksRef.current, { type: mime })
       const capturedElapsed = elapsedRef.current
-      console.log(`[Recorder] Recording stopped. Blob finalized: ${rawBlob.size} bytes. Captured elapsed: ${capturedElapsed}s`)
+      
+      // Calculate actual captured framerate dynamically (capped between 24 and 60)
+      const actualFps = capturedElapsed > 0 ? Math.round(framesDrawnRef.current / capturedElapsed) : 30
+      recordedFpsRef.current = Math.min(60, Math.max(24, actualFps)) || 30
+
+      console.log(`[Recorder] Recording stopped. Blob finalized: ${rawBlob.size} bytes. Captured elapsed: ${capturedElapsed}s at ~${recordedFpsRef.current} fps`)
 
       // If blob is completely empty, show error immediately (happens if camera was blocked mid-recording)
       if (rawBlob.size === 0) {
@@ -886,6 +963,12 @@ export default function Record() {
     // Use actual dimensions from tempVideo, ensuring they are even numbers for the encoder
     const targetW = tempVideo.videoWidth - (tempVideo.videoWidth % 2) || 720
     const targetH = tempVideo.videoHeight - (tempVideo.videoHeight % 2) || 1280
+    
+    // Adaptive export settings: Preserve original recorded framerate and scale bitrate by resolution
+    const fps = recordedFpsRef.current || 30
+    // Standard high-quality H.264 formula: width * height * fps * 0.1 bits per pixel
+    const targetBitrate = Math.min(targetW * targetH * fps * 0.1, 15_000_000)
+
     const canvas = document.createElement('canvas')
     canvas.width  = targetW
     canvas.height = targetH
@@ -919,8 +1002,8 @@ export default function Record() {
       codec: 'avc1.4d002a', // Main profile, Level 4.2
       width: targetW,
       height: targetH,
-      bitrate: 3000000,
-      framerate: 30,
+      bitrate: targetBitrate,
+      framerate: fps,
       hardwareAcceleration: 'prefer-hardware'
     })
 
@@ -981,17 +1064,30 @@ export default function Record() {
       if (finished) return
       finished = true
       tempVideo.pause()
+      tempVideo.src = '' // Free the object URL binding
 
       try {
         await videoEncoder.flush()
-        if (audioEncoder) await audioEncoder.flush()
+        videoEncoder.close() // Release WebCodecs memory
+
+        if (audioEncoder) {
+          await audioEncoder.flush()
+          audioEncoder.close()
+        }
+        
         muxer.finalize()
 
         const { buffer } = muxer.target
         const mp4Blob = new Blob([buffer], { type: 'video/mp4' })
         
         URL.revokeObjectURL(srcUrl)
-        if (audioCtx) audioCtx.close().catch(() => {})
+        if (audioCtx) {
+          audioCtx.close().catch(() => {})
+        }
+        
+        // Clean up canvas memory
+        canvas.width = 0
+        canvas.height = 0
         
         resolve(mp4Blob)
       } catch (err) {
@@ -1210,17 +1306,24 @@ export default function Record() {
 
       {/* ─── SETUP PHASE ─── */}
       {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
-        <div style={S.setupWrap}>
-          {/* Page header ,  matches all other feature pages */}
-          <div style={{ width: '100%', marginBottom: 8 }}>
+        <div style={{
+          ...S.setupWrap,
+          // On mobile: single column, camera first (column-reverse puts the 2nd DOM child on top)
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          padding: isMobile ? '16px' : '24px 20px',
+          // Extra bottom padding on mobile to clear the bottom nav bar
+          paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '24px',
+        }}>
+          {/* Page header */}
+          <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 99 : 0 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-              Script scrolls while you record ,  no second device needed.
+              Script scrolls while you record — no second device needed.
             </p>
           </div>
 
-          {/* Left: Script editor */}
-          <div style={S.setupLeft}>
+          {/* Left: Script editor — order:2 on mobile so it appears BELOW the camera */}
+          <div style={{ ...S.setupLeft, ...(isMobile ? { order: 2, minWidth: '100%' } : {}) }}>
             <div style={S.sectionLabel}>Script</div>
             {editing ? (
               <textarea
@@ -1347,8 +1450,8 @@ export default function Record() {
             )}
           </div>
 
-          {/* Right: Camera preview + settings */}
-          <div style={S.setupRight}>
+          {/* Right: Camera preview + settings — order:1 on mobile so it appears ABOVE the script */}
+          <div style={{ ...S.setupRight, ...(isMobile ? { order: 1, minWidth: '100%' } : {}) }}>
 
             {/* Camera preview */}
             <div style={S.cameraBox}>
@@ -1681,6 +1784,7 @@ export default function Record() {
                 trimStart={trimStart}
                 trimEnd={trimEnd || duration || elapsed}
                 thumbs={thumbnails}
+                isMobile={isMobile}
                 onTrimChange={(which, val) => {
                   if (which === 'start') dispatch({ type: 'UPDATE_TRIM', payload: { start: val } })
                   else dispatch({ type: 'UPDATE_TRIM', payload: { end: val } })
@@ -1904,15 +2008,18 @@ const S = {
 
   hud: {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
-    padding: '14px 20px 32px',
+    paddingTop: 14, paddingLeft: 20, paddingRight: 20,
+    // Respect iOS/Android system navigation bar via safe-area-inset-bottom
+    paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
     display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
   },
   timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)' },
+  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
-  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '10px 20px', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)' },
+  // Stop button: min 44px height to meet touch target spec
+  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '12px 24px', minHeight: 44, minWidth: 44, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
 
   tapHint: { position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', zIndex: 5, pointerEvents: 'none' },
   recDot: { position: 'absolute', top: 18, right: 20, width: 10, height: 10, borderRadius: '50%', background: '#ff3b30', zIndex: 5, boxShadow: '0 0 8px rgba(255,59,48,0.8)', animation: 'pulse 1.2s ease-in-out infinite' },
@@ -1920,6 +2027,6 @@ const S = {
   countdownOverlay: { position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' },
   countdownNum: { fontSize: '10rem', fontWeight: 900, color: '#fff', textShadow: '0 0 40px rgba(255,255,255,0.4)', lineHeight: 1 },
 
-  doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' },
-  doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '32px 28px', maxWidth: 480, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' },
+  doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' },
+  doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '28px 20px', maxWidth: 520, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' },
 }
