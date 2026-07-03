@@ -174,9 +174,9 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
         borderRef.current.style.width = `${nextPctE - nextPctS}%`
       }
 
-      // Throttled video seek — prevents decoder blocking (max once per 100ms)
+      // Throttled video seek — prevents decoder blocking (33ms = 30fps smooth seeks)
       const now = performance.now()
-      if (now - lastSeekRef.current > 100) {
+      if (now - lastSeekRef.current > 33) {
         lastSeekRef.current = now
         if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
         seekRafRef.current = requestAnimationFrame(() => {
@@ -1571,8 +1571,8 @@ export default function Record() {
                     disabled={fontIdx === 0}
                   >‹</button>
                   <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1 }}>{FONT_SIZES[fontIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1 }}>size</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{FONT_SIZES[fontIdx].label}</div>
+                    <div style={{ fontSize: '0.45rem', color: '#fff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>size</div>
                   </div>
                   <button
                     style={S.hudSpeedArrow}
@@ -1589,8 +1589,8 @@ export default function Record() {
                     disabled={speedIdx === 0}
                   >‹</button>
                   <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1 }}>{SPEEDS[speedIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1 }}>spd</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{SPEEDS[speedIdx].label}</div>
+                    <div style={{ fontSize: '0.45rem', color: '#fff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>spd</div>
                   </div>
                   <button
                     style={S.hudSpeedArrow}
@@ -1657,9 +1657,11 @@ export default function Record() {
 
             {/* ── Preview video ── */}
             <div style={{
-              width: '100%', maxWidth: 440, position: 'relative',
-              borderRadius: 12, overflow: 'hidden', background: '#000',
-              aspectRatio: `${streamDimsRef.current.w} / ${streamDimsRef.current.h}`,
+              width: '100%', maxWidth: 280, position: 'relative',
+              borderRadius: 16, overflow: 'hidden', background: '#000',
+              aspectRatio: '9 / 16',
+              boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)',
+              margin: '0 auto'
             }}>
               <video
                 ref={doneVideoRef}
@@ -1673,7 +1675,7 @@ export default function Record() {
                 }}
                 onPlay={() => setIsPlayingDone(true)}
                 onPause={() => setIsPlayingDone(false)}
-                style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', cursor: 'pointer' }}
+                style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', cursor: 'pointer' }}
                 onTimeUpdate={(e) => {
                   const vid = e.target;
                   setVidTime(vid.currentTime);
