@@ -563,8 +563,9 @@ export default function Record() {
   const [filterIdx,  setFilterIdx]  = useState(0)   // 0 = None
   const prevFilter = () => setFilterIdx(i => (i - 1 + FILTERS.length) % FILTERS.length)
   const nextFilter = () => setFilterIdx(i => (i + 1) % FILTERS.length)
-  const [showGrid,   setShowGrid]   = useState(false)
-  const [scrollPaused, setScrollPaused] = useState(false) // teleprompter pause — UI mirror of scrollingRef
+  const [showGrid,        setShowGrid]        = useState(false)
+  const [scrollPaused,    setScrollPaused]    = useState(false) // teleprompter pause — UI mirror of scrollingRef
+  const [streamIsLandscape, setStreamIsLandscape] = useState(false) // true when browser delivers landscape stream despite portrait request
 
   // steps & recording handled by central state machine
   const [state, dispatch] = useReducer(recorderReducer, initialState)
@@ -1445,7 +1446,28 @@ export default function Record() {
                 ref={videoRef}
                 muted
                 playsInline
-                style={{ ...S.mCamVideo, transform: `translate(-50%, -50%)${mirror ? ' scaleX(-1)' : ''}`, filter: activeFilter }}
+                onLoadedMetadata={() => {
+                  if (videoRef.current) {
+                    const { videoWidth, videoHeight } = videoRef.current
+                    setStreamIsLandscape(videoWidth > videoHeight)
+                  }
+                }}
+                style={streamIsLandscape ? {
+                  /* Browser gave us a landscape stream — rotate 90° to make it portrait.
+                     Setting width=100vh & height=100vw, then rotating 90°, makes the box
+                     exactly fill the portrait screen after the transform swap. */
+                  position: 'absolute',
+                  top: '50%', left: '50%',
+                  width: '100vh',
+                  height: '100vw',
+                  transform: `translate(-50%, -50%) rotate(90deg)${mirror ? ' scaleX(-1)' : ''}`,
+                  objectFit: 'cover',
+                  filter: activeFilter,
+                } : {
+                  ...S.mCamVideo,
+                  transform: `translate(-50%, -50%)${mirror ? ' scaleX(-1)' : ''}`,
+                  filter: activeFilter,
+                }}
               />
             )}
 
@@ -1760,7 +1782,12 @@ export default function Record() {
       {/* ─── COUNTDOWN PHASE ─── */}
       {phase === 'COUNTDOWN' && (
         <div style={S.fullscreen}>
-          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
+          <video ref={videoRef} muted playsInline style={streamIsLandscape ? {
+            position: 'absolute', top: '50%', left: '50%',
+            width: '100vh', height: '100vw',
+            transform: `translate(-50%, -50%) rotate(90deg)${mirror ? ' scaleX(-1)' : ''}`,
+            objectFit: 'cover', filter: activeFilter,
+          } : { ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
           <div style={S.countdownOverlay}>
             <div style={S.countdownNum}>{countdown}</div>
           </div>
@@ -1771,7 +1798,12 @@ export default function Record() {
       {phase === 'RECORDING' && (
         <div style={S.fullscreen} className="recording-active">
           {/* Camera in background */}
-          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
+          <video ref={videoRef} muted playsInline style={streamIsLandscape ? {
+            position: 'absolute', top: '50%', left: '50%',
+            width: '100vh', height: '100vw',
+            transform: `translate(-50%, -50%) rotate(90deg)${mirror ? ' scaleX(-1)' : ''}`,
+            objectFit: 'cover', filter: activeFilter,
+          } : { ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
 
           {/* Dark gradient top + bottom so text is readable */}
           <div style={S.gradTop} />
@@ -2150,7 +2182,7 @@ const S = {
     position: 'fixed', inset: 0, background: '#000', zIndex: 2000,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  fullVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' },
+  fullVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' },
 
   gradTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: '30%',
@@ -2268,7 +2300,7 @@ const S = {
     top: '50%', left: '50%',
     width: '100%',
     height: '100%',
-    objectFit: 'contain',
+    objectFit: 'cover',
     objectPosition: 'center',
   },
   mCamErr: {
