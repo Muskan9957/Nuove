@@ -1692,18 +1692,20 @@ export default function Record() {
                   <div style={S.gridLine('66.66%', 'v')} />
                 </div>
               )}
-              <button style={S.flipBtn} onClick={flipCamera} title="Flip camera">⟳</button>
+              {/* Overlay camera controls inside preview box */}
+              {!cameraErr && (
+                <>
+                  <button style={S.filterBtn} onClick={nextFilter} title="Change filter">
+                    <span>{FILTERS[filterIdx].emoji}</span>
+                    <span>{FILTERS[filterIdx].name}</span>
+                  </button>
+                  <button style={S.flipBtn} onClick={flipCamera} title="Flip camera">⟳</button>
+                </>
+              )}
             </div>
 
             {/* Settings */}
             <div style={S.settingsGrid}>
-              <div style={S.settingGroup}>
-                <div style={S.settingLabel}>Camera</div>
-                <div style={S.chips}>
-                  <button style={{ ...S.chip, ...(facingMode === 'user' ? S.chipOn : {}) }} onClick={() => { setFacingMode('user'); setMirror(true); startCamera('user') }}>Front</button>
-                  <button style={{ ...S.chip, ...(facingMode === 'environment' ? S.chipOn : {}) }} onClick={() => { setFacingMode('environment'); setMirror(false); startCamera('environment') }}>Back</button>
-                </div>
-              </div>
               <div style={S.settingGroup}>
                 <div style={S.settingLabel}>Grid</div>
                 <div style={S.chips}>
@@ -1726,19 +1728,6 @@ export default function Record() {
                   </label>
                 </div>
               )}
-            </div>
-
-            {/* ── Filter Picker with arrows ── */}
-            <div style={{ marginTop: 8 }}>
-              <div style={{ ...S.sectionLabel, marginBottom: 6 }}>🎨 Cinematic Filter</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button onClick={prevFilter} style={S.speedArrow}>‹</button>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', borderRadius: 10, padding: '8px 16px', border: '1px solid var(--border)', justifyContent: 'center', height: 44 }}>
-                  <span style={{ fontSize: '1.2rem' }}>{FILTERS[filterIdx].emoji}</span>
-                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text)' }}>{FILTERS[filterIdx].name}</div>
-                </div>
-                <button onClick={nextFilter} style={S.speedArrow}>›</button>
-              </div>
             </div>
 
             <button
@@ -2075,6 +2064,15 @@ const S = {
     background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
     borderRadius: '50%', width: 34, height: 34, fontSize: '1.1rem',
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 4,
+  },
+  filterBtn: {
+    position: 'absolute', top: 10, left: 10,
+    background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
+    borderRadius: '16px', padding: '6px 12px', fontSize: '0.78rem',
+    fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)', transition: 'all 0.15s',
+    zIndex: 4,
   },
 
   settingsGrid: { display: 'flex', flexDirection: 'column', gap: 10 },
