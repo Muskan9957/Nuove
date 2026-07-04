@@ -717,7 +717,8 @@ export default function Record() {
       const ch = canvas.height
 
       // Apply any active filter (B&W, Warm, etc.)
-      ctx.filter = (activeFilter && activeFilter !== 'none') ? activeFilter : 'none'
+      const filterCss = FILTERS[filterIdx].css
+      ctx.filter = (filterCss && filterCss !== 'none') ? filterCss : 'none'
 
       ctx.fillStyle = '#000'
       ctx.fillRect(0, 0, cw, ch)
@@ -750,7 +751,7 @@ export default function Record() {
       active = false
       cancelAnimationFrame(previewRafRef.current)
     }
-  }, [isMobile, phase, mirror, activeFilter])
+  }, [isMobile, phase, mirror, filterIdx])
 
   /* ── toggle preview music ── */
   const togglePreviewMusic = () => {
