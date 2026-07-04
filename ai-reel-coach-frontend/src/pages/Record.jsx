@@ -937,16 +937,23 @@ export default function Record() {
     if (finalAudioTrack) tracks.push(finalAudioTrack)
     const combinedStream = new MediaStream(tracks)
 
-    // Pick the best available MIME type
-    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
-    console.log('[Recorder] launchRecording: Picked MIME type', mime)
+    // Pick the best available MIME type. Includes mp4 for iOS Safari, which
+    // supports none of the webm types — forcing webm there makes the
+    // MediaRecorder constructor THROW and recording silently never starts.
+    const MIMES = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4',
+    ]
+    const mime = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || ''
+    console.log('[Recorder] launchRecording: Picked MIME type', mime || '(browser default)')
 
     chunksRef.current = []
-    const rec = new MediaRecorder(combinedStream, {
-      mimeType: mime,
-      videoBitsPerSecond: 8_000_000, // 8 Mbps — high quality for social sharing
-    })
+    const recOpts = { videoBitsPerSecond: 8_000_000 } // 8 Mbps — high quality for social sharing
+    if (mime) recOpts.mimeType = mime
+    const rec = new MediaRecorder(combinedStream, recOpts)
     recorderRef.current = rec
 
     rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }

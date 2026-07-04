@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Build timestamp shown by /cam-test so we can tell if a device runs stale code
+  define: { __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16) + 'Z') },
   build: {
     rollupOptions: {
       output: {
