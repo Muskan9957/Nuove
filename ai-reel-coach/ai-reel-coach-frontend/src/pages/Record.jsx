@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
+import { drawCameraFrame } from '../utils/cameraDraw'
 
 /* ── useIsMobile ── */
 const useIsMobile = () => {
@@ -102,7 +103,11 @@ async function generateThumbnails(blob, duration, count = 14) {
   for (let i = 0; i < count; i++) {
     vid.currentTime = (duration * i) / Math.max(count - 1, 1)
     await new Promise(r => vid.addEventListener('seeked', r, { once: true }))
-    ctx.drawImage(vid, 0, 0, 120, 68)
+    // Cover-crop into the thumb so portrait (9:16) videos aren't squashed
+    const vw = vid.videoWidth || 120, vh = vid.videoHeight || 68
+    const scale = Math.max(120 / vw, 68 / vh)
+    const dw = vw * scale, dh = vh * scale
+    ctx.drawImage(vid, (120 - dw) / 2, (68 - dh) / 2, dw, dh)
     out.push(cvs.toDataURL('image/jpeg', 0.6))
   }
   URL.revokeObjectURL(url)
@@ -608,6 +613,7 @@ export default function Record() {
   const hiddenVideoRef = useRef(null)   // off-screen video used as canvas draw source
   const streamRef     = useRef(null)
   const streamDimsRef = useRef({ w: 1280, h: 720 }) // actual camera resolution (updated on getUserMedia)
+  const outputDimsRef = useRef({ w: 1080, h: 1920 }) // recorded canvas dims (fixed 9:16 on portrait screens)
   const recorderRef   = useRef(null)
   const chunksRef     = useRef([])
   const scrollRef     = useRef(null)   // teleprompter text container
@@ -693,10 +699,14 @@ export default function Record() {
     }
   }, []) // eslint-disable-line
 
-  /* ── Canvas-based camera preview — handles landscape streams from mobile browsers — */
+  /* ── Canvas-based camera preview — mobile only ──
+     Draws through the SAME drawCameraFrame routine the recorder uses, so the
+     preview always matches the recorded output (orientation, crop, filter).
+     Runs in setup AND countdown/recording phases. */
   useEffect(() => {
     if (!isMobile) return
-    if (phase !== 'IDLE' && phase !== 'PREPARING_CAMERA' && phase !== 'ERROR') {
+    const livePhases = ['IDLE', 'PREPARING_CAMERA', 'ERROR', 'COUNTDOWN', 'RECORDING']
+    if (!livePhases.includes(phase)) {
       cancelAnimationFrame(previewRafRef.current)
       return
     }
@@ -709,41 +719,10 @@ export default function Record() {
       const canvas = previewCanvasRef.current
       previewRafRef.current = requestAnimationFrame(draw)
       if (!canvas || !src || !src.videoWidth || !src.videoHeight) return
-
-      const ctx = canvas.getContext('2d')
-      const vw = src.videoWidth
-      const vh = src.videoHeight
-      const cw = canvas.width
-      const ch = canvas.height
-
-      // Apply any active filter (B&W, Warm, etc.)
-      const filterCss = FILTERS[filterIdx].css
-      ctx.filter = (filterCss && filterCss !== 'none') ? filterCss : 'none'
-
-      ctx.fillStyle = '#000'
-      ctx.fillRect(0, 0, cw, ch)
-
-      ctx.save()
-      ctx.translate(cw / 2, ch / 2)
-
-      if (vw > vh) {
-        // Landscape stream (browser ignored portrait constraints):
-        // Rotate -90° so the landscape frame fills portrait screen naturally.
-        // Zoom is ~1.2x instead of the 3x that objectFit:cover produces.
-        const scale = Math.max(cw / vh, ch / vw)
-        ctx.rotate(-Math.PI / 2)
-        if (mirror) ctx.scale(-1, 1)
-        ctx.scale(scale, scale)
-        ctx.drawImage(src, -vw / 2, -vh / 2, vw, vh)
-      } else {
-        // Portrait stream: normal cover fill, minimal zoom
-        const scale = Math.max(cw / vw, ch / vh)
-        if (mirror) ctx.scale(-1, 1)
-        ctx.scale(scale, scale)
-        ctx.drawImage(src, -vw / 2, -vh / 2, vw, vh)
-      }
-
-      ctx.restore()
+      drawCameraFrame(canvas.getContext('2d'), src, canvas.width, canvas.height, {
+        mirror,
+        filter: FILTERS[filterIdx].css,
+      })
     }
 
     previewRafRef.current = requestAnimationFrame(draw)
@@ -860,11 +839,31 @@ export default function Record() {
       hiddenVideoRef.current.play().catch(() => {})
     }
 
-    // Canvas uses actual camera dimensions — fixes 9:16 vs 16:9 distortion on export
-    const { w: VW, h: VH } = streamDimsRef.current
+    // ── Fixed-orientation output canvas (the Instagram approach) ──
+    // Phone sensors often deliver a LANDSCAPE stream even when the phone is held
+    // upright, and iOS/Android differ per device — trusting the sensor dims is why
+    // recordings came out horizontal (or looked zoomed). Instead: on a portrait
+    // screen ALWAYS compose onto a vertical 9:16 canvas and center-crop the camera
+    // into it (same "cover" crop the on-screen preview shows, so WYSIWYG).
+    const srcEl0 = hiddenVideoRef.current
+    const sw0 = (srcEl0 && srcEl0.videoWidth)  || streamDimsRef.current.w
+    const sh0 = (srcEl0 && srcEl0.videoHeight) || streamDimsRef.current.h
+    const portraitUI = window.innerHeight > window.innerWidth
+    let CW, CH
+    if (portraitUI) {
+      // Vertical 9:16, sized from the source so we never upscale a weak camera too far
+      const srcLong = Math.max(sw0, sh0)
+      CH = Math.min(1920, Math.max(1280, srcLong)); CH -= CH % 2
+      CW = Math.round(CH * 9 / 16); CW -= CW % 2
+    } else {
+      // Desktop / landscape: keep the camera's native dims
+      CW = sw0 - (sw0 % 2)
+      CH = sh0 - (sh0 % 2)
+    }
     const canvas = document.createElement('canvas')
-    canvas.width  = VW
-    canvas.height = VH
+    canvas.width  = CW
+    canvas.height = CH
+    outputDimsRef.current = { w: CW, h: CH }
     const ctx = canvas.getContext('2d')
 
     // Draw loop — applies CSS filter + mirror to every frame
@@ -873,20 +872,18 @@ export default function Record() {
     const drawFrame = () => {
       if (!canvasLoopRef.current) return
       framesDrawnRef.current++
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
-      // Draw filtered camera input — read live refs so filter/mirror can change mid-record
-      ctx.filter = filterRef.current
-      ctx.save()
-      if (mirrorRef.current) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
+      // Draw the camera through the SAME routine as the on-screen preview —
+      // including the sideways-landscape rotation. This was THE horizontal-video
+      // bug: the preview rotated the frame upright but the recorder didn't.
+      // Live refs so filter/mirror can change mid-record; dims re-read per frame
+      // so a mid-record camera flip stays correct.
       const src = hiddenVideoRef.current
       if (src && src.readyState >= 2 && !src.paused) {
-        ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
+        drawCameraFrame(ctx, src, CW, CH, { mirror: mirrorRef.current, filter: filterRef.current })
+      } else {
+        ctx.fillStyle = '#000'
+        ctx.fillRect(0, 0, CW, CH)
       }
-      ctx.restore()
-
-      // Reset filter for graphic overlay card
-      ctx.filter = 'none'
       
       // Draw Hook Card overlay if enabled, exists, and within first 4 seconds
       if (burnOverlay && textOverlay && elapsedRef.current < 4) {
@@ -940,16 +937,23 @@ export default function Record() {
     if (finalAudioTrack) tracks.push(finalAudioTrack)
     const combinedStream = new MediaStream(tracks)
 
-    // Pick the best available MIME type
-    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
-    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
-    console.log('[Recorder] launchRecording: Picked MIME type', mime)
+    // Pick the best available MIME type. Includes mp4 for iOS Safari, which
+    // supports none of the webm types — forcing webm there makes the
+    // MediaRecorder constructor THROW and recording silently never starts.
+    const MIMES = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4',
+    ]
+    const mime = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || ''
+    console.log('[Recorder] launchRecording: Picked MIME type', mime || '(browser default)')
 
     chunksRef.current = []
-    const rec = new MediaRecorder(combinedStream, {
-      mimeType: mime,
-      videoBitsPerSecond: 8_000_000, // 8 Mbps — high quality for social sharing
-    })
+    const recOpts = { videoBitsPerSecond: 8_000_000 } // 8 Mbps — high quality for social sharing
+    if (mime) recOpts.mimeType = mime
+    const rec = new MediaRecorder(combinedStream, recOpts)
     recorderRef.current = rec
 
     rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
@@ -1829,7 +1833,16 @@ export default function Record() {
       {/* ─── COUNTDOWN PHASE ─── */}
       {phase === 'COUNTDOWN' && (
         <div style={S.fullscreen}>
-          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
+          {isMobile ? (
+            <canvas
+              ref={previewCanvasRef}
+              width={typeof window !== 'undefined' ? window.innerWidth : 390}
+              height={typeof window !== 'undefined' ? window.innerHeight : 844}
+              style={S.fullVideo}
+            />
+          ) : (
+            <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
+          )}
           <div style={S.countdownOverlay}>
             <div style={S.countdownNum}>{countdown}</div>
           </div>
@@ -1839,8 +1852,18 @@ export default function Record() {
       {/* ─── RECORDING PHASE ─── */}
       {phase === 'RECORDING' && (
         <div style={S.fullscreen} className="recording-active">
-          {/* Camera in background */}
-          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
+          {/* Camera in background — mobile uses the shared canvas preview so the
+              on-screen view matches the recorded output exactly */}
+          {isMobile ? (
+            <canvas
+              ref={previewCanvasRef}
+              width={typeof window !== 'undefined' ? window.innerWidth : 390}
+              height={typeof window !== 'undefined' ? window.innerHeight : 844}
+              style={S.fullVideo}
+            />
+          ) : (
+            <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
+          )}
 
           {/* Dark gradient top + bottom so text is readable */}
           <div style={S.gradTop} />
