@@ -485,6 +485,7 @@ export default function Record() {
   const prevFilter = () => setFilterIdx(i => (i - 1 + FILTERS.length) % FILTERS.length)
   const nextFilter = () => setFilterIdx(i => (i + 1) % FILTERS.length)
   const [showGrid,   setShowGrid]   = useState(false)
+  const [scrollPaused, setScrollPaused] = useState(false) // teleprompter pause — UI mirror of scrollingRef
 
   // steps & recording handled by central state machine
   const [state, dispatch] = useReducer(recorderReducer, initialState)
@@ -546,24 +547,39 @@ export default function Record() {
   // Keep speedRef in sync with speedIdx state
   useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
 
+  // Live refs so the recording draw-loop reads the latest filter/mirror without a
+  // stale closure — lets users switch filters (and mirror) live while recording.
+  const filterRef = useRef(FILTERS[0].css)
+  const mirrorRef = useRef(mirror)
+  useEffect(() => { filterRef.current = FILTERS[filterIdx].css }, [filterIdx])
+  useEffect(() => { mirrorRef.current = mirror }, [mirror])
+
   /* ── start camera ── */
   const startCamera = useCallback(async (facing = facingMode) => {
     dispatch({ type: 'START_CAMERA' })
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
+      // Request 1080p for a crisp export — portrait 9:16 on phones, 16:9 on desktop.
+      // (720p was the cause of the soft/low-res downloads on mobile.)
+      const portrait = typeof window !== 'undefined' && window.innerWidth < 768
+      const res = portrait
+        ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
+        : { width: { ideal: 1920 }, height: { ideal: 1080 } }
+      const audioReq = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+
       let stream
       try {
         // Try forcing exact facingMode (required on iOS Safari and some Android browsers to switch)
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
+          video: { facingMode: { exact: facing }, ...res, frameRate: { ideal: 30 } },
+          audio: audioReq,
         })
       } catch (err) {
         // Fallback for desktops/laptops which may not support exact facingMode constraints
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
+          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
+          audio: audioReq,
         })
       }
 
@@ -654,10 +670,7 @@ export default function Record() {
     
     // Reset scrolling state for the new recording session
     scrollingRef.current = true
-    const hint = document.getElementById('scroll-hint')
-    if (hint) hint.style.opacity = '1'
-    const btn = document.getElementById('scroll-btn-text')
-    if (btn) btn.innerText = '⏸ Pause scroll'
+    setScrollPaused(false)
 
     let n = 3
     countdownRef.current = setInterval(() => {
@@ -695,10 +708,10 @@ export default function Record() {
       framesDrawnRef.current++
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
-      // Draw filtered camera input
-      ctx.filter = activeFilter
+      // Draw filtered camera input — read live refs so filter/mirror can change mid-record
+      ctx.filter = filterRef.current
       ctx.save()
-      if (mirror) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
+      if (mirrorRef.current) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
       const src = hiddenVideoRef.current
       if (src && src.readyState >= 2 && !src.paused) {
         ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
@@ -855,11 +868,33 @@ export default function Record() {
 
   const toggleScrollPause = () => {
     scrollingRef.current = !scrollingRef.current
-    const btn = document.getElementById('scroll-btn-text')
-    if (btn) btn.innerText = scrollingRef.current ? '⏸ Pause scroll' : '▶ Resume scroll'
-    const hint = document.getElementById('scroll-hint')
-    if (hint) hint.style.opacity = scrollingRef.current ? '1' : '0'
+    setScrollPaused(!scrollingRef.current)
   }
+
+  /* ── Instagram-style circular filter strip (used in setup + recording) ── */
+  const renderFilterStrip = (onDark = false) => (
+    <div style={S.filterStrip2}>
+      {FILTERS.map((f, i) => (
+        <button key={i} onClick={() => setFilterIdx(i)} style={S.filterCircleBtn} aria-label={f.name}>
+          <div style={{
+            ...S.filterCircle,
+            background: f.swatch,
+            boxShadow: i === filterIdx
+              ? '0 0 0 3px #fff, 0 2px 10px rgba(0,0,0,0.5)'
+              : '0 0 0 2px rgba(255,255,255,0.4)',
+            transform: i === filterIdx ? 'scale(1.1)' : 'scale(1)',
+          }}>
+            <span style={S.filterCircleEmoji}>{f.emoji}</span>
+          </div>
+          <span style={{
+            ...S.filterCircleName,
+            color: onDark ? 'rgba(255,255,255,0.92)' : 'var(--text-faint)',
+            opacity: i === filterIdx ? 1 : 0.72,
+          }}>{f.name}</span>
+        </button>
+      ))}
+    </div>
+  )
 
   /* ── speed change ── no scroll restart needed; speedRef is always current */
   // (speedRef synced via useEffect above)
@@ -1292,13 +1327,115 @@ export default function Record() {
 
       {/* ─── SETUP PHASE ─── */}
       {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
+        isMobile ? (
+          /* ══ Mobile: Instagram-style camera-first screen ══ */
+          <div style={S.mCam}>
+            {cameraErr ? (
+              <div style={S.mCamErr}>
+                <div style={{ fontSize: '2.4rem', marginBottom: 10 }}>📷</div>
+                <p style={{ margin: 0, fontSize: '0.9rem', textAlign: 'center', color: '#fff' }}>{cameraErr}</p>
+                <button style={{ ...S.ghostBtn, marginTop: 14, color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }} onClick={() => startCamera()}>Retry</button>
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                style={{ ...S.mCamVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }}
+              />
+            )}
+
+            {showGrid && (
+              <div style={S.gridOverlay}>
+                <div style={S.gridLine('33.33%', 'h')} />
+                <div style={S.gridLine('66.66%', 'h')} />
+                <div style={S.gridLine('33.33%', 'v')} />
+                <div style={S.gridLine('66.66%', 'v')} />
+              </div>
+            )}
+
+            {/* Top bar: title + grid + flip camera */}
+            <div style={S.mCamTop}>
+              <div style={S.mCamTitle}>Recorder</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button style={{ ...S.mGlassBtn, ...(showGrid ? { color: '#FFD200' } : {}) }} onClick={() => setShowGrid(g => !g)} aria-label="Grid">▦</button>
+                <button style={S.mGlassBtn} onClick={flipCamera} aria-label="Flip camera">🔄</button>
+              </div>
+            </div>
+
+            {/* Bottom deck: script · filters · action row */}
+            <div style={S.mCamDeck}>
+              <button style={S.mScriptChip} onClick={() => setEditing(true)}>
+                <span style={{ fontSize: '0.95rem' }}>📄</span>
+                <span style={S.mScriptChipText}>
+                  {script.trim()
+                    ? script.replace(/\n+/g, ' ').slice(0, 42) + (script.length > 42 ? '…' : '')
+                    : 'Tap to add your script'}
+                </span>
+                <span style={{ opacity: 0.65, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em' }}>EDIT</span>
+              </button>
+
+              {renderFilterStrip(true)}
+
+              <div style={S.mActionRow}>
+                {/* Font size */}
+                <div style={S.mMiniStepper}>
+                  <button style={S.mStepBtn} onClick={() => setFontIdx(i => Math.max(0, i - 1))} aria-label="Smaller text">－</button>
+                  <span style={S.mStepLabel}>Aa</span>
+                  <button style={S.mStepBtn} onClick={() => setFontIdx(i => Math.min(FONT_SIZES.length - 1, i + 1))} aria-label="Larger text">＋</button>
+                </div>
+
+                {/* Record button */}
+                <button
+                  style={{ ...S.mRecordBtn, ...((!script.trim() || cameraErr) ? { opacity: 0.4 } : {}) }}
+                  disabled={!script.trim() || !!cameraErr}
+                  onClick={beginRecording}
+                  aria-label="Start recording"
+                >
+                  <span style={S.mRecordInner} />
+                </button>
+
+                {/* Teleprompter speed */}
+                <div style={S.mMiniStepper}>
+                  <button style={S.mStepBtn} onClick={() => setSpeedIdx(i => Math.max(0, i - 1))} aria-label="Slower">－</button>
+                  <span style={S.mStepLabel}>⚡{SPEEDS[speedIdx].label}</span>
+                  <button style={S.mStepBtn} onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))} aria-label="Faster">＋</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Script editor bottom-sheet */}
+            {editing && (
+              <div style={S.mSheet}>
+                <div style={S.mSheetHead}>
+                  <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text)' }}>Your Script</span>
+                  <button style={S.mSheetDone} onClick={() => setEditing(false)}>Done</button>
+                </div>
+                <textarea
+                  style={S.mSheetArea}
+                  value={script}
+                  onChange={e => setScript(e.target.value)}
+                  placeholder="Paste or type your script here…"
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  {script && <button style={S.ghostBtn} onClick={() => setScript('')}>Clear</button>}
+                </div>
+                {selectedSong && (
+                  <label style={S.mSheetMusic}>
+                    <input type="checkbox" checked={mixMusic} onChange={e => setMixMusic(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                    🎵 Mix “{selectedSong.title}” into the video
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+        /* ══ Desktop: two-column setup ══ */
         <div style={{
           ...S.setupWrap,
-          // On mobile: single column, normal flow so camera is on top via order:1
-          flexDirection: isMobile ? 'column' : 'row',
-          padding: isMobile ? '16px' : '24px 20px',
-          // Extra bottom padding on mobile to clear the bottom nav bar
-          paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '24px',
+          flexDirection: 'row',
+          padding: '24px 20px',
         }}>
           {/* Page header — order: 2 on mobile to place it below the camera */}
           <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 2 : 0 }}>
@@ -1522,6 +1659,7 @@ export default function Record() {
             </button>
           </div>
         </div>
+        )
       )}
 
       {/* ─── COUNTDOWN PHASE ─── */}
@@ -1536,7 +1674,7 @@ export default function Record() {
 
       {/* ─── RECORDING PHASE ─── */}
       {phase === 'RECORDING' && (
-        <div style={S.fullscreen} onClick={toggleScrollPause} className="recording-active">
+        <div style={S.fullscreen} className="recording-active">
           {/* Camera in background */}
           <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
 
@@ -1573,74 +1711,43 @@ export default function Record() {
             <div style={{ height: '55vh' }} />
           </div>
 
-          {/* HUD */}
-          <div style={S.hud}>
-            {/* Top row: Timer | Speed arrows | Pause */}
-            <div style={S.hudTopRow}>
-              <div style={S.timer}>{fmt(elapsed)}</div>
-
-              {/* Controls Group: Font Size & Speed Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                {/* Arrow font size toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setFontIdx(i => Math.max(0, i - 1))}
-                    disabled={fontIdx === 0}
-                  >‹</button>
-                  <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{FONT_SIZES[fontIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: '#4A5C8A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>size</div>
-                  </div>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setFontIdx(i => Math.min(FONT_SIZES.length - 1, i + 1))}
-                    disabled={fontIdx === FONT_SIZES.length - 1}
-                  >›</button>
-                </div>
-
-                {/* Arrow speed toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
-                    disabled={speedIdx === 0}
-                  >‹</button>
-                  <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{SPEEDS[speedIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: '#4A5C8A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>spd</div>
-                  </div>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
-                    disabled={speedIdx === SPEEDS.length - 1}
-                  >›</button>
-                </div>
-              </div>
-
-              {/* Pause/Resume scroll — icon only, no text */}
-              <button style={S.hudBtn} onClick={e => { e.stopPropagation(); toggleScrollPause() }} title={scrollingRef.current ? 'Pause scroll' : 'Resume scroll'}>
-                {scrollingRef.current ? '⏸' : '▶'}
-              </button>
-            </div>
-
-            {/* Giant stop button — full width pill, impossible to miss on phone */}
-            <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-              <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
-                <span style={S.stopDot} />
-                Stop Recording
-              </button>
+          {/* ── Top: REC + timer ── */}
+          <div style={S.recTopBar}>
+            <div style={S.recPill}>
+              <span style={S.recPillDot} /> {fmt(elapsed)}
             </div>
           </div>
 
-          {/* Tap anywhere hint */}
-          {/* Tap anywhere hint */}
-          <div id="scroll-hint" style={{ ...S.tapHint, opacity: scrollingRef.current ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
-            Tap anywhere to pause scroll
+          {/* ── Right rail: teleprompter speed ── */}
+          <div style={S.speedRail}>
+            <button style={S.speedStepBtn} onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))} aria-label="Faster">＋</button>
+            <div style={S.speedValue}>{SPEEDS[speedIdx].label}</div>
+            <button style={S.speedStepBtn} onClick={() => setSpeedIdx(i => Math.max(0, i - 1))} aria-label="Slower">－</button>
+            <div style={S.speedRailCap}>SPEED</div>
           </div>
 
-          {/* REC indicator */}
-          <div style={S.recDot} />
+          {/* ── Bottom control deck ── */}
+          <div style={S.recDeck}>
+            {renderFilterStrip(true)}
+            <div style={S.recDeckRow}>
+              {/* pause / resume teleprompter */}
+              <button style={S.recSideBtn} onClick={toggleScrollPause}>
+                <span style={S.recSideIcon}>{scrollPaused ? '▶' : '⏸'}</span>
+                <span style={S.recSideCap}>{scrollPaused ? 'Play' : 'Pause'}</span>
+              </button>
+
+              {/* big STOP button (Instagram-style) */}
+              <button style={S.stopCircle} onClick={stopRecording} aria-label="Stop recording">
+                <span style={S.stopSquare} />
+              </button>
+
+              {/* mirror toggle (safe to change live) */}
+              <button style={S.recSideBtn} onClick={() => setMirror(m => !m)}>
+                <span style={S.recSideIcon}>🪞</span>
+                <span style={S.recSideCap}>{mirror ? 'Mirror' : 'Normal'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2023,4 +2130,139 @@ const S = {
 
   doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' },
   doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '28px 20px', maxWidth: 520, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' },
+
+  /* ── Instagram-style circular filter strip ── */
+  filterStrip2: {
+    display: 'flex', gap: 12, overflowX: 'auto', padding: '2px 4px 4px',
+    scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+  },
+  filterCircleBtn: {
+    background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0,
+  },
+  filterCircle: {
+    width: 52, height: 52, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'transform 0.15s, box-shadow 0.15s',
+  },
+  filterCircleEmoji: { fontSize: '1.3rem', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.55))' },
+  filterCircleName: { fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.02em', whiteSpace: 'nowrap' },
+
+  /* ── Mobile immersive camera-first setup ── */
+  mCam: {
+    position: 'relative', width: '100%',
+    height: 'calc(100dvh - 60px)', minHeight: 480,
+    background: '#000', overflow: 'hidden',
+  },
+  mCamVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
+  mCamErr: {
+    position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.7)',
+  },
+  mCamTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: 'calc(10px + env(safe-area-inset-top, 0px)) 14px 12px',
+    background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)',
+  },
+  mCamTitle: { color: '#fff', fontWeight: 800, fontSize: '1rem', textShadow: '0 1px 6px rgba(0,0,0,0.6)' },
+  mGlassBtn: {
+    background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    border: '1px solid rgba(255,255,255,0.25)', color: '#fff', borderRadius: 999,
+    minWidth: 42, height: 42, padding: '0 12px', fontSize: '1.05rem', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  mCamDeck: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
+    display: 'flex', flexDirection: 'column', gap: 12,
+    padding: '20px 12px calc(16px + env(safe-area-inset-bottom, 0px))',
+    background: 'linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.25) 62%, transparent)',
+  },
+  mScriptChip: {
+    display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'center', maxWidth: '92%',
+    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    border: '1px solid rgba(255,255,255,0.22)', borderRadius: 999,
+    padding: '8px 14px', color: '#fff', fontSize: '0.8rem', cursor: 'pointer',
+  },
+  mScriptChipText: { maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 },
+  mActionRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '2px 4px 0' },
+  mMiniStepper: {
+    display: 'flex', alignItems: 'center', gap: 2,
+    background: 'rgba(0,0,0,0.44)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: 3,
+  },
+  mStepBtn: {
+    background: 'transparent', border: 'none', color: '#fff',
+    width: 30, height: 30, fontSize: '1rem', cursor: 'pointer', borderRadius: 999,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  mStepLabel: { color: '#fff', fontSize: '0.76rem', fontWeight: 700, minWidth: 30, textAlign: 'center' },
+  mRecordBtn: {
+    width: 74, height: 74, borderRadius: '50%', flexShrink: 0,
+    background: 'transparent', border: '5px solid rgba(255,255,255,0.92)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+    boxShadow: '0 4px 18px rgba(0,0,0,0.45)', padding: 0,
+  },
+  mRecordInner: { width: 54, height: 54, borderRadius: '50%', background: '#E1306C', display: 'block' },
+
+  /* script editor bottom-sheet */
+  mSheet: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20,
+    background: 'var(--surface)', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: '16px 16px calc(20px + env(safe-area-inset-bottom, 0px))',
+    boxShadow: '0 -12px 40px rgba(0,0,0,0.5)', maxHeight: '82%',
+    display: 'flex', flexDirection: 'column',
+  },
+  mSheetHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  mSheetDone: { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' },
+  mSheetArea: {
+    width: '100%', boxSizing: 'border-box', minHeight: 200, maxHeight: '44vh',
+    padding: '12px 14px', borderRadius: 12, border: '1px solid var(--accent)',
+    background: 'var(--surface2)', color: 'var(--text)', fontSize: '0.95rem', lineHeight: 1.7,
+    resize: 'none', fontFamily: 'inherit', outline: 'none',
+  },
+  mSheetMusic: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 },
+
+  /* ── Recording overlay (Instagram-like) ── */
+  recTopBar: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
+    display: 'flex', justifyContent: 'center',
+    padding: 'calc(14px + env(safe-area-inset-top, 0px)) 16px 0',
+  },
+  recPill: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    color: '#fff', fontWeight: 700, fontSize: '0.92rem', fontVariantNumeric: 'tabular-nums',
+    padding: '6px 15px', borderRadius: 999, letterSpacing: '0.04em',
+  },
+  recPillDot: { width: 9, height: 9, borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 8px rgba(255,59,48,0.9)', animation: 'pulse 1.2s ease-in-out infinite' },
+  speedRail: {
+    position: 'absolute', right: 14, top: '42%', transform: 'translateY(-50%)', zIndex: 6,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+    background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 6px',
+  },
+  speedStepBtn: {
+    background: 'rgba(255,255,255,0.16)', border: 'none', color: '#fff',
+    width: 36, height: 36, borderRadius: '50%', fontSize: '1.1rem', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  speedValue: { color: '#fff', fontWeight: 800, fontSize: '0.98rem' },
+  speedRailCap: { color: 'rgba(255,255,255,0.7)', fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.1em' },
+  recDeck: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
+    display: 'flex', flexDirection: 'column', gap: 14,
+    padding: '16px 10px calc(22px + env(safe-area-inset-bottom, 0px))',
+    background: 'linear-gradient(to top, rgba(0,0,0,0.74), transparent)',
+  },
+  recDeckRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-around' },
+  recSideBtn: { background: 'transparent', border: 'none', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', width: 66 },
+  recSideIcon: { fontSize: '1.3rem', lineHeight: 1 },
+  recSideCap: { fontSize: '0.62rem', fontWeight: 600, opacity: 0.85 },
+  stopCircle: {
+    width: 80, height: 80, borderRadius: '50%', background: 'transparent',
+    border: '5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', padding: 0,
+  },
+  stopSquare: { width: 30, height: 30, borderRadius: 7, background: '#ff3b30', display: 'block' },
 }
