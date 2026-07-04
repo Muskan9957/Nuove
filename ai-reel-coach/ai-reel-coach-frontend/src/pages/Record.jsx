@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useReducer } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
@@ -336,6 +337,83 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
   )
 }
 
+/* ─────────────── flip-camera icon (front/back arrows) ─────────────── */
+const FlipIcon = () => (
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 8a8 8 0 0 0-14.9-2.5" />
+    <polyline points="5 2 5 6 9 6" />
+    <path d="M4 16a8 8 0 0 0 14.9 2.5" />
+    <polyline points="19 22 19 18 15 18" />
+  </svg>
+)
+
+/* ─────────────── Instagram-style filter carousel ───────────────
+   Horizontal, center-snapping: the circle in the middle is the active filter,
+   neighbours peek in from the sides. Swipe to change, tap a circle to jump. */
+function FilterCarousel({ index, onChange }) {
+  const ref = useRef(null)
+  const ITEM = 60 // 48px circle + 12px gap
+  const settleTimer = useRef(null)
+
+  // Position the carousel on the active filter when it mounts
+  useEffect(() => {
+    ref.current?.scrollTo({ left: index * ITEM })
+  }, []) // eslint-disable-line
+
+  const handleScroll = () => {
+    clearTimeout(settleTimer.current)
+    settleTimer.current = setTimeout(() => {
+      const el = ref.current
+      if (!el) return
+      const i = Math.max(0, Math.min(FILTERS.length - 1, Math.round(el.scrollLeft / ITEM)))
+      onChange(i)
+    }, 90)
+  }
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{
+        textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: '0.72rem',
+        letterSpacing: '0.04em', textShadow: '0 1px 5px rgba(0,0,0,0.8)', marginBottom: 7,
+      }}>
+        {FILTERS[index].name}
+      </div>
+      <div
+        ref={ref}
+        onScroll={handleScroll}
+        className="hide-scroll"
+        style={{
+          display: 'flex', gap: 12, overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          padding: '5px calc(50% - 24px)',
+          scrollbarWidth: 'none', msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {FILTERS.map((f, i) => (
+          <button
+            key={i}
+            onClick={() => ref.current?.scrollTo({ left: i * ITEM, behavior: 'smooth' })}
+            aria-label={f.name}
+            style={{
+              width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+              scrollSnapAlign: 'center', background: f.swatch,
+              border: 'none', cursor: 'pointer', padding: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: i === index ? '0 0 0 3px #fff, 0 2px 12px rgba(0,0,0,0.45)' : '0 0 0 1px rgba(255,255,255,0.35)',
+              transform: i === index ? 'scale(1.14)' : 'scale(0.88)',
+              opacity: i === index ? 1 : 0.72,
+              transition: 'transform 0.16s, opacity 0.16s, box-shadow 0.16s',
+            }}
+          >
+            <span style={{ fontSize: '1.05rem', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.55))' }}>{f.emoji}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ─────────────────── constants ─────────────────── */
 const SPEEDS = [
   { label: '1',  value: 12 },
@@ -472,6 +550,7 @@ function drawHookCard(ctx, text, W, H) {
 
 /* ─────────────────── component ─────────────────── */
 export default function Record() {
+  const navigate = useNavigate()
   // script
   const [script,     setScript]     = usePersistentState('rc_script', '')
   const [editing,    setEditing]    = usePersistentState('rc_editing', false)
@@ -485,6 +564,7 @@ export default function Record() {
   const prevFilter = () => setFilterIdx(i => (i - 1 + FILTERS.length) % FILTERS.length)
   const nextFilter = () => setFilterIdx(i => (i + 1) % FILTERS.length)
   const [showGrid,   setShowGrid]   = useState(false)
+  const [scrollPaused, setScrollPaused] = useState(false) // teleprompter pause — UI mirror of scrollingRef
 
   // steps & recording handled by central state machine
   const [state, dispatch] = useReducer(recorderReducer, initialState)
@@ -546,24 +626,39 @@ export default function Record() {
   // Keep speedRef in sync with speedIdx state
   useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
 
+  // Live refs so the recording draw-loop reads the latest filter/mirror without a
+  // stale closure — lets users switch filters (and mirror) live while recording.
+  const filterRef = useRef(FILTERS[0].css)
+  const mirrorRef = useRef(mirror)
+  useEffect(() => { filterRef.current = FILTERS[filterIdx].css }, [filterIdx])
+  useEffect(() => { mirrorRef.current = mirror }, [mirror])
+
   /* ── start camera ── */
   const startCamera = useCallback(async (facing = facingMode) => {
     dispatch({ type: 'START_CAMERA' })
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
+      // Request 1080p for a crisp export — portrait 9:16 on phones, 16:9 on desktop.
+      // (720p was the cause of the soft/low-res downloads on mobile.)
+      const portrait = typeof window !== 'undefined' && window.innerWidth < 768
+      const res = portrait
+        ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
+        : { width: { ideal: 1920 }, height: { ideal: 1080 } }
+      const audioReq = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+
       let stream
       try {
         // Try forcing exact facingMode (required on iOS Safari and some Android browsers to switch)
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
+          video: { facingMode: { exact: facing }, ...res, frameRate: { ideal: 30 } },
+          audio: audioReq,
         })
       } catch (err) {
         // Fallback for desktops/laptops which may not support exact facingMode constraints
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
+          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
+          audio: audioReq,
         })
       }
 
@@ -611,9 +706,38 @@ export default function Record() {
     }
   }
 
-  /* ── flip camera ── */
+  /* ── flip camera (front/back) ── */
+  // While RECORDING we swap ONLY the video track: a full startCamera() would stop
+  // the audio track the MediaRecorder is using and silence the rest of the take.
   const flipCamera = async () => {
     const next = facingMode === 'user' ? 'environment' : 'user'
+
+    if (phase === 'RECORDING') {
+      try {
+        const portrait = typeof window !== 'undefined' && window.innerWidth < 768
+        const res = portrait
+          ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
+          : { width: { ideal: 1920 }, height: { ideal: 1080 } }
+        let vidStream
+        try {
+          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, ...res }, audio: false })
+        } catch {
+          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next, ...res }, audio: false })
+        }
+        const audioTracks = streamRef.current ? streamRef.current.getAudioTracks() : []
+        if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop())
+        const merged = new MediaStream([...vidStream.getVideoTracks(), ...audioTracks])
+        streamRef.current = merged
+        if (videoRef.current) { videoRef.current.srcObject = merged; videoRef.current.play().catch(() => {}) }
+        if (hiddenVideoRef.current) { hiddenVideoRef.current.srcObject = merged; hiddenVideoRef.current.play().catch(() => {}) }
+        setFacingMode(next)
+        setMirror(next === 'user')
+      } catch (e) {
+        console.warn('Live camera flip failed:', e)
+      }
+      return
+    }
+
     setFacingMode(next)
     setMirror(next === 'user')
     await startCamera(next)
@@ -654,10 +778,7 @@ export default function Record() {
     
     // Reset scrolling state for the new recording session
     scrollingRef.current = true
-    const hint = document.getElementById('scroll-hint')
-    if (hint) hint.style.opacity = '1'
-    const btn = document.getElementById('scroll-btn-text')
-    if (btn) btn.innerText = '⏸ Pause scroll'
+    setScrollPaused(false)
 
     let n = 3
     countdownRef.current = setInterval(() => {
@@ -695,10 +816,10 @@ export default function Record() {
       framesDrawnRef.current++
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
-      // Draw filtered camera input
-      ctx.filter = activeFilter
+      // Draw filtered camera input — read live refs so filter/mirror can change mid-record
+      ctx.filter = filterRef.current
       ctx.save()
-      if (mirror) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
+      if (mirrorRef.current) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
       const src = hiddenVideoRef.current
       if (src && src.readyState >= 2 && !src.paused) {
         ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
@@ -855,11 +976,29 @@ export default function Record() {
 
   const toggleScrollPause = () => {
     scrollingRef.current = !scrollingRef.current
-    const btn = document.getElementById('scroll-btn-text')
-    if (btn) btn.innerText = scrollingRef.current ? '⏸ Pause scroll' : '▶ Resume scroll'
-    const hint = document.getElementById('scroll-hint')
-    if (hint) hint.style.opacity = scrollingRef.current ? '1' : '0'
+    setScrollPaused(!scrollingRef.current)
   }
+
+  /* ── right-edge control rail (Instagram-style vertical icon stack) ── */
+  const renderRail = (items) => (
+    <div style={S.rail}>
+      {items.map((it, i) => it.stepper ? (
+        <div key={i} style={S.railItem}>
+          <div style={S.railStack}>
+            <button style={S.railStackBtn} onClick={it.up} aria-label={`${it.cap} up`}>˄</button>
+            <div style={S.railStackVal}>{it.value}</div>
+            <button style={S.railStackBtn} onClick={it.down} aria-label={`${it.cap} down`}>˅</button>
+          </div>
+          <span style={S.railCap}>{it.cap}</span>
+        </div>
+      ) : (
+        <button key={i} style={S.railItem} onClick={it.onClick} aria-label={it.cap}>
+          <div style={{ ...S.railCircle, ...(it.active ? S.railCircleOn : {}) }}>{it.icon}</div>
+          <span style={S.railCap}>{it.cap}</span>
+        </button>
+      ))}
+    </div>
+  )
 
   /* ── speed change ── no scroll restart needed; speedRef is always current */
   // (speedRef synced via useEffect above)
@@ -1292,13 +1431,117 @@ export default function Record() {
 
       {/* ─── SETUP PHASE ─── */}
       {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
+        isMobile ? (
+          /* ══ Mobile: Instagram-style camera-first screen ══ */
+          <div style={S.mCam}>
+            {cameraErr ? (
+              <div style={S.mCamErr}>
+                <div style={{ fontSize: '2.4rem', marginBottom: 10 }}>📷</div>
+                <p style={{ margin: 0, fontSize: '0.9rem', textAlign: 'center', color: '#fff' }}>{cameraErr}</p>
+                <button style={{ ...S.ghostBtn, marginTop: 14, color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }} onClick={() => startCamera()}>Retry</button>
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                style={{ ...S.mCamVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }}
+              />
+            )}
+
+            {showGrid && (
+              <div style={S.gridOverlay}>
+                <div style={S.gridLine('33.33%', 'h')} />
+                <div style={S.gridLine('66.66%', 'h')} />
+                <div style={S.gridLine('33.33%', 'v')} />
+                <div style={S.gridLine('66.66%', 'v')} />
+              </div>
+            )}
+
+            {/* Top bar: close button and title */}
+            <div style={S.mCamTop}>
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  background: 'rgba(0,0,0,0.50)', color: '#fff', border: 'none',
+                  borderRadius: '50%', width: 32, height: 32, fontSize: '0.85rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)'
+                }}
+                title="Close and return to Dashboard"
+              >
+                ✕
+              </button>
+              <div style={S.mCamTitle}>Recorder</div>
+              <div style={{ width: 32 }} /> {/* spacer for balance */}
+            </div>
+
+            {/* Right rail: flip · grid · size · speed */}
+            {renderRail([
+              { icon: <FlipIcon />, cap: 'Flip', onClick: flipCamera },
+              { icon: '▦', cap: 'Grid', onClick: () => setShowGrid(g => !g), active: showGrid },
+              { icon: <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>{FONT_SIZES[fontIdx].label}</span>, cap: 'Size', onClick: () => setFontIdx(i => (i + 1) % FONT_SIZES.length) },
+              { stepper: true, cap: 'Speed', value: `${SPEEDS[speedIdx].label}×`, up: () => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1)), down: () => setSpeedIdx(i => Math.max(0, i - 1)) },
+            ])}
+
+            {/* Bottom deck: script chip · filter carousel · record ring */}
+            <div style={S.mCamDeck}>
+              <button style={S.mScriptChip} onClick={() => setEditing(true)}>
+                <span style={{ fontSize: '0.95rem' }}>📄</span>
+                <span style={S.mScriptChipText}>
+                  {script.trim()
+                    ? script.replace(/\n+/g, ' ').slice(0, 42) + (script.length > 42 ? '…' : '')
+                    : 'Tap to add your script'}
+                </span>
+                <span style={{ opacity: 0.65, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em' }}>EDIT</span>
+              </button>
+
+              <FilterCarousel index={filterIdx} onChange={setFilterIdx} />
+
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button
+                  style={{ ...S.mRecordBtn, ...((!script.trim() || cameraErr) ? { opacity: 0.4 } : {}) }}
+                  disabled={!script.trim() || !!cameraErr}
+                  onClick={beginRecording}
+                  aria-label="Start recording"
+                >
+                  <span style={S.mRecordInner} />
+                </button>
+              </div>
+            </div>
+
+            {/* Script editor bottom-sheet */}
+            {editing && (
+              <div style={S.mSheet}>
+                <div style={S.mSheetHead}>
+                  <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text)' }}>Your Script</span>
+                  <button style={S.mSheetDone} onClick={() => setEditing(false)}>Done</button>
+                </div>
+                <textarea
+                  style={S.mSheetArea}
+                  value={script}
+                  onChange={e => setScript(e.target.value)}
+                  placeholder="Paste or type your script here…"
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  {script && <button style={S.ghostBtn} onClick={() => setScript('')}>Clear</button>}
+                </div>
+                {selectedSong && (
+                  <label style={S.mSheetMusic}>
+                    <input type="checkbox" checked={mixMusic} onChange={e => setMixMusic(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                    🎵 Mix “{selectedSong.title}” into the video
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+        /* ══ Desktop: two-column setup ══ */
         <div style={{
           ...S.setupWrap,
-          // On mobile: single column, normal flow so camera is on top via order:1
-          flexDirection: isMobile ? 'column' : 'row',
-          padding: isMobile ? '16px' : '24px 20px',
-          // Extra bottom padding on mobile to clear the bottom nav bar
-          paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '24px',
+          flexDirection: 'row',
+          padding: '24px 20px',
         }}>
           {/* Page header — order: 2 on mobile to place it below the camera */}
           <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 2 : 0 }}>
@@ -1511,6 +1754,7 @@ export default function Record() {
             </button>
           </div>
         </div>
+        )
       )}
 
       {/* ─── COUNTDOWN PHASE ─── */}
@@ -1525,7 +1769,7 @@ export default function Record() {
 
       {/* ─── RECORDING PHASE ─── */}
       {phase === 'RECORDING' && (
-        <div style={S.fullscreen} onClick={toggleScrollPause} className="recording-active">
+        <div style={S.fullscreen} className="recording-active">
           {/* Camera in background */}
           <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
 
@@ -1562,74 +1806,30 @@ export default function Record() {
             <div style={{ height: '55vh' }} />
           </div>
 
-          {/* HUD */}
-          <div style={S.hud}>
-            {/* Top row: Timer | Speed arrows | Pause */}
-            <div style={S.hudTopRow}>
-              <div style={S.timer}>{fmt(elapsed)}</div>
-
-              {/* Controls Group: Font Size & Speed Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                {/* Arrow font size toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setFontIdx(i => Math.max(0, i - 1))}
-                    disabled={fontIdx === 0}
-                  >‹</button>
-                  <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{FONT_SIZES[fontIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: '#4A5C8A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>size</div>
-                  </div>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setFontIdx(i => Math.min(FONT_SIZES.length - 1, i + 1))}
-                    disabled={fontIdx === FONT_SIZES.length - 1}
-                  >›</button>
-                </div>
-
-                {/* Arrow speed toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setSpeedIdx(i => Math.max(0, i - 1))}
-                    disabled={speedIdx === 0}
-                  >‹</button>
-                  <div style={{ textAlign: 'center', minWidth: 22 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', lineHeight: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{SPEEDS[speedIdx].label}</div>
-                    <div style={{ fontSize: '0.45rem', color: '#4A5C8A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>spd</div>
-                  </div>
-                  <button
-                    style={S.hudSpeedArrow}
-                    onClick={() => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1))}
-                    disabled={speedIdx === SPEEDS.length - 1}
-                  >›</button>
-                </div>
-              </div>
-
-              {/* Pause/Resume scroll — icon only, no text */}
-              <button style={S.hudBtn} onClick={e => { e.stopPropagation(); toggleScrollPause() }} title={scrollingRef.current ? 'Pause scroll' : 'Resume scroll'}>
-                {scrollingRef.current ? '⏸' : '▶'}
-              </button>
-            </div>
-
-            {/* Giant stop button — full width pill, impossible to miss on phone */}
-            <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-              <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
-                <span style={S.stopDot} />
-                Stop Recording
-              </button>
+          {/* ── Top: REC + timer ── */}
+          <div style={S.recTopBar}>
+            <div style={S.recPill}>
+              <span style={S.recPillDot} /> {fmt(elapsed)}
             </div>
           </div>
 
-          {/* Tap anywhere hint */}
-          {/* Tap anywhere hint */}
-          <div id="scroll-hint" style={{ ...S.tapHint, opacity: scrollingRef.current ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
-            Tap anywhere to pause scroll
-          </div>
+          {/* ── Right rail: flip · pause script · size · speed ── */}
+          {renderRail([
+            { icon: <FlipIcon />, cap: 'Flip', onClick: flipCamera },
+            { icon: scrollPaused ? '▶' : '⏸', cap: 'Script', onClick: toggleScrollPause, active: scrollPaused },
+            { icon: <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>{FONT_SIZES[fontIdx].label}</span>, cap: 'Size', onClick: () => setFontIdx(i => (i + 1) % FONT_SIZES.length) },
+            { stepper: true, cap: 'Speed', value: `${SPEEDS[speedIdx].label}×`, up: () => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1)), down: () => setSpeedIdx(i => Math.max(0, i - 1)) },
+          ])}
 
-          {/* REC indicator */}
-          <div style={S.recDot} />
+          {/* ── Bottom: filter carousel + stop ring ── */}
+          <div style={S.recDeck}>
+            <FilterCarousel index={filterIdx} onChange={setFilterIdx} />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button style={S.stopCircle} onClick={stopRecording} aria-label="Stop recording">
+                <span style={S.stopSquare} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2021,4 +2221,129 @@ const S = {
 
   doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' },
   doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '28px 20px', maxWidth: 520, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' },
+
+  /* ── right-edge control rail (shared by setup + recording) ── */
+  rail: {
+    position: 'absolute', right: 10, zIndex: 7,
+    top: 'calc(64px + env(safe-area-inset-top, 0px))',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+  },
+  railItem: {
+    background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+  },
+  railCircle: {
+    width: 44, height: 44, borderRadius: '50%',
+    background: 'rgba(20,20,20,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.22)', color: '#fff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem',
+    transition: 'background 0.15s, border-color 0.15s',
+  },
+  railCircleOn: { background: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.6)' },
+  railCap: {
+    color: '#fff', fontSize: '0.58rem', fontWeight: 600, letterSpacing: '0.03em',
+    textShadow: '0 1px 4px rgba(0,0,0,0.85)', opacity: 0.92,
+  },
+  railStack: {
+    width: 44, borderRadius: 24, overflow: 'hidden',
+    background: 'rgba(20,20,20,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.22)',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+  },
+  railStackBtn: {
+    background: 'transparent', border: 'none', color: '#fff',
+    width: 44, height: 30, fontSize: '0.95rem', cursor: 'pointer', lineHeight: 1,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  railStackVal: { color: '#fff', fontWeight: 800, fontSize: '0.8rem', padding: '1px 0' },
+
+  /* ── Mobile immersive camera-first setup ── */
+  mCam: {
+    position: 'relative', width: '100%',
+    height: '100dvh', minHeight: 480,
+    background: '#000', overflow: 'hidden',
+  },
+  mCamVideo: {
+    position: 'absolute',
+    top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    width: '100%',
+    maxHeight: '100%',
+    aspectRatio: '9/16',
+    objectFit: 'cover',
+  },
+  mCamErr: {
+    position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.7)',
+  },
+  mCamTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: 'calc(10px + env(safe-area-inset-top, 0px)) 14px 12px',
+    background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)',
+  },
+  mCamTitle: { color: '#fff', fontWeight: 800, fontSize: '1rem', textShadow: '0 1px 6px rgba(0,0,0,0.6)' },
+  mCamDeck: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
+    display: 'flex', flexDirection: 'column', gap: 12,
+    padding: '20px 0 calc(16px + env(safe-area-inset-bottom, 0px))',
+    background: 'linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.25) 62%, transparent)',
+  },
+  mScriptChip: {
+    display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'center', maxWidth: '92%',
+    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    border: '1px solid rgba(255,255,255,0.22)', borderRadius: 999,
+    padding: '8px 14px', color: '#fff', fontSize: '0.8rem', cursor: 'pointer',
+  },
+  mScriptChipText: { maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 },
+  mRecordBtn: {
+    width: 74, height: 74, borderRadius: '50%', flexShrink: 0,
+    background: 'transparent', border: '5px solid rgba(255,255,255,0.92)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+    boxShadow: '0 4px 18px rgba(0,0,0,0.45)', padding: 0,
+  },
+  mRecordInner: { width: 54, height: 54, borderRadius: '50%', background: '#E1306C', display: 'block' },
+
+  /* script editor bottom-sheet */
+  mSheet: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20,
+    background: 'var(--surface)', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: '16px 16px calc(20px + env(safe-area-inset-bottom, 0px))',
+    boxShadow: '0 -12px 40px rgba(0,0,0,0.5)', maxHeight: '82%',
+    display: 'flex', flexDirection: 'column',
+  },
+  mSheetHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  mSheetDone: { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' },
+  mSheetArea: {
+    width: '100%', boxSizing: 'border-box', minHeight: 200, maxHeight: '44vh',
+    padding: '12px 14px', borderRadius: 12, border: '1px solid var(--accent)',
+    background: 'var(--surface2)', color: 'var(--text)', fontSize: '0.95rem', lineHeight: 1.7,
+    resize: 'none', fontFamily: 'inherit', outline: 'none',
+  },
+  mSheetMusic: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 },
+
+  /* ── Recording overlay (Instagram-like) ── */
+  recTopBar: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
+    display: 'flex', justifyContent: 'center',
+    padding: 'calc(14px + env(safe-area-inset-top, 0px)) 16px 0',
+  },
+  recPill: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+    color: '#fff', fontWeight: 700, fontSize: '0.92rem', fontVariantNumeric: 'tabular-nums',
+    padding: '6px 15px', borderRadius: 999, letterSpacing: '0.04em',
+  },
+  recPillDot: { width: 9, height: 9, borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 8px rgba(255,59,48,0.9)', animation: 'pulse 1.2s ease-in-out infinite' },
+  recDeck: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
+    display: 'flex', flexDirection: 'column', gap: 12,
+    padding: '18px 0 calc(20px + env(safe-area-inset-bottom, 0px))',
+    background: 'linear-gradient(to top, rgba(0,0,0,0.74), transparent)',
+  },
+  stopCircle: {
+    width: 80, height: 80, borderRadius: '50%', background: 'transparent',
+    border: '5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', padding: 0,
+  },
+  stopSquare: { width: 30, height: 30, borderRadius: 7, background: '#ff3b30', display: 'block' },
 }

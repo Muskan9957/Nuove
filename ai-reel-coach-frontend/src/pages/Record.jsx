@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useReducer } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
@@ -549,6 +550,7 @@ function drawHookCard(ctx, text, W, H) {
 
 /* ─────────────────── component ─────────────────── */
 export default function Record() {
+  const navigate = useNavigate()
   // script
   const [script,     setScript]     = usePersistentState('rc_script', '')
   const [editing,    setEditing]    = usePersistentState('rc_editing', false)
@@ -1456,9 +1458,22 @@ export default function Record() {
               </div>
             )}
 
-            {/* Top bar: title only — all tools live in the right rail */}
+            {/* Top bar: close button and title */}
             <div style={S.mCamTop}>
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  background: 'rgba(0,0,0,0.50)', color: '#fff', border: 'none',
+                  borderRadius: '50%', width: 32, height: 32, fontSize: '0.85rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)'
+                }}
+                title="Close and return to Dashboard"
+              >
+                ✕
+              </button>
               <div style={S.mCamTitle}>Recorder</div>
+              <div style={{ width: 32 }} /> {/* spacer for balance */}
             </div>
 
             {/* Right rail: flip · grid · size · speed */}
@@ -2245,10 +2260,17 @@ const S = {
   /* ── Mobile immersive camera-first setup ── */
   mCam: {
     position: 'relative', width: '100%',
-    height: 'calc(100dvh - 60px)', minHeight: 480,
+    height: '100dvh', minHeight: 480,
     background: '#000', overflow: 'hidden',
   },
-  mCamVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
+  mCamVideo: {
+    position: 'absolute',
+    top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    width: '100%',
+    maxHeight: '100%',
+    aspectRatio: '9/16',
+    objectFit: 'cover',
+  },
   mCamErr: {
     position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.7)',
