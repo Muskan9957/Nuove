@@ -14,7 +14,8 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    // PORT env lets preview harnesses assign a free port; defaults to 3000 for local dev
+    port: Number(process.env.PORT) || 3000,
     allowedHosts: true,
     proxy: {
       '/api': {

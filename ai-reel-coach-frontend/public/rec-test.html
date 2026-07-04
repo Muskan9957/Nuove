@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Recorder pipeline test</title></head>
+<body style="background:#111;color:#eee;font-family:monospace">
+<h3>Recorder orientation pipeline test</h3>
+<pre id="result">running…</pre>
+<div style="display:flex;gap:12px">
+  <div>fake camera buffer (sideways):<br><canvas id="camView" width="320" height="180" style="border:1px solid #555"></canvas></div>
+  <div>recorded frame (should be upright):<br><canvas id="outView" width="135" height="240" style="border:1px solid #555"></canvas></div>
+</div>
+<script type="module">
+import { drawCameraFrame } from '/src/utils/cameraDraw.js'
+
+const log = (o) => { document.getElementById('result').textContent = typeof o === 'string' ? o : JSON.stringify(o, null, 2) }
+
+async function run() {
+  // 1. Fake phone camera: an upright portrait scene (RED top / GREEN mid / BLUE
+  //    bottom) stored SIDEWAYS in a 1280x720 landscape buffer — what mobile
+  //    browsers deliver when they ignore portrait constraints.
+  const scene = document.createElement('canvas')
+  scene.width = 720; scene.height = 1280
+  const sctx = scene.getContext('2d')
+  sctx.fillStyle = '#e00'; sctx.fillRect(0, 0, 720, 427)
+  sctx.fillStyle = '#0c0'; sctx.fillRect(0, 427, 720, 427)
+  sctx.fillStyle = '#00e'; sctx.fillRect(0, 854, 720, 426)
+
+  const cam = document.createElement('canvas')
+  cam.width = 1280; cam.height = 720
+  const cctx = cam.getContext('2d')
+  const drawCam = () => {
+    cctx.save()
+    cctx.translate(640, 360)
+    cctx.rotate(Math.PI / 2) // store the upright scene sideways
+    cctx.drawImage(scene, -360, -640)
+    cctx.restore()
+  }
+  drawCam()
+  setInterval(drawCam, 100)
+  document.getElementById('camView').getContext('2d').drawImage(cam, 0, 0, 320, 180)
+
+  const camStream = cam.captureStream(30)
+  const video = document.createElement('video')
+  video.muted = true; video.playsInline = true
+  video.srcObject = camStream
+  window.__STEP = "video-play"
+  await video.play()
+  await new Promise(r => setTimeout(r, 300)) // let first frames arrive
+
+  // 2. The recorder pipeline: fixed portrait 9:16 canvas + shared draw routine
+  const CW = 1080, CH = 1920
+  const target = document.createElement('canvas')
+  target.width = CW; target.height = CH
+  const tctx = target.getContext('2d')
+  let looping = true
+  window.__STEP = "pipeline"
+  const loopTimer = setInterval(() => { if (looping) drawCameraFrame(tctx, video, CW, CH, {}) }, 33) // interval, not rAF — rAF is paused in hidden/headless pages
+  await new Promise(r => setTimeout(r, 200))
+
+  // 3. Pixel assertions on the composed frame: upright means RED on top, BLUE at bottom
+  const px = (x, y) => Array.from(tctx.getImageData(x, y, 1, 1).data.slice(0, 3))
+  const top = px(540, 60), mid = px(540, 960), bot = px(540, 1860)
+  const isRed  = c => c[0] > 150 && c[1] < 100 && c[2] < 100
+  const isGreen= c => c[1] > 150 && c[0] < 100 && c[2] < 100
+  const isBlue = c => c[2] > 150 && c[0] < 100 && c[1] < 100
+  document.getElementById('outView').getContext('2d').drawImage(target, 0, 0, 135, 240)
+
+  // 4. Record it for real through MediaRecorder and check the blob's dimensions
+  const rec = new MediaRecorder(target.captureStream(30), { mimeType: 'video/webm' })
+  const chunks = []
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data)
+  const stopped = new Promise(r => rec.onstop = r)
+  window.__STEP = "recording"
+  rec.start(200)
+  await new Promise(r => setTimeout(r, 1200))
+  rec.stop()
+  await stopped
+  looping = false; clearInterval(loopTimer)
+
+  const blob = new Blob(chunks, { type: 'video/webm' })
+  const out = document.createElement('video')
+  out.muted = true
+  out.src = URL.createObjectURL(blob)
+  window.__STEP = 'metadata'
+  await Promise.race([
+    new Promise(r => out.addEventListener('loadedmetadata', r, { once: true })),
+    new Promise((_, j) => setTimeout(() => j(new Error('metadata timeout — empty blob? size=' + blob.size)), 6000)),
+  ])
+
+  const results = {
+    sourceStream: `${video.videoWidth}x${video.videoHeight} (landscape, sideways-stored)`,
+    recordedBlob: `${out.videoWidth}x${out.videoHeight}`,
+    dimsVertical: out.videoWidth === 1080 && out.videoHeight === 1920,
+    topIsRed: isRed(top), midIsGreen: isGreen(mid), bottomIsBlue: isBlue(bot),
+    top, mid, bot,
+  }
+  results.PASS = results.dimsVertical && results.topIsRed && results.midIsGreen && results.bottomIsBlue
+  log(results)
+  window.__TEST_RESULT = results
+}
+
+run().catch(e => { log('ERROR: ' + e.message); window.__TEST_RESULT = { PASS: false, error: e.message } })
+</script>
+</body>
+</html>
