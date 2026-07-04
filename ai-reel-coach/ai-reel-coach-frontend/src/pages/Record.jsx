@@ -639,25 +639,26 @@ export default function Record() {
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
-      // Request 1080p for a crisp export — portrait 9:16 on phones, 16:9 on desktop.
-      // (720p was the cause of the soft/low-res downloads on mobile.)
+      // On mobile, request portrait aspect ratio directly so the browser delivers
+      // a native 9:16 portrait stream — avoids the 3x zoom objectFit:cover causes
+      // when converting a landscape 1920x1080 stream to a portrait container.
       const portrait = typeof window !== 'undefined' && window.innerWidth < 768
       const res = portrait
-        ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
-        : { width: { ideal: 1920 }, height: { ideal: 1080 } }
+        ? { aspectRatio: { ideal: 9 / 16 }, width: { ideal: 1080 }, height: { ideal: 1920 } }
+        : { aspectRatio: { ideal: 16 / 9 }, width: { ideal: 1920 }, height: { ideal: 1080 } }
       const audioReq = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
 
       let stream
       try {
-        // Try forcing exact facingMode (required on iOS Safari and some Android browsers to switch)
+        // First try without 'exact' so the browser can relax facingMode to honor aspectRatio
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, ...res, frameRate: { ideal: 30 } },
+          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
           audio: audioReq,
         })
       } catch (err) {
-        // Fallback for desktops/laptops which may not support exact facingMode constraints
+        // Fallback: exact facingMode, drop aspectRatio if needed
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
+          video: { facingMode: { exact: facing }, width: portrait ? { ideal: 1080 } : { ideal: 1920 }, height: portrait ? { ideal: 1920 } : { ideal: 1080 }, frameRate: { ideal: 30 } },
           audio: audioReq,
         })
       }
@@ -716,13 +717,13 @@ export default function Record() {
       try {
         const portrait = typeof window !== 'undefined' && window.innerWidth < 768
         const res = portrait
-          ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
-          : { width: { ideal: 1920 }, height: { ideal: 1080 } }
+          ? { aspectRatio: { ideal: 9 / 16 }, width: { ideal: 1080 }, height: { ideal: 1920 } }
+          : { aspectRatio: { ideal: 16 / 9 }, width: { ideal: 1920 }, height: { ideal: 1080 } }
         let vidStream
         try {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, ...res }, audio: false })
-        } catch {
           vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next, ...res }, audio: false })
+        } catch {
+          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, width: portrait ? { ideal: 1080 } : { ideal: 1920 }, height: portrait ? { ideal: 1920 } : { ideal: 1080 } }, audio: false })
         }
         const audioTracks = streamRef.current ? streamRef.current.getAudioTracks() : []
         if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop())
