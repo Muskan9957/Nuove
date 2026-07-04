@@ -2259,16 +2259,15 @@ const S = {
 
   /* ── Mobile immersive camera-first setup ── */
   mCam: {
-    position: 'relative', width: '100%',
-    height: '100dvh', minHeight: 480,
+    position: 'fixed', inset: 0, zIndex: 100,
+    width: '100%', height: '100%',
     background: '#000', overflow: 'hidden',
   },
   mCamVideo: {
     position: 'absolute',
-    top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    inset: 0,
     width: '100%',
-    maxHeight: '100%',
-    aspectRatio: '9/16',
+    height: '100%',
     objectFit: 'cover',
   },
   mCamErr: {
