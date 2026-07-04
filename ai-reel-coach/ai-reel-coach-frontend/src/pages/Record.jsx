@@ -622,6 +622,8 @@ export default function Record() {
   const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
   const framesDrawnRef = useRef(0)
   const recordedFpsRef = useRef(30)
+  const previewCanvasRef = useRef(null) // canvas for camera preview (handles landscape→portrait conversion)
+  const previewRafRef    = useRef(null) // RAF handle for canvas preview loop
 
   // Keep speedRef in sync with speedIdx state
   useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
@@ -639,26 +641,22 @@ export default function Record() {
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
-      // On mobile, request portrait aspect ratio directly so the browser delivers
-      // a native 9:16 portrait stream — avoids the 3x zoom objectFit:cover causes
-      // when converting a landscape 1920x1080 stream to a portrait container.
-      const portrait = typeof window !== 'undefined' && window.innerWidth < 768
-      const res = portrait
-        ? { aspectRatio: { ideal: 9 / 16 }, width: { ideal: 1080 }, height: { ideal: 1920 } }
-        : { aspectRatio: { ideal: 16 / 9 }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      // Simple portrait dimensions — canvas preview handles the display correctly
+      const isPortraitDevice = typeof window !== 'undefined' && window.innerWidth < 768
+      const res = isPortraitDevice
+        ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
+        : { width: { ideal: 1920 }, height: { ideal: 1080 } }
       const audioReq = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
 
       let stream
       try {
-        // First try without 'exact' so the browser can relax facingMode to honor aspectRatio
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
+          video: { facingMode: { exact: facing }, ...res, frameRate: { ideal: 30 } },
           audio: audioReq,
         })
       } catch (err) {
-        // Fallback: exact facingMode, drop aspectRatio if needed
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, width: portrait ? { ideal: 1080 } : { ideal: 1920 }, height: portrait ? { ideal: 1920 } : { ideal: 1080 }, frameRate: { ideal: 30 } },
+          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
           audio: audioReq,
         })
       }
@@ -695,6 +693,65 @@ export default function Record() {
     }
   }, []) // eslint-disable-line
 
+  /* ── Canvas-based camera preview — handles landscape streams from mobile browsers — */
+  useEffect(() => {
+    if (!isMobile) return
+    if (phase !== 'IDLE' && phase !== 'PREPARING_CAMERA' && phase !== 'ERROR') {
+      cancelAnimationFrame(previewRafRef.current)
+      return
+    }
+
+    let active = true
+
+    const draw = () => {
+      if (!active) return
+      const src = hiddenVideoRef.current  // always-on stream source
+      const canvas = previewCanvasRef.current
+      previewRafRef.current = requestAnimationFrame(draw)
+      if (!canvas || !src || !src.videoWidth || !src.videoHeight) return
+
+      const ctx = canvas.getContext('2d')
+      const vw = src.videoWidth
+      const vh = src.videoHeight
+      const cw = canvas.width
+      const ch = canvas.height
+
+      // Apply any active filter (B&W, Warm, etc.)
+      ctx.filter = (activeFilter && activeFilter !== 'none') ? activeFilter : 'none'
+
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, cw, ch)
+
+      ctx.save()
+      ctx.translate(cw / 2, ch / 2)
+
+      if (vw > vh) {
+        // Landscape stream (browser ignored portrait constraints):
+        // Rotate -90° so the landscape frame fills portrait screen naturally.
+        // Zoom is ~1.2x instead of the 3x that objectFit:cover produces.
+        const scale = Math.max(cw / vh, ch / vw)
+        ctx.rotate(-Math.PI / 2)
+        if (mirror) ctx.scale(-1, 1)
+        ctx.scale(scale, scale)
+        ctx.drawImage(src, -vw / 2, -vh / 2, vw, vh)
+      } else {
+        // Portrait stream: normal cover fill, minimal zoom
+        const scale = Math.max(cw / vw, ch / vh)
+        if (mirror) ctx.scale(-1, 1)
+        ctx.scale(scale, scale)
+        ctx.drawImage(src, -vw / 2, -vh / 2, vw, vh)
+      }
+
+      ctx.restore()
+    }
+
+    previewRafRef.current = requestAnimationFrame(draw)
+    return () => {
+      active = false
+      cancelAnimationFrame(previewRafRef.current)
+    }
+  }, [isMobile, phase, mirror, activeFilter])
+
   /* ── toggle preview music ── */
   const togglePreviewMusic = () => {
     if (!bgMusicRef.current) return
@@ -715,15 +772,15 @@ export default function Record() {
 
     if (phase === 'RECORDING') {
       try {
-        const portrait = typeof window !== 'undefined' && window.innerWidth < 768
-        const res = portrait
-          ? { aspectRatio: { ideal: 9 / 16 }, width: { ideal: 1080 }, height: { ideal: 1920 } }
-          : { aspectRatio: { ideal: 16 / 9 }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        const isPortraitDevice = typeof window !== 'undefined' && window.innerWidth < 768
+        const res = isPortraitDevice
+          ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
+          : { width: { ideal: 1920 }, height: { ideal: 1080 } }
         let vidStream
         try {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next, ...res }, audio: false })
+          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, ...res }, audio: false })
         } catch {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, width: portrait ? { ideal: 1080 } : { ideal: 1920 }, height: portrait ? { ideal: 1920 } : { ideal: 1080 } }, audio: false })
+          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next, ...res }, audio: false })
         }
         const audioTracks = streamRef.current ? streamRef.current.getAudioTracks() : []
         if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop())
@@ -1442,12 +1499,22 @@ export default function Record() {
                 <button style={{ ...S.ghostBtn, marginTop: 14, color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }} onClick={() => startCamera()}>Retry</button>
               </div>
             ) : (
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                style={{ ...S.mCamVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }}
-              />
+              <>
+                {/* Hidden video — stream source; canvas below draws from it */}
+                <video
+                  ref={videoRef}
+                  muted
+                  playsInline
+                  style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+                />
+                {/* Canvas preview — correctly shows portrait view from any stream orientation */}
+                <canvas
+                  ref={previewCanvasRef}
+                  width={typeof window !== 'undefined' ? window.innerWidth : 390}
+                  height={typeof window !== 'undefined' ? window.innerHeight : 844}
+                  style={S.mCamCanvas}
+                />
+              </>
             )}
 
             {showGrid && (
@@ -2270,6 +2337,13 @@ const S = {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
+  },
+  mCamCanvas: {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    display: 'block',
   },
   mCamErr: {
     position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column',
