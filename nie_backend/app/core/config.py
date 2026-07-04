@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "nie_db"
     
+    # SSL Labeling Thresholds
+    HIGH_SIMILARITY_THRESHOLD: float = 0.80
+    LOW_SIMILARITY_THRESHOLD: float = 0.40
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         # Using sqlite for easy manual testing on the local machine

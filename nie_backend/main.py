@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1.routes import interactions
+from app.api.v1.routes import feature_store, interactions, training
 from app.core.config import settings
 from app.db.session import engine, Base
 from app.db.models.interaction import RawInteraction
@@ -14,7 +14,9 @@ except Exception as e:
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 
-app.include_router(interactions.router, prefix=f"{settings.API_V1_STR}/interactions", tags=["interactions"])
+app.include_router(feature_store.router, prefix="/api/v1/feature-store", tags=["Feature Store"])
+app.include_router(interactions.router, prefix="/api/v1/interactions", tags=["Interactions"])
+app.include_router(training.router, prefix="/api/v1/training", tags=["ML Training"])
 
 @app.get("/health")
 def health_check():
