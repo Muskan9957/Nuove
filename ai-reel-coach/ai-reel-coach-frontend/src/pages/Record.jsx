@@ -1445,7 +1445,7 @@ export default function Record() {
                 ref={videoRef}
                 muted
                 playsInline
-                style={{ ...S.mCamVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }}
+                style={{ ...S.mCamVideo, transform: `translate(-50%, -50%)${mirror ? ' scaleX(-1)' : ''}`, filter: activeFilter }}
               />
             )}
 
@@ -2150,7 +2150,7 @@ const S = {
     position: 'fixed', inset: 0, background: '#000', zIndex: 2000,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  fullVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
+  fullVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' },
 
   gradTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: '30%',
@@ -2265,10 +2265,11 @@ const S = {
   },
   mCamVideo: {
     position: 'absolute',
-    inset: 0,
+    top: '50%', left: '50%',
     width: '100%',
     height: '100%',
-    objectFit: 'cover',
+    objectFit: 'contain',
+    objectPosition: 'center',
   },
   mCamErr: {
     position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column',
