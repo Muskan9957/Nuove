@@ -28,6 +28,7 @@ const Scripts = React.lazy(() => import('./pages/Scripts'));
 const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const Record = React.lazy(() => import('./pages/Record'));
+const CamTest = React.lazy(() => import('./pages/CamTest'));
 const Support = React.lazy(() => import('./pages/Support'));
 const VerifyEmail = React.lazy(() => import('./pages/VerifyEmail'));
 
@@ -134,6 +135,8 @@ export default function App() {
                 <Route path="/coach"        element={<Protected><Coach /></Protected>} />
                 <Route path="/profile"      element={<Protected><Profile /></Protected>} />
                 <Route path="/record"       element={<Protected><Record /></Protected>} />
+                {/* On-device recorder diagnostic — public on purpose (nothing leaves the phone) */}
+                <Route path="/cam-test"     element={<CamTest />} />
                 <Route path="/support"      element={<Protected><Support /></Protected>} />
                 <Route path="/reel-ready"   element={<Navigate to="/dashboard" replace />} />
                 <Route path="/creator-dna"  element={<Navigate to="/dashboard" replace />} />

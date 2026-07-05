@@ -1374,3 +1374,6 @@ body:has(.recording-active) .mobile-header {
 .main-content {
   contain: layout;
 }
+
+/* Hide horizontal scrollbar on the filter carousel (WebKit) */
+.hide-scroll::-webkit-scrollbar { display: none; }

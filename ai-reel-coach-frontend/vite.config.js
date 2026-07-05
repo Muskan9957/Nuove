@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Build timestamp shown by /cam-test so we can tell if a device runs stale code
+  define: { __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16) + 'Z') },
   build: {
     rollupOptions: {
       output: {
@@ -14,7 +16,8 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    // PORT env lets preview harnesses assign a free port; defaults to 3000 for local dev
+    port: Number(process.env.PORT) || 3000,
     allowedHosts: true,
     proxy: {
       '/api': {

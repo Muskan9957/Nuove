@@ -238,6 +238,7 @@ export default function Layout({ children }) {
 
   const handleLogout = () => { logout(); navigate('/') }
   const location     = useLocation()
+  const hideMobileLayout = isMobile && location.pathname === '/record'
 
   const userInitial  = (user?.name || user?.email || 'U').charAt(0).toUpperCase()
   const userName     = user?.name || user?.email?.split('@')[0] || 'Creator'
@@ -611,7 +612,7 @@ export default function Layout({ children }) {
       <main style={styles.main} className={`theme-${featureTheme}`}>
 
         {/* Mobile top header */}
-        {isMobile && (
+        {isMobile && !hideMobileLayout && (
           <header style={styles.mobileHeader} className="mobile-header">
             <div style={styles.mobileLogoRow}>
               <Logo size={32} showWordmark />
@@ -632,13 +633,13 @@ export default function Layout({ children }) {
         )}
 
         {/* Page content */}
-        <div className="content" style={isMobile ? styles.contentMobile : styles.contentDesktop}>
+        <div className="content" style={isMobile ? (hideMobileLayout ? { padding: 0, width: '100%' } : styles.contentMobile) : styles.contentDesktop}>
           {children}
         </div>
       </main>
 
       {/* ── Mobile Bottom Navigation ─────────────────────────────── */}
-      {isMobile && (
+      {isMobile && !hideMobileLayout && (
         <>
           {/* More sheet backdrop */}
           {moreOpen && (
