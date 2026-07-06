@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nuove</string>
+    <string name="title_activity_main">Nuove</string>
+    <string name="package_name">in.nuove.app</string>
+    <string name="custom_url_scheme">in.nuove.app</string>
+</resources>

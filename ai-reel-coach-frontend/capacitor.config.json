@@ -1,0 +1,16 @@
+{
+  "appId": "in.nuove.app",
+  "appName": "Nuove",
+  "webDir": "dist",
+  "backgroundColor": "#0F0F14",
+  "android": {
+    "backgroundColor": "#0F0F14"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0F0F14",
+      "showSpinner": false
+    }
+  }
+}

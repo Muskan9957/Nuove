@@ -86,7 +86,11 @@ export const api = {
   generateStream: async (body) => {
     const token = getToken()
     const deviceFp = await getFingerprint()
-    return fetch(`/api/generate-stream`, {
+    // The streaming generator is a Vercel edge function served from the web host.
+    // The native app loads from https://localhost, so it must call the web host
+    // explicitly (VITE_WEB_URL). On the web this stays empty → same-origin relative.
+    const webOrigin = import.meta.env.VITE_WEB_URL || ''
+    return fetch(`${webOrigin}/api/generate-stream`, {
       method : 'POST',
       headers: {
         'Content-Type': 'application/json',
