@@ -8,12 +8,13 @@ export class CameraPipeline {
    * @returns {Promise<MediaStream>}
    */
   static async initializeCamera(facingMode = 'user') {
-    const isPortraitDevice = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
-    
-    // Request dimensions that match the physical screen orientation to avoid
-    // extreme center-cropping (zoom) by the CameraRenderer.
-    const idealWidth = isPortraitDevice ? 1080 : 1920;
-    const idealHeight = isPortraitDevice ? 1920 : 1080;
+    // To perfectly match Instagram's extremely wide Field of View (FOV), we must bypass 
+    // the Android hardware encoder's "video" mode, which applies an aggressive digital double-crop.
+    // By requesting an absurdly high symmetric resolution (4096), we force the camera driver 
+    // to return the absolute maximum native uncropped sensor feed (usually 4:3 or 3:4).
+    // Our CameraRenderer will then flawlessly center-crop it to the screen without any zoom.
+    const idealWidth = 4096;
+    const idealHeight = 4096;
 
     const constraints = {
       video: {
