@@ -8,15 +8,18 @@ export class CameraPipeline {
    * @returns {Promise<MediaStream>}
    */
   static async initializeCamera(facingMode = 'user') {
-    // We request standard landscape HD instead of strict portrait dimensions.
-    // Requesting exact portrait (1080x1920) often causes Android HALs to fallback or software-crop.
-    // By requesting 1920x1080, we allow the OS to negotiate the best native stream,
-    // which our CameraRenderer will seamlessly center-crop.
+    const isPortraitDevice = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    
+    // Request dimensions that match the physical screen orientation to avoid
+    // extreme center-cropping (zoom) by the CameraRenderer.
+    const idealWidth = isPortraitDevice ? 1080 : 1920;
+    const idealHeight = isPortraitDevice ? 1920 : 1080;
+
     const constraints = {
       video: {
         facingMode: { ideal: facingMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        width: { ideal: idealWidth },
+        height: { ideal: idealHeight },
         frameRate: { ideal: 30 }
       },
       audio: {
