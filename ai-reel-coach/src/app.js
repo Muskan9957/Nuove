@@ -38,6 +38,10 @@ const ALLOWED_ORIGINS = [
   'https://nuove.in',
   'https://www.nuove.in',
   'https://nuove.vercel.app',
+  // Capacitor native app origins — fixed & safe to allow in prod.
+  // Android (androidScheme:'https') → https://localhost; iOS → capacitor://localhost.
+  'https://localhost',
+  'capacitor://localhost',
   // localhost dev origins only outside production
   ...(IS_PROD ? [] : ['http://localhost:3000', 'http://localhost:5173']),
 ].filter(Boolean)
