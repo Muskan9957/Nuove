@@ -4,6 +4,8 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { drawCameraFrame } from '../utils/cameraDraw'
+import { CameraRenderer } from '../recorder/CameraRenderer'
+import { CameraPipeline } from '../recorder/CameraPipeline'
 
 /* ── useIsMobile ── */
 const useIsMobile = () => {
@@ -647,25 +649,7 @@ export default function Record() {
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
-      // Simple portrait dimensions — canvas preview handles the display correctly
-      const isPortraitDevice = typeof window !== 'undefined' && window.innerWidth < 768
-      const res = isPortraitDevice
-        ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
-        : { width: { ideal: 1920 }, height: { ideal: 1080 } }
-      const audioReq = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-
-      let stream
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, ...res, frameRate: { ideal: 30 } },
-          audio: audioReq,
-        })
-      } catch (err) {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
-          audio: audioReq,
-        })
-      }
+      const stream = await CameraPipeline.initializeCamera(facing);
 
       streamRef.current = stream
       // Capture actual video dimensions for correct canvas sizing during recording/export
@@ -719,7 +703,7 @@ export default function Record() {
       const canvas = previewCanvasRef.current
       previewRafRef.current = requestAnimationFrame(draw)
       if (!canvas || !src || !src.videoWidth || !src.videoHeight) return
-      drawCameraFrame(canvas.getContext('2d'), src, canvas.width, canvas.height, {
+      CameraRenderer.render(canvas.getContext('2d'), src, canvas.width, canvas.height, {
         mirror,
         filter: FILTERS[filterIdx].css,
       })
@@ -752,16 +736,7 @@ export default function Record() {
 
     if (phase === 'RECORDING') {
       try {
-        const isPortraitDevice = typeof window !== 'undefined' && window.innerWidth < 768
-        const res = isPortraitDevice
-          ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
-          : { width: { ideal: 1920 }, height: { ideal: 1080 } }
-        let vidStream
-        try {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, ...res }, audio: false })
-        } catch {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next, ...res }, audio: false })
-        }
+        const vidStream = await CameraPipeline.initializeCamera(next);
         const audioTracks = streamRef.current ? streamRef.current.getAudioTracks() : []
         if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop())
         const merged = new MediaStream([...vidStream.getVideoTracks(), ...audioTracks])
@@ -879,7 +854,7 @@ export default function Record() {
       // so a mid-record camera flip stays correct.
       const src = hiddenVideoRef.current
       if (src && src.readyState >= 2 && !src.paused) {
-        drawCameraFrame(ctx, src, CW, CH, { mirror: mirrorRef.current, filter: filterRef.current })
+        CameraRenderer.render(ctx, src, CW, CH, { mirror: mirrorRef.current, filter: filterRef.current })
       } else {
         ctx.fillStyle = '#000'
         ctx.fillRect(0, 0, CW, CH)
