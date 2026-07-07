@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { api } from '../api'
 import { useToast } from '../components/Toast'
 import { getSavedRegion } from '../utils/detectRegion'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 const readFileAsBase64 = (file) =>
@@ -360,10 +362,46 @@ export default function ReelReady() {
     }
   }
 
-  const download = () => {
+  const download = async () => {
     if (!outputBlob) return
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(outputBlob); a.download = `reel-ready.${outputExt}`; a.click()
+    const fileName = `reel-ready.${outputExt}`
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform()
+
+    if (isNative) {
+      try {
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.readAsDataURL(outputBlob)
+          reader.onloadend = () => {
+            const base64String = reader.result.split(',')[1]
+            resolve(base64String)
+          }
+          reader.onerror = (err) => reject(err)
+        })
+
+        const writeResult = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Cache
+        })
+
+        await Share.share({
+          title: 'Save Reel',
+          text: 'Here is your coach-assisted reel!',
+          url: writeResult.uri,
+          dialogTitle: 'Save or Share Reel'
+        })
+      } catch (nativeErr) {
+        console.error('[ReelReady] Native save/share failed, falling back to window.open:', nativeErr)
+        const url = URL.createObjectURL(outputBlob)
+        window.open(url, '_blank')
+      }
+    } else {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(outputBlob)
+      a.download = fileName
+      a.click()
+    }
   }
 
   const activeFilter = FILTERS.find(f => f.id === filter) || FILTERS[0]

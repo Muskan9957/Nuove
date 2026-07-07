@@ -1,13 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback, useReducer } from 'react'
-import { useNavigate } from 'react-router-dom'
+﻿import React, { useState, useRef, useEffect, useCallback, useReducer } from 'react'
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import { api } from '../api'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { drawCameraFrame } from '../utils/cameraDraw'
-import { Filesystem, Directory } from '@capacitor/filesystem'
-import { Share } from '@capacitor/share'
 
-/* ── useIsMobile ── */
+/* ΓöÇΓöÇ useIsMobile ΓöÇΓöÇ */
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
@@ -20,7 +16,7 @@ const useIsMobile = () => {
   return isMobile
 }
 
-/* ─────────────── shared helpers ─────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ shared helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const fmtTime = (s) => {
   if (!isFinite(s) || isNaN(s)) s = 0
   const m = Math.floor(s / 60)
@@ -29,7 +25,7 @@ const fmtTime = (s) => {
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${ds}`
 }
 
-/* ─────────────── state machine ─────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ state machine ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const initialState = {
   phase: 'IDLE', // IDLE | PREPARING_CAMERA | COUNTDOWN | RECORDING | PROCESSING | READY_TO_EDIT | EXPORTING | ERROR
   countdown: 3,
@@ -65,11 +61,9 @@ function recorderReducer(state, action) {
         trimEnd: action.payload.duration,
         thumbnails: action.payload.thumbnails
       }
-    case 'SET_THUMBNAILS':
-      return { ...state, thumbnails: action.payload }
     case 'SET_TRIM':
       return { ...state, trimStart: action.payload.start, trimEnd: action.payload.end }
-    // UPDATE_TRIM — used by TrimBar; updates just one side
+    // UPDATE_TRIM ΓÇö used by TrimBar; updates just one side
     case 'UPDATE_TRIM':
       return {
         ...state,
@@ -105,18 +99,14 @@ async function generateThumbnails(blob, duration, count = 14) {
   for (let i = 0; i < count; i++) {
     vid.currentTime = (duration * i) / Math.max(count - 1, 1)
     await new Promise(r => vid.addEventListener('seeked', r, { once: true }))
-    // Cover-crop into the thumb so portrait (9:16) videos aren't squashed
-    const vw = vid.videoWidth || 120, vh = vid.videoHeight || 68
-    const scale = Math.max(120 / vw, 68 / vh)
-    const dw = vw * scale, dh = vh * scale
-    ctx.drawImage(vid, (120 - dw) / 2, (68 - dh) / 2, dw, dh)
+    ctx.drawImage(vid, 0, 0, 120, 68)
     out.push(cvs.toDataURL('image/jpeg', 0.6))
   }
   URL.revokeObjectURL(url)
   return out
 }
 
-/* ─────────────── TrimBar ─────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ TrimBar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, isMobile }) {
   // Thumbnails are now pre-generated in the PROCESSING phase
   const [localStart, setLocalStart] = useState(trimStart)
@@ -130,9 +120,6 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
   const dragRef      = useRef(null)
   const seekRafRef   = useRef(null)
   const lastSeekRef  = useRef(0)
-  const startTextRef = useRef(null)
-  const endTextRef   = useRef(null)
-  const selectedTextRef = useRef(null)
   const N = 14
 
   // Sync from parent when not actively dragging
@@ -151,72 +138,57 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
   const startDrag = (which, ev) => {
     ev.preventDefault()
     dragRef.current = which
-    
-    // Mutable vars for the drag closure — avoids stale state reads
-    let currentStart = localStart
-    let currentEnd   = localEnd
+    // Mutable vars for the drag closure ΓÇö avoids stale state reads
+    let liveStart = localStart
+    let liveEnd   = localEnd
 
     const onMove = (e) => {
-      if (e.cancelable) {
-        e.preventDefault() // Block page scroll completely while dragging handles
-      }
-      
       const cx   = e.touches ? e.touches[0].clientX : e.clientX
       const rect = stripRef.current?.getBoundingClientRect()
       if (!rect) return
       const pct  = Math.max(0, Math.min(1, (cx - rect.left) / rect.width))
       const secs = Math.round(pct * total * 10) / 10
       
-      let targetTime = secs
+      let nextPctS, nextPctE;
       if (which === 'start') {
-        currentStart = Math.min(secs, currentEnd - 0.3)
-        targetTime = currentStart
-        
-        // Direct DOM mutations for butter-smooth 60fps performance on mobile
-        const nextPctS = (currentStart / total) * 100
-        const nextPctE = (currentEnd / total) * 100
-        if (startHRef.current) startHRef.current.style.left = `${nextPctS}%`
-        if (leftDarkRef.current) leftDarkRef.current.style.width = `${nextPctS}%`
-        if (borderRef.current) {
-          borderRef.current.style.left = `${nextPctS}%`
-          borderRef.current.style.width = `${nextPctE - nextPctS}%`
-        }
-        if (startTextRef.current) startTextRef.current.innerText = fmtTime(currentStart)
-        if (selectedTextRef.current) selectedTextRef.current.innerText = `✂️ ${fmtTime(currentEnd - currentStart)} selected`
+        liveStart = Math.min(secs, liveEnd - 0.3)
+        nextPctS = (liveStart / total) * 100
+        nextPctE = (liveEnd / total) * 100
       } else {
-        currentEnd = Math.max(secs, currentStart + 0.3)
-        targetTime = currentEnd
-
-        // Direct DOM mutations for butter-smooth 60fps performance on mobile
-        const nextPctS = (currentStart / total) * 100
-        const nextPctE = (currentEnd / total) * 100
-        if (endHRef.current) endHRef.current.style.left = `${nextPctE}%`
-        if (rightDarkRef.current) rightDarkRef.current.style.width = `${100 - nextPctE}%`
-        if (borderRef.current) {
-          borderRef.current.style.width = `${nextPctE - nextPctS}%`
-        }
-        if (endTextRef.current) endTextRef.current.innerText = fmtTime(currentEnd)
-        if (selectedTextRef.current) selectedTextRef.current.innerText = `✂️ ${fmtTime(currentEnd - currentStart)} selected`
+        liveEnd = Math.max(secs, liveStart + 0.3)
+        nextPctS = (liveStart / total) * 100
+        nextPctE = (liveEnd / total) * 100
       }
 
-      // Throttled video seek — stable 40ms seek window for phone decoders
+      // Direct DOM manipulation for 60fps drag without React re-renders
+      if (which === 'start' && startHRef.current && leftDarkRef.current && borderRef.current) {
+        startHRef.current.style.left = `${nextPctS}%`
+        leftDarkRef.current.style.width = `${nextPctS}%`
+        borderRef.current.style.left = `${nextPctS}%`
+        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+      } else if (which === 'end' && endHRef.current && rightDarkRef.current && borderRef.current) {
+        endHRef.current.style.left = `${nextPctE}%`
+        rightDarkRef.current.style.width = `${100 - nextPctE}%`
+        borderRef.current.style.width = `${nextPctE - nextPctS}%`
+      }
+
+      // Throttled video seek ΓÇö prevents decoder blocking (max once per 100ms)
       const now = performance.now()
-      if (now - lastSeekRef.current > 40) {
+      if (now - lastSeekRef.current > 100) {
         lastSeekRef.current = now
         if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current)
         seekRafRef.current = requestAnimationFrame(() => {
-          onSeek?.(targetTime)
+          onSeek?.(which === 'start' ? liveStart : liveEnd)
         })
       }
     }
-
     const onUp = () => {
       dragRef.current = null
-      // Sync local React state with final drag values
-      setLocalStart(currentStart)
-      setLocalEnd(currentEnd)
-      onTrimChange(which, which === 'start' ? currentStart : currentEnd)
-      
+      // Commit final values to React state ΓÇö single re-render
+      setLocalStart(liveStart)
+      setLocalEnd(liveEnd)
+      if (which === 'start') onTrimChange('start', liveStart)
+      else                   onTrimChange('end',   liveEnd)
       document.removeEventListener('mousemove',  onMove)
       document.removeEventListener('mouseup',    onUp)
       document.removeEventListener('touchmove',  onMove)
@@ -244,7 +216,7 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
           touchAction: 'none',
         }}
       >
-        {/* Inner visual handle — 22px wide, centered inside the 44px touch zone */}
+        {/* Inner visual handle ΓÇö 22px wide, centered inside the 44px touch zone */}
         <div style={{
           width: 22,
           background: '#E1306C',
@@ -323,105 +295,28 @@ function TrimBar({ thumbs, totalSecs, trimStart, trimEnd, onTrimChange, onSeek, 
       </div>
       </div>  {/* end strip wrapper */}
 
-      {/* Time labels — use localStart/localEnd for live drag feedback */}
+      {/* Time labels ΓÇö use localStart/localEnd for live drag feedback */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
         <div style={{ textAlign: 'left' }}>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Start</div>
-          <div ref={startTextRef} style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localStart)}</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localStart)}</div>
         </div>
-        <div ref={selectedTextRef} style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          ✂️ {fmtTime(localEnd - localStart)} selected
+        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Γ£é∩╕Å {fmtTime(localEnd - localStart)} selected
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>End</div>
-          <div ref={endTextRef} style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localEnd)}</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E1306C', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(localEnd)}</div>
         </div>
       </div>
       <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: 2 }}>
-        Drag the pink handles · Total: {fmtTime(totalSecs)}
+        Drag the pink handles ┬╖ Total: {fmtTime(totalSecs)}
       </div>
     </div>
   )
 }
 
-/* ─────────────── flip-camera icon (front/back arrows) ─────────────── */
-const FlipIcon = () => (
-  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 8a8 8 0 0 0-14.9-2.5" />
-    <polyline points="5 2 5 6 9 6" />
-    <path d="M4 16a8 8 0 0 0 14.9 2.5" />
-    <polyline points="19 22 19 18 15 18" />
-  </svg>
-)
-
-/* ─────────────── Instagram-style filter carousel ───────────────
-   Horizontal, center-snapping: the circle in the middle is the active filter,
-   neighbours peek in from the sides. Swipe to change, tap a circle to jump. */
-function FilterCarousel({ index, onChange }) {
-  const ref = useRef(null)
-  const ITEM = 60 // 48px circle + 12px gap
-  const settleTimer = useRef(null)
-
-  // Position the carousel on the active filter when it mounts
-  useEffect(() => {
-    ref.current?.scrollTo({ left: index * ITEM })
-  }, []) // eslint-disable-line
-
-  const handleScroll = () => {
-    clearTimeout(settleTimer.current)
-    settleTimer.current = setTimeout(() => {
-      const el = ref.current
-      if (!el) return
-      const i = Math.max(0, Math.min(FILTERS.length - 1, Math.round(el.scrollLeft / ITEM)))
-      onChange(i)
-    }, 90)
-  }
-
-  return (
-    <div style={{ width: '100%' }}>
-      <div style={{
-        textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: '0.72rem',
-        letterSpacing: '0.04em', textShadow: '0 1px 5px rgba(0,0,0,0.8)', marginBottom: 7,
-      }}>
-        {FILTERS[index].name}
-      </div>
-      <div
-        ref={ref}
-        onScroll={handleScroll}
-        className="hide-scroll"
-        style={{
-          display: 'flex', gap: 12, overflowX: 'auto',
-          scrollSnapType: 'x mandatory',
-          padding: '5px calc(50% - 24px)',
-          scrollbarWidth: 'none', msOverflowStyle: 'none',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        {FILTERS.map((f, i) => (
-          <button
-            key={i}
-            onClick={() => ref.current?.scrollTo({ left: i * ITEM, behavior: 'smooth' })}
-            aria-label={f.name}
-            style={{
-              width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-              scrollSnapAlign: 'center', background: f.swatch,
-              border: 'none', cursor: 'pointer', padding: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: i === index ? '0 0 0 3px #fff, 0 2px 12px rgba(0,0,0,0.45)' : '0 0 0 1px rgba(255,255,255,0.35)',
-              transform: i === index ? 'scale(1.14)' : 'scale(0.88)',
-              opacity: i === index ? 1 : 0.72,
-              transition: 'transform 0.16s, opacity 0.16s, box-shadow 0.16s',
-            }}
-          >
-            <span style={{ fontSize: '1.05rem', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.55))' }}>{f.emoji}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ─────────────────── constants ─────────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ constants ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const SPEEDS = [
   { label: '1',  value: 12 },
   { label: '2',  value: 22 },
@@ -438,68 +333,68 @@ const FONT_SIZES = [
   { label: 'XL', value: 52 },
 ]
 
-/* ─────────────────── cinematic filters ─────────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ cinematic filters ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 // Researched from CapCut, TikTok, Instagram Reels, and Prequel
 const FILTERS = [
   {
     name: 'None',
-    emoji: '⬜',
+    emoji: 'Γ¼£',
     css: 'none',
     swatch: 'linear-gradient(135deg, #888, #ccc)',
     desc: 'Raw camera, no filter',
   },
   {
     name: 'Cinematic',
-    emoji: '🎬',
+    emoji: '≡ƒÄ¼',
     css: 'contrast(112%) brightness(88%) saturate(78%)',
     swatch: 'linear-gradient(135deg, #1a1a2e, #4a4a6a)',
     desc: 'Hollywood film look, crushed blacks',
   },
   {
     name: 'Golden Hour',
-    emoji: '🌅',
+    emoji: '≡ƒîà',
     css: 'brightness(108%) saturate(135%) sepia(22%) hue-rotate(-12deg)',
     swatch: 'linear-gradient(135deg, #f7971e, #ffd200)',
     desc: 'Warm sunset glow, lifestyle content',
   },
   {
     name: 'Studio',
-    emoji: '💡',
+    emoji: '≡ƒÆí',
     css: 'brightness(118%) contrast(105%) saturate(110%)',
     swatch: 'linear-gradient(135deg, #f8f8ff, #e0e8ff)',
     desc: 'Clean professional studio lighting',
   },
   {
     name: 'Aura',
-    emoji: '🧘',
+    emoji: '≡ƒºÿ',
     css: 'brightness(115%) saturate(125%) contrast(95%) hue-rotate(-8deg)',
     swatch: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)',
     desc: 'Dreamy elegant glow, skin-enhancing warmth',
   },
   {
     name: 'Vintage',
-    emoji: '📽️',
+    emoji: '≡ƒô╜∩╕Å',
     css: 'sepia(35%) contrast(92%) brightness(106%) saturate(88%)',
     swatch: 'linear-gradient(135deg, #b8860b, #d4a960)',
     desc: 'Retro film grain feel, nostalgic',
   },
   {
     name: 'Soft Glow',
-    emoji: '✨',
+    emoji: 'Γ£¿',
     css: 'brightness(112%) contrast(92%) saturate(118%)',
     swatch: 'linear-gradient(135deg, #f8cdda, #1d2b64)',
     desc: 'Beauty/lifestyle, skin-flattering',
   },
   {
     name: 'B&W Drama',
-    emoji: '🎭',
+    emoji: '≡ƒÄ¡',
     css: 'grayscale(100%) contrast(120%) brightness(90%)',
     swatch: 'linear-gradient(135deg, #000, #fff)',
     desc: 'Bold black and white, high contrast',
   },
 ]
 
-/* ─────────────────── canvas overlay helper ─────────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ canvas overlay helper ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 function drawHookCard(ctx, text, W, H) {
   const maxW = Math.round(W * 0.7)
   const fontSize = 28
@@ -555,9 +450,8 @@ function drawHookCard(ctx, text, W, H) {
   })
 }
 
-/* ─────────────────── component ─────────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export default function Record() {
-  const navigate = useNavigate()
   // script
   const [script,     setScript]     = usePersistentState('rc_script', '')
   const [editing,    setEditing]    = usePersistentState('rc_editing', false)
@@ -570,8 +464,7 @@ export default function Record() {
   const [filterIdx,  setFilterIdx]  = useState(0)   // 0 = None
   const prevFilter = () => setFilterIdx(i => (i - 1 + FILTERS.length) % FILTERS.length)
   const nextFilter = () => setFilterIdx(i => (i + 1) % FILTERS.length)
-  const [showGrid,     setShowGrid]     = useState(false)
-  const [scrollPaused, setScrollPaused] = useState(false) // teleprompter pause — UI mirror of scrollingRef
+  const [showGrid,   setShowGrid]   = useState(false)
 
   // steps & recording handled by central state machine
   const [state, dispatch] = useReducer(recorderReducer, initialState)
@@ -615,13 +508,12 @@ export default function Record() {
   const hiddenVideoRef = useRef(null)   // off-screen video used as canvas draw source
   const streamRef     = useRef(null)
   const streamDimsRef = useRef({ w: 1280, h: 720 }) // actual camera resolution (updated on getUserMedia)
-  const outputDimsRef = useRef({ w: 1080, h: 1920 }) // recorded canvas dims (fixed 9:16 on portrait screens)
   const recorderRef   = useRef(null)
   const chunksRef     = useRef([])
   const scrollRef     = useRef(null)   // teleprompter text container
   const scrollPosRef  = useRef(0)
-  const scrollingRef  = useRef(true)   // live scroll state — read by RAF without stale closure
-  const speedRef      = useRef(SPEEDS[2].value) // live speed value — read by RAF without stale closure
+  const scrollingRef  = useRef(true)   // live scroll state ΓÇö read by RAF without stale closure
+  const speedRef      = useRef(SPEEDS[2].value) // live speed value ΓÇö read by RAF without stale closure
   const rafRef        = useRef(null)
   const timerRef      = useRef(null)
   const countdownRef  = useRef(null)
@@ -630,42 +522,28 @@ export default function Record() {
   const elapsedRef    = useRef(0)       // mirror of elapsed for use inside callbacks
   const framesDrawnRef = useRef(0)
   const recordedFpsRef = useRef(30)
-  const previewCanvasRef = useRef(null) // canvas for camera preview (handles landscape→portrait conversion)
-  const previewRafRef    = useRef(null) // RAF handle for canvas preview loop
 
   // Keep speedRef in sync with speedIdx state
   useEffect(() => { speedRef.current = SPEEDS[speedIdx].value }, [speedIdx])
 
-  // Live refs so the recording draw-loop reads the latest filter/mirror without a
-  // stale closure — lets users switch filters (and mirror) live while recording.
-  const filterRef = useRef(FILTERS[0].css)
-  const mirrorRef = useRef(mirror)
-  useEffect(() => { filterRef.current = FILTERS[filterIdx].css }, [filterIdx])
-  useEffect(() => { mirrorRef.current = mirror }, [mirror])
-
-  /* ── start camera ── */
+  /* ΓöÇΓöÇ start camera ΓöÇΓöÇ */
   const startCamera = useCallback(async (facing = facingMode) => {
     dispatch({ type: 'START_CAMERA' })
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
       
-      // Simple portrait dimensions — canvas preview handles the display correctly
-      const isPortraitDevice = typeof window !== 'undefined' && window.innerWidth < 768
-      const res = isPortraitDevice
-        ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
-        : { width: { ideal: 1920 }, height: { ideal: 1080 } }
-      const audioReq = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-
       let stream
       try {
+        // Try forcing exact facingMode (required on iOS Safari and some Android browsers to switch)
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: facing }, ...res, frameRate: { ideal: 30 } },
-          audio: audioReq,
+          video: { facingMode: { exact: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
         })
       } catch (err) {
+        // Fallback for desktops/laptops which may not support exact facingMode constraints
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, ...res, frameRate: { ideal: 30 } },
-          audio: audioReq,
+          video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
         })
       }
 
@@ -677,7 +555,7 @@ export default function Record() {
         if (s.width && s.height) streamDimsRef.current = { w: s.width, h: s.height }
       }
       if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}) }
-      // Keep the hidden video in sync too — this is our stable canvas draw source
+      // Keep the hidden video in sync too ΓÇö this is our stable canvas draw source
       if (hiddenVideoRef.current) { hiddenVideoRef.current.srcObject = stream; hiddenVideoRef.current.play().catch(() => {}) }
       dispatch({ type: 'CAMERA_READY' })
     } catch (e) {
@@ -701,40 +579,7 @@ export default function Record() {
     }
   }, []) // eslint-disable-line
 
-  /* ── Canvas-based camera preview — mobile only ──
-     Draws through the SAME drawCameraFrame routine the recorder uses, so the
-     preview always matches the recorded output (orientation, crop, filter).
-     Runs in setup AND countdown/recording phases. */
-  useEffect(() => {
-    if (!isMobile) return
-    const livePhases = ['IDLE', 'PREPARING_CAMERA', 'ERROR', 'COUNTDOWN', 'RECORDING']
-    if (!livePhases.includes(phase)) {
-      cancelAnimationFrame(previewRafRef.current)
-      return
-    }
-
-    let active = true
-
-    const draw = () => {
-      if (!active) return
-      const src = hiddenVideoRef.current  // always-on stream source
-      const canvas = previewCanvasRef.current
-      previewRafRef.current = requestAnimationFrame(draw)
-      if (!canvas || !src || !src.videoWidth || !src.videoHeight) return
-      drawCameraFrame(canvas.getContext('2d'), src, canvas.width, canvas.height, {
-        mirror,
-        filter: FILTERS[filterIdx].css,
-      })
-    }
-
-    previewRafRef.current = requestAnimationFrame(draw)
-    return () => {
-      active = false
-      cancelAnimationFrame(previewRafRef.current)
-    }
-  }, [isMobile, phase, mirror, filterIdx])
-
-  /* ── toggle preview music ── */
+  /* ΓöÇΓöÇ toggle preview music ΓöÇΓöÇ */
   const togglePreviewMusic = () => {
     if (!bgMusicRef.current) return
     if (isPlayingPreview) {
@@ -746,50 +591,21 @@ export default function Record() {
     }
   }
 
-  /* ── flip camera (front/back) ── */
-  // While RECORDING we swap ONLY the video track: a full startCamera() would stop
-  // the audio track the MediaRecorder is using and silence the rest of the take.
+  /* ΓöÇΓöÇ flip camera ΓöÇΓöÇ */
   const flipCamera = async () => {
     const next = facingMode === 'user' ? 'environment' : 'user'
-
-    if (phase === 'RECORDING') {
-      try {
-        const isPortraitDevice = typeof window !== 'undefined' && window.innerWidth < 768
-        const res = isPortraitDevice
-          ? { width: { ideal: 1080 }, height: { ideal: 1920 } }
-          : { width: { ideal: 1920 }, height: { ideal: 1080 } }
-        let vidStream
-        try {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: next }, ...res }, audio: false })
-        } catch {
-          vidStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next, ...res }, audio: false })
-        }
-        const audioTracks = streamRef.current ? streamRef.current.getAudioTracks() : []
-        if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop())
-        const merged = new MediaStream([...vidStream.getVideoTracks(), ...audioTracks])
-        streamRef.current = merged
-        if (videoRef.current) { videoRef.current.srcObject = merged; videoRef.current.play().catch(() => {}) }
-        if (hiddenVideoRef.current) { hiddenVideoRef.current.srcObject = merged; hiddenVideoRef.current.play().catch(() => {}) }
-        setFacingMode(next)
-        setMirror(next === 'user')
-      } catch (e) {
-        console.warn('Live camera flip failed:', e)
-      }
-      return
-    }
-
     setFacingMode(next)
     setMirror(next === 'user')
     await startCamera(next)
   }
 
-  /* ── auto-scroll teleprompter ── */
+  /* ΓöÇΓöÇ auto-scroll teleprompter ΓöÇΓöÇ */
   // The rAF loop reads scrollingRef (kept in sync below) instead of capturing
-  // the `scrolling` state — a captured value goes stale after pause/resume and
+  // the `scrolling` state ΓÇö a captured value goes stale after pause/resume and
   // silently stops the scroll.
   const startScroll = useCallback(() => {
     // Uses refs (scrollingRef, speedRef) so the loop never has stale closure values.
-    // No need to restart on speed change or pause/resume — ref values are always live.
+    // No need to restart on speed change or pause/resume ΓÇö ref values are always live.
     let last = null
     const tick = (ts) => {
       if (!scrollRef.current) return
@@ -802,14 +618,14 @@ export default function Record() {
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
-  }, []) // no deps — all values come from stable refs
+  }, []) // no deps ΓÇö all values come from stable refs
 
   const stopScroll = () => {
     cancelAnimationFrame(rafRef.current)
     rafRef.current = null
   }
 
-  /* ── begin: countdown → record ── */
+  /* ΓöÇΓöÇ begin: countdown ΓåÆ record ΓöÇΓöÇ */
   const beginRecording = () => {
     if (!streamRef.current) return
     dispatch({ type: 'START_COUNTDOWN' })
@@ -818,7 +634,10 @@ export default function Record() {
     
     // Reset scrolling state for the new recording session
     scrollingRef.current = true
-    setScrollPaused(false)
+    const hint = document.getElementById('scroll-hint')
+    if (hint) hint.style.opacity = '1'
+    const btn = document.getElementById('scroll-btn-text')
+    if (btn) btn.innerText = 'ΓÅ╕ Pause scroll'
 
     let n = 3
     countdownRef.current = setInterval(() => {
@@ -841,51 +660,33 @@ export default function Record() {
       hiddenVideoRef.current.play().catch(() => {})
     }
 
-    // ── Fixed-orientation output canvas (the Instagram approach) ──
-    // Phone sensors often deliver a LANDSCAPE stream even when the phone is held
-    // upright, and iOS/Android differ per device — trusting the sensor dims is why
-    // recordings came out horizontal (or looked zoomed). Instead: on a portrait
-    // screen ALWAYS compose onto a vertical 9:16 canvas and center-crop the camera
-    // into it (same "cover" crop the on-screen preview shows, so WYSIWYG).
-    const srcEl0 = hiddenVideoRef.current
-    const sw0 = (srcEl0 && srcEl0.videoWidth)  || streamDimsRef.current.w
-    const sh0 = (srcEl0 && srcEl0.videoHeight) || streamDimsRef.current.h
-    const portraitUI = window.innerHeight > window.innerWidth
-    let CW, CH
-    if (portraitUI) {
-      // Vertical 9:16, sized from the source so we never upscale a weak camera too far
-      const srcLong = Math.max(sw0, sh0)
-      CH = Math.min(1920, Math.max(1280, srcLong)); CH -= CH % 2
-      CW = Math.round(CH * 9 / 16); CW -= CW % 2
-    } else {
-      // Desktop / landscape: keep the camera's native dims
-      CW = sw0 - (sw0 % 2)
-      CH = sh0 - (sh0 % 2)
-    }
+    // Canvas uses actual camera dimensions ΓÇö fixes 9:16 vs 16:9 distortion on export
+    const { w: VW, h: VH } = streamDimsRef.current
     const canvas = document.createElement('canvas')
-    canvas.width  = CW
-    canvas.height = CH
-    outputDimsRef.current = { w: CW, h: CH }
+    canvas.width  = VW
+    canvas.height = VH
     const ctx = canvas.getContext('2d')
 
-    // Draw loop — applies CSS filter + mirror to every frame
+    // Draw loop ΓÇö applies CSS filter + mirror to every frame
     canvasLoopRef.current = true
     framesDrawnRef.current = 0
     const drawFrame = () => {
       if (!canvasLoopRef.current) return
       framesDrawnRef.current++
-      // Draw the camera through the SAME routine as the on-screen preview —
-      // including the sideways-landscape rotation. This was THE horizontal-video
-      // bug: the preview rotated the frame upright but the recorder didn't.
-      // Live refs so filter/mirror can change mid-record; dims re-read per frame
-      // so a mid-record camera flip stays correct.
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Draw filtered camera input
+      ctx.filter = activeFilter
+      ctx.save()
+      if (mirror) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1) }
       const src = hiddenVideoRef.current
       if (src && src.readyState >= 2 && !src.paused) {
-        drawCameraFrame(ctx, src, CW, CH, { mirror: mirrorRef.current, filter: filterRef.current })
-      } else {
-        ctx.fillStyle = '#000'
-        ctx.fillRect(0, 0, CW, CH)
+        ctx.drawImage(src, 0, 0, canvas.width, canvas.height)
       }
+      ctx.restore()
+
+      // Reset filter for graphic overlay card
+      ctx.filter = 'none'
       
       // Draw Hook Card overlay if enabled, exists, and within first 4 seconds
       if (burnOverlay && textOverlay && elapsedRef.current < 4) {
@@ -939,23 +740,16 @@ export default function Record() {
     if (finalAudioTrack) tracks.push(finalAudioTrack)
     const combinedStream = new MediaStream(tracks)
 
-    // Pick the best available MIME type. Includes mp4 for iOS Safari, which
-    // supports none of the webm types — forcing webm there makes the
-    // MediaRecorder constructor THROW and recording silently never starts.
-    const MIMES = [
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm',
-      'video/mp4;codecs=avc1,mp4a.40.2',
-      'video/mp4',
-    ]
-    const mime = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || ''
-    console.log('[Recorder] launchRecording: Picked MIME type', mime || '(browser default)')
+    // Pick the best available MIME type
+    const MIMES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    const mime  = MIMES.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm'
+    console.log('[Recorder] launchRecording: Picked MIME type', mime)
 
     chunksRef.current = []
-    const recOpts = { videoBitsPerSecond: 8_000_000 } // 8 Mbps — high quality for social sharing
-    if (mime) recOpts.mimeType = mime
-    const rec = new MediaRecorder(combinedStream, recOpts)
+    const rec = new MediaRecorder(combinedStream, {
+      mimeType: mime,
+      videoBitsPerSecond: 8_000_000, // 8 Mbps ΓÇö high quality for social sharing
+    })
     recorderRef.current = rec
 
     rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
@@ -986,28 +780,61 @@ export default function Record() {
         return
       }
 
-      // Transition to edit phase instantly to avoid waiting on mobile/desktop
+      // Fix seekability: WebM blobs from MediaRecorder have duration=Infinity
+      // Seeking to a huge time forces the browser to calculate the real duration
+      const tempVid = document.createElement('video')
+      tempVid.muted = true
       const url = URL.createObjectURL(rawBlob)
-      const dur = capturedElapsed || 1
+      tempVid.src = url
 
-      console.log(`[Recorder] Processing done. Phase transitioning to READY_TO_EDIT`)
-      dispatch({ 
-        type: 'PROCESSING_DONE', 
-        payload: { blob: rawBlob, url, duration: dur, thumbnails: [] } 
-      })
-      
-      stopScroll()
-      clearInterval(timerRef.current)
+      // finishCalled flag prevents double-invocation from the stale-closure setTimeout fallback
+      let finishCalled = false
+      const finish = async () => {
+        if (finishCalled) return
+        finishCalled = true
 
-      // Ping streak when recording finishes
-      api.pingStreak().catch(console.error)
+        // Guard: if no data was captured at all (too-short recording or muted canvas)
+        // show error immediately instead of hanging
+        const totalSize = chunksRef.current.reduce((s, c) => s + c.size, 0)
+        if (totalSize === 0) {
+          dispatch({ type: 'CAMERA_ERROR', payload: 'No video data captured. Please record for at least 1 second.' })
+          return
+        }
+        
+        let dur = isFinite(tempVid.duration) ? tempVid.duration : capturedElapsed;
+        if (dur <= 0) dur = capturedElapsed || 1;
+        console.log(`[Recorder] Metadata loaded. Calculated duration: ${dur}s`)
+        const thumbs = await generateThumbnails(rawBlob, dur)
 
-      // Generate thumbnails asynchronously in background
-      generateThumbnails(rawBlob, dur, isMobile ? 6 : 12).then(thumbs => {
-        dispatch({ type: 'SET_THUMBNAILS', payload: thumbs })
-      }).catch(err => {
-        console.warn('Background thumbnail generation failed:', err)
-      })
+        console.log(`[Recorder] Processing done. Phase transitioning to READY_TO_EDIT`)
+        dispatch({ 
+          type: 'PROCESSING_DONE', 
+          payload: { blob: rawBlob, url, duration: dur, thumbnails: thumbs } 
+        })
+        
+        stopScroll()
+        clearInterval(timerRef.current)
+
+        // Ping streak when recording finishes
+        api.pingStreak().catch(console.error)
+      }
+
+      tempVid.addEventListener('loadedmetadata', function onMeta() {
+        tempVid.removeEventListener('loadedmetadata', onMeta)
+        if (tempVid.duration === Infinity || isNaN(tempVid.duration)) {
+          tempVid.currentTime = 1e10
+          tempVid.addEventListener('timeupdate', function onTime() {
+            tempVid.removeEventListener('timeupdate', onTime)
+            tempVid.currentTime = 0
+            finish()
+          }, { once: true })
+        } else {
+          finish()
+        }
+      }, { once: true })
+
+      // Fallback: if metadata never fires within 5s, still transition.
+      setTimeout(() => { finish() }, 5000)
     }
 
     rec.start(200) // chunk every 200ms for more reliable data
@@ -1041,34 +868,16 @@ export default function Record() {
 
   const toggleScrollPause = () => {
     scrollingRef.current = !scrollingRef.current
-    setScrollPaused(!scrollingRef.current)
+    const btn = document.getElementById('scroll-btn-text')
+    if (btn) btn.innerText = scrollingRef.current ? 'ΓÅ╕ Pause scroll' : 'Γû╢ Resume scroll'
+    const hint = document.getElementById('scroll-hint')
+    if (hint) hint.style.opacity = scrollingRef.current ? '1' : '0'
   }
 
-  /* ── right-edge control rail (Instagram-style vertical icon stack) ── */
-  const renderRail = (items) => (
-    <div style={S.rail}>
-      {items.map((it, i) => it.stepper ? (
-        <div key={i} style={S.railItem}>
-          <div style={S.railStack}>
-            <button style={S.railStackBtn} onClick={it.up} aria-label={`${it.cap} up`}>˄</button>
-            <div style={S.railStackVal}>{it.value}</div>
-            <button style={S.railStackBtn} onClick={it.down} aria-label={`${it.cap} down`}>˅</button>
-          </div>
-          <span style={S.railCap}>{it.cap}</span>
-        </div>
-      ) : (
-        <button key={i} style={S.railItem} onClick={it.onClick} aria-label={it.cap}>
-          <div style={{ ...S.railCircle, ...(it.active ? S.railCircleOn : {}) }}>{it.icon}</div>
-          <span style={S.railCap}>{it.cap}</span>
-        </button>
-      ))}
-    </div>
-  )
-
-  /* ── speed change ── no scroll restart needed; speedRef is always current */
+  /* ΓöÇΓöÇ speed change ΓöÇΓöÇ no scroll restart needed; speedRef is always current */
   // (speedRef synced via useEffect above)
 
-  /* ── re-attach stream whenever a new <video> element mounts (phase change) ── */
+  /* ΓöÇΓöÇ re-attach stream whenever a new <video> element mounts (phase change) ΓöÇΓöÇ */
   useEffect(() => {
     if ((phase === 'COUNTDOWN' || phase === 'RECORDING') && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current
@@ -1093,58 +902,20 @@ export default function Record() {
       console.log('[Recorder] Export started (converting to MP4)')
       const trimmedBlob = await executeTrim()
       console.log(`[Recorder] Export finished. Trimmed blob size: ${trimmedBlob.size} bytes`)
-      
-      const isNative = window.Capacitor && window.Capacitor.isNativePlatform()
-      const fileName = trimmedBlob.type === 'video/mp4' ? 'nuove-recording.mp4' : 'nuove-recording.webm'
-
-      if (isNative) {
-        try {
-          // Convert Blob to Base64
-          const base64Data = await new Promise((resolve, reject) => {
-            const reader = new FileReader()
-            reader.readAsDataURL(trimmedBlob)
-            reader.onloadend = () => {
-              const base64String = reader.result.split(',')[1]
-              resolve(base64String)
-            }
-            reader.onerror = (err) => reject(err)
-          })
-
-          // Write Base64 string to a temporary file in the App Cache directory
-          const writeResult = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Cache
-          })
-
-          // Open the native share/save dialog for the file URI
-          await Share.share({
-            title: 'Save Reel',
-            text: 'Here is your coach-assisted reel!',
-            url: writeResult.uri,
-            dialogTitle: 'Save or Share Reel'
-          })
-        } catch (nativeErr) {
-          console.error('[Recorder] Native save/share failed, falling back to window.open:', nativeErr)
-          // Fallback if Native share fails/cancels unexpectedly
-          const url = URL.createObjectURL(trimmedBlob)
-          window.open(url, '_blank')
-        }
-      } else {
-        const url = URL.createObjectURL(trimmedBlob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        a.click()
-        setTimeout(() => URL.revokeObjectURL(url), 10000)
-      }
+      const url = URL.createObjectURL(trimmedBlob)
+      const a = document.createElement('a')
+      a.href = url
+      // Extension matches actual blob type generated by the pipeline
+      a.download = trimmedBlob.type === 'video/mp4' ? 'nuove-recording.mp4' : 'nuove-recording.webm'
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
     } catch (e) {
       console.error(e)
     }
     dispatch({ type: 'FINISH_EXPORT' })
   }
 
-  /* ── make blob seekable so slider + duration work in browser & media players ── */
+  /* ΓöÇΓöÇ make blob seekable so slider + duration work in browser & media players ΓöÇΓöÇ */
   const makeSeekable = (blob, videoEl) => new Promise(resolve => {
     const url = URL.createObjectURL(blob)
     videoEl.src = url
@@ -1164,7 +935,7 @@ export default function Record() {
     })
   })
 
-  /* ── trim video using mp4-muxer and WebCodecs (standards compliant MP4) ── */
+  /* ΓöÇΓöÇ trim video using mp4-muxer and WebCodecs (standards compliant MP4) ΓöÇΓöÇ */
   const executeTrimWebCodecs = () => new Promise(async (resolve, reject) => {
     if (!outputBlob) return reject(new Error("No blob"))
 
@@ -1367,7 +1138,7 @@ export default function Record() {
     }, (end - start + 10) * 1000)
   })
 
-  /* ── fallback: trim video using canvas re-encode (legacy webm) ── */
+  /* ΓöÇΓöÇ fallback: trim video using canvas re-encode (legacy webm) ΓöÇΓöÇ */
   const executeTrimFallback = () => new Promise(async (resolve, reject) => {
     if (!outputBlob) return resolve(outputBlob)
 
@@ -1375,7 +1146,7 @@ export default function Record() {
     const srcUrl = URL.createObjectURL(outputBlob)
     const tempVideo = document.createElement('video')
     tempVideo.src = srcUrl
-    // IMPORTANT: do NOT set volume=0 — the AudioContext needs the element to be unmuted
+    // IMPORTANT: do NOT set volume=0 ΓÇö the AudioContext needs the element to be unmuted
     // We mute it via the sink instead (the audio goes into the AudioContext, not speakers)
     tempVideo.muted = false
     tempVideo.volume = 1
@@ -1393,13 +1164,13 @@ export default function Record() {
     canvas.height = targetH
     const ctx = canvas.getContext('2d')
 
-    // ── Audio routing via Web Audio API ──
+    // ΓöÇΓöÇ Audio routing via Web Audio API ΓöÇΓöÇ
     // AudioContext must be resumed (Chrome suspends it until user gesture; the trim button click is that gesture)
     let audioCtx   = null
     let audioTrack = null
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-      await audioCtx.resume()  // critical — without this audio will be silent
+      await audioCtx.resume()  // critical ΓÇö without this audio will be silent
       const src  = audioCtx.createMediaElementSource(tempVideo)
       const dest = audioCtx.createMediaStreamDestination()
       src.connect(dest)
@@ -1408,7 +1179,7 @@ export default function Record() {
       console.warn('Audio routing failed, trimming video-only:', err)
     }
 
-    // ── Build combined stream (canvas video + audio) ──
+    // ΓöÇΓöÇ Build combined stream (canvas video + audio) ΓöÇΓöÇ
     const canvasStream = canvas.captureStream(30)
     const tracks = [...canvasStream.getVideoTracks()]
     if (audioTrack) tracks.push(audioTrack)
@@ -1457,14 +1228,14 @@ export default function Record() {
       setTimeout(finish, 5000) // safety fallback
     }
 
-    // ── Seek to start then play ──
+    // ΓöÇΓöÇ Seek to start then play ΓöÇΓöÇ
     tempVideo.currentTime = start
     await new Promise(r => tempVideo.addEventListener('seeked', r, { once: true }))
 
     rec.start(200) // 200ms timeslices so audio chunks are small and in-sync
     tempVideo.play().catch(() => {})
 
-    // ── Draw loop: stop when we reach the trim end ──
+    // ΓöÇΓöÇ Draw loop: stop when we reach the trim end ΓöÇΓöÇ
     const drawLoop = () => {
       if (tempVideo.currentTime >= end || tempVideo.ended) {
         // Stop slightly early to avoid off-by-one
@@ -1497,7 +1268,7 @@ export default function Record() {
     requestAnimationFrame(drawLoop)
   })
 
-  /* ── isolated export router ── */
+  /* ΓöÇΓöÇ isolated export router ΓöÇΓöÇ */
   const executeTrim = async () => {
     try {
       return await executeTrimWebCodecs()
@@ -1513,11 +1284,11 @@ export default function Record() {
   const isLive      = phase === 'RECORDING' || phase === 'COUNTDOWN'
   const activeFilter = FILTERS[filterIdx].css
 
-  /* ─────────────── UI ─────────────── */
+  /* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ UI ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
 
-      {/* Hidden off-screen video — always mounted, never unmounted, used as stable canvas draw source */}
+      {/* Hidden off-screen video ΓÇö always mounted, never unmounted, used as stable canvas draw source */}
       <video
         ref={hiddenVideoRef}
         muted
@@ -1532,147 +1303,33 @@ export default function Record() {
         style={{ display: 'none' }}
       />
 
-      {/* ─── SETUP PHASE ─── */}
+      {/* ΓöÇΓöÇΓöÇ SETUP PHASE ΓöÇΓöÇΓöÇ */}
       {(phase === 'IDLE' || phase === 'PREPARING_CAMERA' || phase === 'ERROR') && (
-        isMobile ? (
-          /* ══ Mobile: Instagram-style camera-first screen ══ */
-          <div style={S.mCam}>
-            {cameraErr ? (
-              <div style={S.mCamErr}>
-                <div style={{ fontSize: '2.4rem', marginBottom: 10 }}>📷</div>
-                <p style={{ margin: 0, fontSize: '0.9rem', textAlign: 'center', color: '#fff' }}>{cameraErr}</p>
-                <button style={{ ...S.ghostBtn, marginTop: 14, color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }} onClick={() => startCamera()}>Retry</button>
-              </div>
-            ) : (
-              <>
-                {/* Hidden video — stream source; canvas below draws from it */}
-                <video
-                  ref={videoRef}
-                  muted
-                  playsInline
-                  style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
-                />
-                {/* Canvas preview — correctly shows portrait view from any stream orientation */}
-                <canvas
-                  ref={previewCanvasRef}
-                  width={typeof window !== 'undefined' ? window.innerWidth : 390}
-                  height={typeof window !== 'undefined' ? window.innerHeight : 844}
-                  style={S.mCamCanvas}
-                />
-              </>
-            )}
-
-            {showGrid && (
-              <div style={S.gridOverlay}>
-                <div style={S.gridLine('33.33%', 'h')} />
-                <div style={S.gridLine('66.66%', 'h')} />
-                <div style={S.gridLine('33.33%', 'v')} />
-                <div style={S.gridLine('66.66%', 'v')} />
-              </div>
-            )}
-
-            {/* Top bar: close button and title */}
-            <div style={S.mCamTop}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  background: 'rgba(0,0,0,0.50)', color: '#fff', border: 'none',
-                  borderRadius: '50%', width: 32, height: 32, fontSize: '0.85rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)'
-                }}
-                title="Close and return to Dashboard"
-              >
-                ✕
-              </button>
-              <div style={S.mCamTitle}>Recorder</div>
-              <div style={{ width: 32 }} /> {/* spacer for balance */}
-            </div>
-
-            {/* Right rail: flip · grid · size · speed */}
-            {renderRail([
-              { icon: <FlipIcon />, cap: 'Flip', onClick: flipCamera },
-              { icon: '▦', cap: 'Grid', onClick: () => setShowGrid(g => !g), active: showGrid },
-              { icon: <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>{FONT_SIZES[fontIdx].label}</span>, cap: 'Size', onClick: () => setFontIdx(i => (i + 1) % FONT_SIZES.length) },
-              { stepper: true, cap: 'Speed', value: `${SPEEDS[speedIdx].label}×`, up: () => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1)), down: () => setSpeedIdx(i => Math.max(0, i - 1)) },
-            ])}
-
-            {/* Bottom deck: script chip · filter carousel · record ring */}
-            <div style={S.mCamDeck}>
-              <button style={S.mScriptChip} onClick={() => setEditing(true)}>
-                <span style={{ fontSize: '0.95rem' }}>📄</span>
-                <span style={S.mScriptChipText}>
-                  {script.trim()
-                    ? script.replace(/\n+/g, ' ').slice(0, 42) + (script.length > 42 ? '…' : '')
-                    : 'Tap to add your script'}
-                </span>
-                <span style={{ opacity: 0.65, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em' }}>EDIT</span>
-              </button>
-
-              <FilterCarousel index={filterIdx} onChange={setFilterIdx} />
-
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button
-                  style={{ ...S.mRecordBtn, ...((!script.trim() || cameraErr) ? { opacity: 0.4 } : {}) }}
-                  disabled={!script.trim() || !!cameraErr}
-                  onClick={beginRecording}
-                  aria-label="Start recording"
-                >
-                  <span style={S.mRecordInner} />
-                </button>
-              </div>
-            </div>
-
-            {/* Script editor bottom-sheet */}
-            {editing && (
-              <div style={S.mSheet}>
-                <div style={S.mSheetHead}>
-                  <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text)' }}>Your Script</span>
-                  <button style={S.mSheetDone} onClick={() => setEditing(false)}>Done</button>
-                </div>
-                <textarea
-                  style={S.mSheetArea}
-                  value={script}
-                  onChange={e => setScript(e.target.value)}
-                  placeholder="Paste or type your script here…"
-                  autoFocus
-                />
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  {script && <button style={S.ghostBtn} onClick={() => setScript('')}>Clear</button>}
-                </div>
-                {selectedSong && (
-                  <label style={S.mSheetMusic}>
-                    <input type="checkbox" checked={mixMusic} onChange={e => setMixMusic(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
-                    🎵 Mix “{selectedSong.title}” into the video
-                  </label>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-        /* ══ Desktop: two-column setup ══ */
         <div style={{
           ...S.setupWrap,
-          flexDirection: 'row',
-          padding: '24px 20px',
+          // On mobile: single column, camera first (column-reverse puts the 2nd DOM child on top)
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          padding: isMobile ? '16px' : '24px 20px',
+          // Extra bottom padding on mobile to clear the bottom nav bar
+          paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom, 0px))' : '24px',
         }}>
-          {/* Page header — order: 2 on mobile to place it below the camera */}
-          <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 2 : 0 }}>
+          {/* Page header */}
+          <div style={{ width: '100%', marginBottom: 8, order: isMobile ? 99 : 0 }}>
             <h1 className="page-title" style={{ marginBottom: 4 }}>Teleprompter &amp; Recorder</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-              Script scrolls while you record — no second device needed.
+              Script scrolls while you record ΓÇö no second device needed.
             </p>
           </div>
 
-          {/* Left: Script editor — order:3 on mobile so it appears BELOW the camera and header */}
-          <div style={{ ...S.setupLeft, ...(isMobile ? { order: 3, minWidth: '100%' } : {}) }}>
+          {/* Left: Script editor ΓÇö order:2 on mobile so it appears BELOW the camera */}
+          <div style={{ ...S.setupLeft, ...(isMobile ? { order: 2, minWidth: '100%' } : {}) }}>
             <div style={S.sectionLabel}>Script</div>
             {editing ? (
               <textarea
                 style={S.scriptEditor}
                 value={script}
                 onChange={e => setScript(e.target.value)}
-                placeholder="Paste or type your script here…"
+                placeholder="Paste or type your script hereΓÇª"
                 autoFocus
               />
             ) : (
@@ -1680,12 +1337,12 @@ export default function Record() {
                 style={{ ...S.scriptPreview, ...(script ? {} : S.scriptEmpty) }}
                 onClick={() => setEditing(true)}
               >
-                {script || 'Tap to paste or type your script…'}
+                {script || 'Tap to paste or type your scriptΓÇª'}
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={S.ghostBtn} onClick={() => setEditing(e => !e)}>
-                {editing ? 'Done' : '✏️ Edit Script'}
+                {editing ? 'Done' : 'Γ£Å∩╕Å Edit Script'}
               </button>
               {script && (
                 <button style={S.ghostBtn} onClick={() => { setScript(''); setEditing(true) }}>
@@ -1707,7 +1364,7 @@ export default function Record() {
                 boxSizing: 'border-box'
               }}>
                 <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 8 }}>
-                  🎥 Production Directions
+                  ≡ƒÄÑ Production Directions
                 </div>
                 {visualDirection.background && (
                   <div style={{ fontSize: '0.78rem', color: 'var(--text)', marginBottom: 6 }}>
@@ -1735,7 +1392,7 @@ export default function Record() {
                 boxSizing: 'border-box'
               }}>
                 <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.08em', marginBottom: 10 }}>
-                  🎵 Background Music Pick
+                  ≡ƒÄ╡ Background Music Pick
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <div style={{
@@ -1743,7 +1400,7 @@ export default function Record() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
                     boxShadow: '0 2px 8px rgba(225,48,108,0.2)', color: '#fff'
                   }}>
-                    💿
+                    ≡ƒÆ┐
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1768,7 +1425,7 @@ export default function Record() {
                         color: isPlayingPreview ? '#E1306C' : 'var(--text)'
                       }}
                     >
-                      {isPlayingPreview ? '⏸' : '▶'}
+                      {isPlayingPreview ? 'ΓÅ╕' : 'Γû╢'}
                     </button>
                   )}
                 </div>
@@ -1784,7 +1441,7 @@ export default function Record() {
                   </label>
                   {mixMusic && (
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', fontStyle: 'italic', paddingLeft: 22 }}>
-                      🎧 Headphones recommended for best results.
+                      ≡ƒÄº Headphones recommended for best results.
                     </span>
                   )}
                 </div>
@@ -1792,14 +1449,14 @@ export default function Record() {
             )}
           </div>
 
-          {/* Right: Camera preview + settings — order:1 on mobile so it appears ABOVE the script */}
+          {/* Right: Camera preview + settings ΓÇö order:1 on mobile so it appears ABOVE the script */}
           <div style={{ ...S.setupRight, ...(isMobile ? { order: 1, minWidth: '100%' } : {}) }}>
 
             {/* Camera preview */}
             <div style={S.cameraBox}>
               {cameraErr ? (
                 <div style={S.cameraErr}>
-                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>📷</div>
+                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>≡ƒô╖</div>
                   <p style={{ margin: 0, fontSize: '0.85rem', textAlign: 'center' }}>{cameraErr}</p>
                   <button style={{ ...S.ghostBtn, marginTop: 12 }} onClick={() => startCamera()}>Retry</button>
                 </div>
@@ -1820,25 +1477,43 @@ export default function Record() {
                   <div style={S.gridLine('66.66%', 'v')} />
                 </div>
               )}
-              {/* Overlay camera controls inside preview box */}
-              {!cameraErr && (
-                <>
-                  <button style={S.filterBtn} onClick={nextFilter} title="Change filter">
-                    <span>{FILTERS[filterIdx].emoji}</span>
-                    <span>{FILTERS[filterIdx].name}</span>
-                  </button>
-                  <button style={S.flipBtn} onClick={flipCamera} title="Flip camera">⟳</button>
-                </>
-              )}
+              <button style={S.flipBtn} onClick={flipCamera} title="Flip camera">Γƒ│</button>
             </div>
 
             {/* Settings */}
             <div style={S.settingsGrid}>
               <div style={S.settingGroup}>
+                <div style={S.settingLabel}>Scroll speed</div>
+                <div style={S.chips}>
+                  {SPEEDS.map((s, i) => (
+                    <button key={i} style={{ ...S.chip, ...(speedIdx === i ? S.chipOn : {}) }} onClick={() => setSpeedIdx(i)}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={S.settingGroup}>
+                <div style={S.settingLabel}>Font size</div>
+                <div style={S.chips}>
+                  {FONT_SIZES.map((f, i) => (
+                    <button key={i} style={{ ...S.chip, ...(fontIdx === i ? S.chipOn : {}) }} onClick={() => setFontIdx(i)}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={S.settingGroup}>
+                <div style={S.settingLabel}>Camera</div>
+                <div style={S.chips}>
+                  <button style={{ ...S.chip, ...(facingMode === 'user' ? S.chipOn : {}) }} onClick={() => { setFacingMode('user'); setMirror(true); startCamera('user') }}>Front</button>
+                  <button style={{ ...S.chip, ...(facingMode === 'environment' ? S.chipOn : {}) }} onClick={() => { setFacingMode('environment'); setMirror(false); startCamera('environment') }}>Back</button>
+                </div>
+              </div>
+              <div style={S.settingGroup}>
                 <div style={S.settingLabel}>Grid</div>
                 <div style={S.chips}>
                   <button style={{ ...S.chip, ...(showGrid ? S.chipOn : {}) }} onClick={() => setShowGrid(g => !g)}>
-                    {showGrid ? '▦ On' : '▦ Off'}
+                    {showGrid ? 'Γûª On' : 'Γûª Off'}
                   </button>
                 </div>
               </div>
@@ -1858,52 +1533,60 @@ export default function Record() {
               )}
             </div>
 
+            {/* ΓöÇΓöÇ Filter Picker with arrows ΓöÇΓöÇ */}
+            <div>
+              <div style={S.sectionLabel}>≡ƒÄ¿ Cinematic Filters</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={prevFilter} style={S.filterArrow}>ΓÇ╣</button>
+                <div style={S.filterCard}>
+                  <div style={{ ...S.filterSwatch, width: '100%', height: 44, marginBottom: 6, background: FILTERS[filterIdx].swatch }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '1.1rem' }}>{FILTERS[filterIdx].emoji}</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text)' }}>{FILTERS[filterIdx].name}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>{FILTERS[filterIdx].desc}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 8, justifyContent: 'center' }}>
+                    {FILTERS.map((_, i) => (
+                      <div key={i} onClick={() => setFilterIdx(i)} style={{
+                        width: i === filterIdx ? 18 : 6, height: 6, borderRadius: 99,
+                        background: i === filterIdx ? 'var(--accent)' : 'var(--border)',
+                        cursor: 'pointer', transition: 'all 0.2s',
+                      }} />
+                    ))}
+                  </div>
+                </div>
+                <button onClick={nextFilter} style={S.filterArrow}>ΓÇ║</button>
+              </div>
+            </div>
+
             <button
               style={{ ...S.recordBtn, ...((!script.trim() || cameraErr) ? S.recordBtnOff : {}) }}
               disabled={!script.trim() || !!cameraErr}
               onClick={beginRecording}
             >
-              ● Start Recording
+              ΓùÅ Start Recording
             </button>
           </div>
         </div>
-        )
       )}
 
-      {/* ─── COUNTDOWN PHASE ─── */}
+      {/* ΓöÇΓöÇΓöÇ COUNTDOWN PHASE ΓöÇΓöÇΓöÇ */}
       {phase === 'COUNTDOWN' && (
         <div style={S.fullscreen}>
-          {isMobile ? (
-            <canvas
-              ref={previewCanvasRef}
-              width={typeof window !== 'undefined' ? window.innerWidth : 390}
-              height={typeof window !== 'undefined' ? window.innerHeight : 844}
-              style={S.fullVideo}
-            />
-          ) : (
-            <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
-          )}
+          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
           <div style={S.countdownOverlay}>
             <div style={S.countdownNum}>{countdown}</div>
           </div>
         </div>
       )}
 
-      {/* ─── RECORDING PHASE ─── */}
+      {/* ΓöÇΓöÇΓöÇ RECORDING PHASE ΓöÇΓöÇΓöÇ */}
       {phase === 'RECORDING' && (
-        <div style={S.fullscreen} className="recording-active">
-          {/* Camera in background — mobile uses the shared canvas preview so the
-              on-screen view matches the recorded output exactly */}
-          {isMobile ? (
-            <canvas
-              ref={previewCanvasRef}
-              width={typeof window !== 'undefined' ? window.innerWidth : 390}
-              height={typeof window !== 'undefined' ? window.innerHeight : 844}
-              style={S.fullVideo}
-            />
-          ) : (
-            <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
-          )}
+        <div style={S.fullscreen} onClick={toggleScrollPause}>
+          {/* Camera in background */}
+          <video ref={videoRef} muted playsInline style={{ ...S.fullVideo, transform: mirror ? 'scaleX(-1)' : 'none', filter: activeFilter }} />
 
           {/* Dark gradient top + bottom so text is readable */}
           <div style={S.gradTop} />
@@ -1923,7 +1606,7 @@ export default function Record() {
                 if (trimmed.startsWith('[B-Roll:') || trimmed.startsWith('[B-roll:')) {
                   return (
                     <div key={idx} style={S.scriptBrollLine}>
-                      🎬 {trimmed.replace(/^\[B-roll:\s*/i, '').replace(/\]$/, '')}
+                      ≡ƒÄ¼ {trimmed.replace(/^\[B-roll:\s*/i, '').replace(/\]$/, '')}
                     </div>
                   )
                 }
@@ -1938,34 +1621,45 @@ export default function Record() {
             <div style={{ height: '55vh' }} />
           </div>
 
-          {/* ── Top: REC + timer ── */}
-          <div style={S.recTopBar}>
-            <div style={S.recPill}>
-              <span style={S.recPillDot} /> {fmt(elapsed)}
-            </div>
-          </div>
+          {/* HUD */}
+          <div style={S.hud}>
+            {/* Timer */}
+            <div style={S.timer}>{fmt(elapsed)}</div>
 
-          {/* ── Right rail: flip · pause script · size · speed ── */}
-          {renderRail([
-            { icon: <FlipIcon />, cap: 'Flip', onClick: flipCamera },
-            { icon: scrollPaused ? '▶' : '⏸', cap: 'Script', onClick: toggleScrollPause, active: scrollPaused },
-            { icon: <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>{FONT_SIZES[fontIdx].label}</span>, cap: 'Size', onClick: () => setFontIdx(i => (i + 1) % FONT_SIZES.length) },
-            { stepper: true, cap: 'Speed', value: `${SPEEDS[speedIdx].label}×`, up: () => setSpeedIdx(i => Math.min(SPEEDS.length - 1, i + 1)), down: () => setSpeedIdx(i => Math.max(0, i - 1)) },
-          ])}
-
-          {/* ── Bottom: filter carousel + stop ring ── */}
-          <div style={S.recDeck}>
-            <FilterCarousel index={filterIdx} onChange={setFilterIdx} />
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <button style={S.stopCircle} onClick={stopRecording} aria-label="Stop recording">
-                <span style={S.stopSquare} />
+            {/* Pause / speed controls */}
+            <div style={S.hudControls} onClick={e => e.stopPropagation()}>
+              <button style={S.hudBtn} onClick={toggleScrollPause}>
+                <span id="scroll-btn-text">
+                  {scrollingRef.current ? 'ΓÅ╕ Pause scroll' : 'Γû╢ Resume scroll'}
+                </span>
               </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {SPEEDS.map((s, i) => (
+                  <button key={i} style={{ ...S.hudChip, ...(speedIdx === i ? S.hudChipOn : {}) }} onClick={() => setSpeedIdx(i)}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Stop */}
+            <button style={S.stopBtn} onClick={e => { e.stopPropagation(); stopRecording() }}>
+              Γûá Stop
+            </button>
           </div>
+
+          {/* Tap anywhere hint */}
+          {/* Tap anywhere hint */}
+          <div id="scroll-hint" style={{ ...S.tapHint, opacity: scrollingRef.current ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+            Tap anywhere to pause scroll
+          </div>
+
+          {/* REC indicator */}
+          <div style={S.recDot} />
         </div>
       )}
 
-      {/* ─── PROCESSING PHASE ─── fullscreen spinner while video encodes ─── */}
+      {/* ΓöÇΓöÇΓöÇ PROCESSING PHASE ΓöÇΓöÇΓöÇ fullscreen spinner while video encodes ΓöÇΓöÇΓöÇ */}
       {phase === 'PROCESSING' && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 200,
@@ -1978,29 +1672,27 @@ export default function Record() {
             borderTopColor: '#E1306C', borderRadius: '50%',
             animation: 'spin 0.9s linear infinite'
           }} />
-          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>Processing your video…</div>
+          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>Processing your videoΓÇª</div>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Hang tight, this only takes a few seconds</div>
         </div>
       )}
 
-      {/* ─── DONE PHASE ─── shown only after processing completes ─── */}
+      {/* ΓöÇΓöÇΓöÇ DONE PHASE ΓöÇΓöÇΓöÇ shown only after processing completes ΓöÇΓöÇΓöÇ */}
       {(phase === 'READY_TO_EDIT' || phase === 'EXPORTING') && (
         <div style={S.doneWrap}>
           {outputBlob ? (
             <div style={S.doneCard}>
-            <div style={{ fontSize: '2.5rem' }}>🎬</div>
+            <div style={{ fontSize: '2.5rem' }}>≡ƒÄ¼</div>
             <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.3rem', color: 'var(--text)' }}>Recording saved!</h2>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.87rem' }}>
-              {fmt(elapsed)} recorded · Ready to download
+              {fmt(elapsed)} recorded ┬╖ Ready to download
             </p>
 
-            {/* ── Preview video ── */}
+            {/* ΓöÇΓöÇ Preview video ΓöÇΓöÇ */}
             <div style={{
-              width: isMobile ? 160 : 220, position: 'relative',
-              borderRadius: 16, overflow: 'hidden', background: '#000',
-              aspectRatio: '9 / 16',
-              boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)',
-              margin: '0 auto'
+              width: '100%', maxWidth: 440, position: 'relative',
+              borderRadius: 12, overflow: 'hidden', background: '#000',
+              aspectRatio: `${streamDimsRef.current.w} / ${streamDimsRef.current.h}`,
             }}>
               <video
                 ref={doneVideoRef}
@@ -2045,7 +1737,7 @@ export default function Record() {
                     borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#fff', fontSize: '2rem', paddingLeft: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                   }}>
-                    ▶
+                    Γû╢
                   </div>
                 </div>
               )}
@@ -2077,13 +1769,13 @@ export default function Record() {
               </div>
             </div>
 
-            {/* ── Filmstrip Trim ── */}
+            {/* ΓöÇΓöÇ Filmstrip Trim ΓöÇΓöÇ */}
             <div style={{
               width: '100%', background: 'var(--surface2)',
               border: '1px solid var(--border)', borderRadius: 14,
               padding: '14px 16px', position: 'relative',
             }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 12 }}>✂️ Trim Video</div>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 12 }}>Γ£é∩╕Å Trim Video</div>
 
               <TrimBar
                 blob={outputBlob}
@@ -2116,7 +1808,7 @@ export default function Record() {
                   <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
                   Preparing Download...
                 </span>
-              ) : '⬇ Download (.MP4)'}
+              ) : 'Γ¼ç Download (.MP4)'}
             </button>
 
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
@@ -2128,7 +1820,7 @@ export default function Record() {
                   scrollPosRef.current = 0
                 }}
               >
-                ↺ Record Again
+                Γå║ Record Again
               </button>
               <button
                 style={{ ...S.ghostBtn, flex: 1 }}
@@ -2144,9 +1836,9 @@ export default function Record() {
             </div>
           </div>
           ) : (
-          /* Blob is null — encoding genuinely failed after processing completed */
+          /* Blob is null ΓÇö encoding genuinely failed after processing completed */
             <div style={S.doneCard}>
-              <div style={{ fontSize: '2.5rem' }}>⚠️</div>
+              <div style={{ fontSize: '2.5rem' }}>ΓÜá∩╕Å</div>
               <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>Something went wrong</h2>
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
                 The video could not be saved. Please try recording again.
@@ -2155,7 +1847,7 @@ export default function Record() {
                 style={{ ...S.recordBtn, marginTop: 8 }}
                 onClick={() => { dispatch({ type: 'RESET' }); scrollPosRef.current = 0 }}
               >
-                ↺ Try Again
+                Γå║ Try Again
               </button>
             </div>
           )}
@@ -2166,7 +1858,7 @@ export default function Record() {
   )
 }
 
-/* ─────────────── styles ─────────────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ styles ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const S = {
 
   setupWrap: {
@@ -2211,15 +1903,6 @@ const S = {
     background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
     borderRadius: '50%', width: 34, height: 34, fontSize: '1.1rem',
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 4,
-  },
-  filterBtn: {
-    position: 'absolute', top: 10, left: 10,
-    background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none',
-    borderRadius: '16px', padding: '6px 12px', fontSize: '0.78rem',
-    fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.2)', transition: 'all 0.15s',
-    zIndex: 4,
   },
 
   settingsGrid: { display: 'flex', flexDirection: 'column', gap: 10 },
@@ -2279,7 +1962,7 @@ const S = {
 
   // fullscreen recording
   fullscreen: {
-    position: 'fixed', inset: 0, background: '#000', zIndex: 2000,
+    position: 'fixed', inset: 0, background: '#000', zIndex: 100,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   fullVideo: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
@@ -2326,24 +2009,16 @@ const S = {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
     paddingTop: 14, paddingLeft: 20, paddingRight: 20,
     // Respect iOS/Android system navigation bar via safe-area-inset-bottom
-    paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
-    display: 'flex', flexDirection: 'column', gap: 14,
-    pointerEvents: 'none',
-  },
-  hudTopRow: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-    pointerEvents: 'all',
+    paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
+    display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12,
   },
   timer: { color: '#fff', fontWeight: 800, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em', textShadow: '0 1px 6px rgba(0,0,0,0.8)' },
   hudControls: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  hudBtn: { background: 'rgba(74, 92, 138, 0.25)', border: '1.5px solid #4A5C8A', borderRadius: '50%', color: '#fff', width: 44, height: 44, fontSize: '1.1rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' },
-  hudSpeedArrow: { background: 'rgba(74, 92, 138, 0.25)', border: '1.5px solid #4A5C8A', borderRadius: '50%', color: '#fff', width: 34, height: 34, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', flexShrink: 0 },
+  hudBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, color: '#fff', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
   hudChip: { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, color: 'rgba(255,255,255,0.75)', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' },
   hudChipOn: { background: 'rgba(255,255,255,0.3)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
-  // Stop button: giant pill, centered, impossible to miss on phone
-  stopBtn: { background: '#E1306C', border: 'none', borderRadius: 100, color: '#fff', padding: '17px 52px', fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 28px rgba(225,48,108,0.6)', display: 'flex', alignItems: 'center', gap: 10, letterSpacing: '0.02em', pointerEvents: 'all' },
-  stopDot: { width: 14, height: 14, borderRadius: 3, background: '#fff', display: 'inline-block', flexShrink: 0 },
-  speedArrow: { width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' },
+  // Stop button: min 44px height to meet touch target spec
+  stopBtn: { background: 'rgba(225,48,108,0.85)', border: 'none', borderRadius: 10, color: '#fff', padding: '12px 24px', minHeight: 44, minWidth: 44, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
 
   tapHint: { position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', zIndex: 5, pointerEvents: 'none' },
   recDot: { position: 'absolute', top: 18, right: 20, width: 10, height: 10, borderRadius: '50%', background: '#ff3b30', zIndex: 5, boxShadow: '0 0 8px rgba(255,59,48,0.8)', animation: 'pulse 1.2s ease-in-out infinite' },
@@ -2353,135 +2028,4 @@ const S = {
 
   doneWrap: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' },
   doneCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '28px 20px', maxWidth: 520, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' },
-
-  /* ── right-edge control rail (shared by setup + recording) ── */
-  rail: {
-    position: 'absolute', right: 10, zIndex: 7,
-    top: 'calc(64px + env(safe-area-inset-top, 0px))',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-  },
-  railItem: {
-    background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-  },
-  railCircle: {
-    width: 44, height: 44, borderRadius: '50%',
-    background: 'rgba(20,20,20,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.22)', color: '#fff',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem',
-    transition: 'background 0.15s, border-color 0.15s',
-  },
-  railCircleOn: { background: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.6)' },
-  railCap: {
-    color: '#fff', fontSize: '0.58rem', fontWeight: 600, letterSpacing: '0.03em',
-    textShadow: '0 1px 4px rgba(0,0,0,0.85)', opacity: 0.92,
-  },
-  railStack: {
-    width: 44, borderRadius: 24, overflow: 'hidden',
-    background: 'rgba(20,20,20,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.22)',
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-  },
-  railStackBtn: {
-    background: 'transparent', border: 'none', color: '#fff',
-    width: 44, height: 30, fontSize: '0.95rem', cursor: 'pointer', lineHeight: 1,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  railStackVal: { color: '#fff', fontWeight: 800, fontSize: '0.8rem', padding: '1px 0' },
-
-  /* ── Mobile immersive camera-first setup ── */
-  mCam: {
-    position: 'fixed', inset: 0, zIndex: 100,
-    width: '100%', height: '100%',
-    background: '#000', overflow: 'hidden',
-  },
-  mCamVideo: {
-    position: 'absolute',
-    inset: 0,
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-  },
-  mCamCanvas: {
-    position: 'absolute',
-    inset: 0,
-    width: '100%',
-    height: '100%',
-    display: 'block',
-  },
-  mCamErr: {
-    position: 'absolute', inset: 0, zIndex: 4, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.7)',
-  },
-  mCamTop: {
-    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: 'calc(10px + env(safe-area-inset-top, 0px)) 14px 12px',
-    background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)',
-  },
-  mCamTitle: { color: '#fff', fontWeight: 800, fontSize: '1rem', textShadow: '0 1px 6px rgba(0,0,0,0.6)' },
-  mCamDeck: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
-    display: 'flex', flexDirection: 'column', gap: 12,
-    padding: '20px 0 calc(16px + env(safe-area-inset-bottom, 0px))',
-    background: 'linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.25) 62%, transparent)',
-  },
-  mScriptChip: {
-    display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'center', maxWidth: '92%',
-    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-    border: '1px solid rgba(255,255,255,0.22)', borderRadius: 999,
-    padding: '8px 14px', color: '#fff', fontSize: '0.8rem', cursor: 'pointer',
-  },
-  mScriptChipText: { maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 },
-  mRecordBtn: {
-    width: 74, height: 74, borderRadius: '50%', flexShrink: 0,
-    background: 'transparent', border: '5px solid rgba(255,255,255,0.92)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-    boxShadow: '0 4px 18px rgba(0,0,0,0.45)', padding: 0,
-  },
-  mRecordInner: { width: 54, height: 54, borderRadius: '50%', background: '#E1306C', display: 'block' },
-
-  /* script editor bottom-sheet */
-  mSheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20,
-    background: 'var(--surface)', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    padding: '16px 16px calc(20px + env(safe-area-inset-bottom, 0px))',
-    boxShadow: '0 -12px 40px rgba(0,0,0,0.5)', maxHeight: '82%',
-    display: 'flex', flexDirection: 'column',
-  },
-  mSheetHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  mSheetDone: { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' },
-  mSheetArea: {
-    width: '100%', boxSizing: 'border-box', minHeight: 200, maxHeight: '44vh',
-    padding: '12px 14px', borderRadius: 12, border: '1px solid var(--accent)',
-    background: 'var(--surface2)', color: 'var(--text)', fontSize: '0.95rem', lineHeight: 1.7,
-    resize: 'none', fontFamily: 'inherit', outline: 'none',
-  },
-  mSheetMusic: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 },
-
-  /* ── Recording overlay (Instagram-like) ── */
-  recTopBar: {
-    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 6,
-    display: 'flex', justifyContent: 'center',
-    padding: 'calc(14px + env(safe-area-inset-top, 0px)) 16px 0',
-  },
-  recPill: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-    color: '#fff', fontWeight: 700, fontSize: '0.92rem', fontVariantNumeric: 'tabular-nums',
-    padding: '6px 15px', borderRadius: 999, letterSpacing: '0.04em',
-  },
-  recPillDot: { width: 9, height: 9, borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 8px rgba(255,59,48,0.9)', animation: 'pulse 1.2s ease-in-out infinite' },
-  recDeck: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
-    display: 'flex', flexDirection: 'column', gap: 12,
-    padding: '18px 0 calc(20px + env(safe-area-inset-bottom, 0px))',
-    background: 'linear-gradient(to top, rgba(0,0,0,0.74), transparent)',
-  },
-  stopCircle: {
-    width: 80, height: 80, borderRadius: '50%', background: 'transparent',
-    border: '5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', padding: 0,
-  },
-  stopSquare: { width: 30, height: 30, borderRadius: 7, background: '#ff3b30', display: 'block' },
 }
