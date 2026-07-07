@@ -25,6 +25,17 @@ const saveOAuthOrigin = (req, res, next) => {
   next();
 };
 
+// Middleware: the native app opens OAuth in the system browser with
+// ?platform=android|ios. Overriding the origin cookie makes finishOAuth
+// redirect to the app's deep link (in.nuove.app://auth) instead of a website,
+// which reopens the app with the token. Runs AFTER saveOAuthOrigin so it wins.
+const saveMobileOrigin = (req, res, next) => {
+  if (req.query.platform === 'android' || req.query.platform === 'ios') {
+    res.cookie('oauth_origin', encodeURIComponent('in.nuove.app://auth'), { maxAge: 10 * 60 * 1000, httpOnly: true });
+  }
+  next();
+};
+
 // ─── Helper: make JWT and redirect to frontend ────────────────────
 const finishOAuth = (req, res) => {
   const user = req.user;
@@ -47,6 +58,7 @@ const finishOAuth = (req, res) => {
 // ─── Google ───────────────────────────────────────────────────────
 router.get('/google',
   saveOAuthOrigin,
+  saveMobileOrigin,
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })
 );
 router.get('/google/callback',
