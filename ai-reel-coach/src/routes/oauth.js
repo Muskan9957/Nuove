@@ -31,7 +31,10 @@ const saveOAuthOrigin = (req, res, next) => {
 // which reopens the app with the token. Runs AFTER saveOAuthOrigin so it wins.
 const saveMobileOrigin = (req, res, next) => {
   if (req.query.platform === 'android' || req.query.platform === 'ios') {
-    res.cookie('oauth_origin', encodeURIComponent('in.nuove.app://auth'), { maxAge: 10 * 60 * 1000, httpOnly: true });
+    // Raw value: res.cookie URL-encodes once, and getCookie+decodeURIComponent in
+    // finishOAuth undoes exactly that (same contract as saveOAuthOrigin). Manually
+    // pre-encoding here double-encodes and mangles the redirect.
+    res.cookie('oauth_origin', 'in.nuove.app://auth', { maxAge: 10 * 60 * 1000, httpOnly: true });
   }
   next();
 };
