@@ -1,0 +1,46 @@
+<svg width="1024" height="1024" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="sp" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-48)">
+      <rect x="0" y="0" width="7" height="14" fill="rgba(0,0,0,0.18)"/>
+      <rect x="7" y="0" width="7" height="14" fill="rgba(255,255,255,0.10)"/>
+    </pattern>
+    <clipPath id="cl"><rect x="5" y="32" width="90" height="14" rx="4"/></clipPath>
+    <clipPath id="cu"><path d="M 5 32 L 95 19 L 95 9 L 5 22 Z"/></clipPath>
+    <linearGradient id="gb" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#FFDC80"/>
+      <stop offset="15%"  stop-color="#FCAF45"/>
+      <stop offset="35%"  stop-color="#F77737"/>
+      <stop offset="55%"  stop-color="#F56040"/>
+      <stop offset="70%"  stop-color="#E1306C"/>
+      <stop offset="85%"  stop-color="#C13584"/>
+      <stop offset="100%" stop-color="#833AB4"/>
+    </linearGradient>
+    <linearGradient id="gc" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#00C8FF"/>
+      <stop offset="55%"  stop-color="#5B8DEF"/>
+      <stop offset="100%" stop-color="#833AB4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 20u padding around the 100u artwork inside a 140u canvas -->
+  <g transform="translate(20,20)">
+    <rect x="5" y="44" width="90" height="52" rx="12"
+      fill="url(#gb)" stroke="rgba(255,255,255,0.45)" stroke-width="1.5"/>
+    <rect x="5" y="44" width="90" height="22" rx="12" fill="rgba(255,255,255,0.14)"/>
+
+    <rect x="5" y="32" width="90" height="14" rx="4"
+      fill="url(#gc)" stroke="rgba(255,255,255,0.45)" stroke-width="1.5"/>
+    <rect x="5" y="32" width="90" height="14" fill="url(#sp)" clip-path="url(#cl)"/>
+    <rect x="5" y="32" width="90" height="5"  rx="4" fill="rgba(255,255,255,0.25)"/>
+
+    <path d="M 5 32 L 95 19 L 95 9 L 5 22 Z"
+      fill="url(#gc)" stroke="rgba(255,255,255,0.45)" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M 5 32 L 95 19 L 95 9 L 5 22 Z" fill="url(#sp)" clip-path="url(#cu)"/>
+    <path d="M 5 22 L 95 9 L 95 12.5 L 5 25.5 Z" fill="rgba(255,255,255,0.28)"/>
+
+    <circle cx="10" cy="27" r="4"   fill="rgba(0,0,0,0.25)"/>
+    <circle cx="10" cy="27" r="2.5" fill="rgba(255,255,255,0.90)"/>
+
+    <path d="M 36 56 L 36 81 L 70 68.5 Z" fill="rgba(255,255,255,0.95)"/>
+  </g>
+</svg>
