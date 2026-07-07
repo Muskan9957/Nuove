@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth, clearStaleUserData } from '../store'
+import { openOAuth } from '../native'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
 import Logo from '../components/Logo'
@@ -109,7 +110,9 @@ export default function Auth() {
 
   const handleSocialClick = (platform) => {
     const base = import.meta.env.VITE_API_URL || ''
-    window.location.href = `${base}/api/auth/${platform}`
+    // In the native app this opens the system browser (Google blocks OAuth in
+    // webviews) and the backend deep-links back into the app with the token.
+    openOAuth(`${base}/api/auth/${platform}`)
   }
 
   return (

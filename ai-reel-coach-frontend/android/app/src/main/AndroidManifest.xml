@@ -22,6 +22,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- OAuth deep link: backend redirects to in.nuove.app://auth/?token=…
+                 after Google sign-in in the system browser, reopening the app -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="in.nuove.app" />
+            </intent-filter>
+
         </activity>
 
         <provider
