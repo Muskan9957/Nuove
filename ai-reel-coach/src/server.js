@@ -4,6 +4,7 @@ const app    = require('./app');
 const prisma = require('./config/prisma');
 const aiService = require('./services/aiService');
 const trendEngineV2 = require('./services/trendsV2/trendEngineV2');
+const { backfillConversations } = require('./services/backfillConversations');
 
 const PORT = process.env.PORT || 4000;
 
@@ -11,6 +12,10 @@ app.listen(PORT, () => {
   console.log(`\n🚀 AI Reel Coach API running on port ${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Docs        : http://localhost:${PORT}/api/health\n`);
+
+  // ── One-time: group legacy coach messages into conversations ───
+  // Idempotent — only touches ChatMessage rows with conversationId = null.
+  backfillConversations()
 
   // ── Warm trending cache in background ──────────────────────────
   // Runs after startup so it never delays boot. Generates today's topics
