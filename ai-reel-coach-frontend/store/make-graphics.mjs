@@ -44,12 +44,12 @@ const banner = `
       <stop offset="0%"  stop-color="rgba(0,200,255,0.20)"/>
       <stop offset="100%" stop-color="rgba(0,200,255,0)"/>
     </radialGradient>
-    <!-- Warm wordmark gradient matching the web header (orange -> rose -> magenta),
-         brightened so it stays vivid on the dark banner background. -->
-    <linearGradient id="word" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="#FFA23D"/>
-      <stop offset="52%"  stop-color="#FF2D6F"/>
-      <stop offset="100%" stop-color="#C13584"/>
+    <!-- Wordmark gradient matching the user's web wordmark (dark theme):
+         cyan -> pink -> orange, left to right. -->
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#00D4FF"/>
+      <stop offset="50%"  stop-color="#FF2D8B"/>
+      <stop offset="100%" stop-color="#FF8C1A"/>
     </linearGradient>
   </defs>
   <rect width="1024" height="500" fill="url(#bg)"/>
