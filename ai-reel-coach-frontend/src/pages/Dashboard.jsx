@@ -8,6 +8,7 @@ import { usePrefs } from '../hooks/usePrefs'
 import { getSavedRegion, saveRegion, REGIONS } from '../utils/detectRegion'
 import { useTheme } from '../context/ThemeContext'
 import TrendDetailModal from '../components/TrendDetailModal'
+import { isNativeApp } from '../utils/platform'
 
 /* ─── Creator palette ,  Saffron Noir ─────────────────────────────── */
 const C = {
@@ -1188,7 +1189,7 @@ export default function Dashboard() {
       )}
 
       {/* ─── Upgrade banner ───────────────────────────────────────── */}
-      {user?.plan === 'FREE' && (
+      {user?.plan === 'FREE' && !isNativeApp() && (
         <div style={{
           marginTop: 8,
           padding: '22px 26px',

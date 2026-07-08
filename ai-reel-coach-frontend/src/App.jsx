@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { isNativeApp } from './utils/platform'
 import { AuthProvider, useAuth } from './store'
 import { ToastProvider } from './components/Toast'
 import { LangProvider } from './i18n.jsx'
@@ -112,7 +113,9 @@ export default function App() {
               <Suspense fallback={<PageLoader />}><Routes>
                 <Route path="/"             element={<LandingRoute />} />
                 <Route path="/auth"         element={<AuthRoute />} />
-                <Route path="/pricing"          element={<Pricing />} />
+                {/* Free-first in the native app: no in-app purchase path (store policy).
+                    Web keeps Razorpay. */}
+                <Route path="/pricing"          element={isNativeApp() ? <Navigate to="/dashboard" replace /> : <Pricing />} />
                 <Route path="/verify-email"     element={<VerifyEmail />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password"  element={<ResetPassword />} />

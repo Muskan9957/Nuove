@@ -6,6 +6,7 @@ import { useAuth } from '../store'
 import { useTheme } from '../context/ThemeContext'
 import { useToast } from '../components/Toast'
 import { api } from '../api'
+import { isNativeApp } from '../utils/platform'
 
 const PRESET_AVATARS = [
   // Robots
@@ -502,17 +503,19 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {user?.plan === 'FREE' ? (
-                <button onClick={() => navigate('/pricing')} className="btn btn-primary btn-sm">
-                  Upgrade ↗
-                </button>
-              ) : (
-                <button onClick={() => navigate('/pricing')} className="btn btn-ghost btn-sm">
-                  Change plan
-                </button>
-              )}
-            </div>
+            {!isNativeApp() && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                {user?.plan === 'FREE' ? (
+                  <button onClick={() => navigate('/pricing')} className="btn btn-primary btn-sm">
+                    Upgrade ↗
+                  </button>
+                ) : (
+                  <button onClick={() => navigate('/pricing')} className="btn btn-ghost btn-sm">
+                    Change plan
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Free plan upsell */}

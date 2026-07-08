@@ -5,6 +5,7 @@ import { useLang } from '../i18n.jsx'
 import LanguageSelector from './LanguageSelector'
 import ThemeToggle from './ThemeToggle'
 import Logo from './Logo'
+import { isNativeApp } from '../utils/platform'
 
 /* ─── useIsMobile hook ───────────────────────────────────────────── */
 const useIsMobile = () => {
@@ -497,8 +498,8 @@ export default function Layout({ children }) {
             )}
           </div>
 
-          {/* Pricing link */}
-          {user?.plan === 'FREE' && (
+          {/* Pricing link — hidden in the native app (free-first, no in-app purchase) */}
+          {user?.plan === 'FREE' && !isNativeApp() && (
             collapsed ? (
               <button
                 onClick={() => navigate('/pricing')}
